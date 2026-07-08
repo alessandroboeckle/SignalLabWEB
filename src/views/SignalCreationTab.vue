@@ -9,7 +9,7 @@
     <v-row>
       <!-- Controls Sidebar -->
       <v-col cols="12" md="3">
-        <v-card class="elevation-2 sticky" style="top: 20px;">
+        <v-card class="elevation-2 sticky" style="top: 20px">
           <v-card-title>Parameters</v-card-title>
           <v-card-text>
             <!-- Signal Name -->
@@ -34,7 +34,9 @@
 
             <!-- Frequency -->
             <div class="mb-4">
-              <label class="text-caption font-weight-500">Frequency: {{ params.frequency }} Hz</label>
+              <label class="text-caption font-weight-500"
+                >Frequency: {{ params.frequency }} Hz</label
+              >
               <v-slider
                 v-model="params.frequency"
                 min="0.1"
@@ -54,7 +56,9 @@
 
             <!-- Amplitude -->
             <div class="mb-4">
-              <label class="text-caption font-weight-500">Amplitude: {{ params.amplitude }}</label>
+              <label class="text-caption font-weight-500"
+                >Amplitude: {{ params.amplitude }}</label
+              >
               <v-slider
                 v-model="params.amplitude"
                 min="0.1"
@@ -74,7 +78,9 @@
 
             <!-- Phase -->
             <div class="mb-4">
-              <label class="text-caption font-weight-500">Phase: {{ params.phase }}°</label>
+              <label class="text-caption font-weight-500"
+                >Phase: {{ params.phase }}°</label
+              >
               <v-slider
                 v-model="params.phase"
                 min="0"
@@ -96,7 +102,9 @@
 
             <!-- Duration -->
             <div class="mb-4">
-              <label class="text-caption font-weight-500">Duration: {{ params.duration }}s</label>
+              <label class="text-caption font-weight-500"
+                >Duration: {{ params.duration }}s</label
+              >
               <v-slider
                 v-model="params.duration"
                 min="0.1"
@@ -116,7 +124,9 @@
 
             <!-- Sampling Rate -->
             <div class="mb-4">
-              <label class="text-caption font-weight-500">Sampling Rate: {{ params.samplingRate }} Hz</label>
+              <label class="text-caption font-weight-500"
+                >Sampling Rate: {{ params.samplingRate }} Hz</label
+              >
               <v-select
                 v-model="params.samplingRate"
                 label="Sampling Rate"
@@ -204,19 +214,25 @@
           <!-- Signal Statistics -->
           <v-col cols="12" sm="6" md="4">
             <v-card class="elevation-2">
-              <v-card-title class="text-subtitle2">Signal Statistics</v-card-title>
+              <v-card-title class="text-subtitle2"
+                >Signal Statistics</v-card-title
+              >
               <v-card-text>
                 <div class="text-caption mb-2">
-                  <strong>RMS Value:</strong> {{ formatNumber(store.currentSignal.meta.rms) }}
+                  <strong>RMS Value:</strong>
+                  {{ formatNumber(store.currentSignal.meta.rms) }}
                 </div>
                 <div class="text-caption mb-2">
-                  <strong>Peak Value:</strong> {{ formatNumber(store.currentSignal.meta.peak) }}
+                  <strong>Peak Value:</strong>
+                  {{ formatNumber(store.currentSignal.meta.peak) }}
                 </div>
                 <div class="text-caption mb-2">
-                  <strong>Peak-to-Peak:</strong> {{ formatNumber(store.currentSignal.meta.peakToPeak) }}
+                  <strong>Peak-to-Peak:</strong>
+                  {{ formatNumber(store.currentSignal.meta.peakToPeak) }}
                 </div>
                 <div class="text-caption">
-                  <strong>Samples:</strong> {{ store.currentSignal.timeData.length }}
+                  <strong>Samples:</strong>
+                  {{ store.currentSignal.timeData.length }}
                 </div>
               </v-card-text>
             </v-card>
@@ -248,11 +264,20 @@
             <v-card class="elevation-2">
               <v-card-title class="text-subtitle2">Generated Code</v-card-title>
               <v-card-text>
-                <v-btn size="small" color="primary" @click="copyCode" class="mb-2">
+                <v-btn
+                  size="small"
+                  color="primary"
+                  @click="copyCode"
+                  class="mb-2"
+                >
                   <v-icon small left>mdi-content-copy</v-icon>
                   Copy
                 </v-btn>
-                <pre class="text-caption" style="overflow: auto; max-height: 150px;">{{ generatedCode }}</pre>
+                <pre
+                  class="text-caption"
+                  style="overflow: auto; max-height: 150px"
+                  >{{ generatedCode }}</pre
+                >
               </v-card-text>
             </v-card>
           </v-col>
@@ -268,37 +293,37 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useSignalStore } from '../stores/signalStore'
-import * as signalProcessing from '../utils/signalProcessing'
-import Chart from 'chart.js/auto'
+import { ref, computed, onMounted, watch } from "vue";
+import { useSignalStore } from "../stores/signalStore";
+import * as signalProcessing from "../utils/signalProcessing";
+import Chart from "chart.js/auto";
 
-const store = useSignalStore()
+const store = useSignalStore();
 
 const params = ref({
-  name: 'Signal 1',
-  waveType: 'sinus',
+  name: "Signal 1",
+  waveType: "sinus",
   frequency: 5,
   amplitude: 10,
   phase: 0,
   duration: 2,
-  samplingRate: 1000
-})
+  samplingRate: 1000,
+});
 
 const options = ref({
   enableFFT: false,
   enableWindow: false,
-  logScale: false
-})
+  logScale: false,
+});
 
-const waveTypes = ['sinus', 'cosinus', 'rechteck', 'sägezahn', 'dreieck']
-const samplingRates = [100, 500, 1000, 5000, 10000, 44100]
+const waveTypes = ["sinus", "cosinus", "rechteck", "sägezahn", "dreieck"];
+const samplingRates = [100, 500, 1000, 5000, 10000, 44100];
 
-let timeDomainChart = null
-let fftChart = null
+let timeDomainChart = null;
+let fftChart = null;
 
-const showSnackbar = ref(false)
-const snackbarMessage = ref('')
+const showSnackbar = ref(false);
+const snackbarMessage = ref("");
 
 const generatedCode = computed(() => {
   return `// Generate ${params.value.waveType} wave
@@ -315,87 +340,91 @@ const signal = generateSignal(
   frequency,
   amplitude,
   phase
-);`
-})
+);`;
+});
 
 function formatNumber(num) {
-  return typeof num === 'number' ? num.toFixed(3) : '0'
+  return typeof num === "number" ? num.toFixed(3) : "0";
 }
 
 function generateSignal() {
-  store.generateSignal(params.value)
-  updateCharts()
+  store.generateSignal(params.value);
+  updateCharts();
 }
 
 function saveSignal() {
-  const saved = store.saveCurrentSignal()
-  snackbarMessage.value = `Signal "${saved.name}" saved!`
-  showSnackbar.value = true
+  const saved = store.saveCurrentSignal();
+  snackbarMessage.value = `Signal "${saved.name}" saved!`;
+  showSnackbar.value = true;
 }
 
 function exportSignal() {
-  const format = 'json'
-  store.exportSignal(store.currentSignal.id, format)
-  snackbarMessage.value = 'Signal exported!'
-  showSnackbar.value = true
+  const format = "json";
+  store.exportSignal(store.currentSignal.id, format);
+  snackbarMessage.value = "Signal exported!";
+  showSnackbar.value = true;
 }
 
 function resetParameters() {
   params.value = {
-    name: 'Signal 1',
-    waveType: 'sinus',
+    name: "Signal 1",
+    waveType: "sinus",
     frequency: 5,
     amplitude: 10,
     phase: 0,
     duration: 2,
-    samplingRate: 1000
-  }
-  generateSignal()
+    samplingRate: 1000,
+  };
+  generateSignal();
 }
 
 function copyCode() {
-  navigator.clipboard.writeText(generatedCode.value)
-  snackbarMessage.value = 'Code copied to clipboard!'
-  showSnackbar.value = true
+  navigator.clipboard.writeText(generatedCode.value);
+  snackbarMessage.value = "Code copied to clipboard!";
+  showSnackbar.value = true;
 }
 
 function updateCharts() {
-  drawTimeDomainChart()
+  drawTimeDomainChart();
   if (options.value.enableFFT) {
-    drawFFTChart()
+    drawFFTChart();
   }
 }
 
 function drawTimeDomainChart() {
-  const canvas = document.getElementById('timeDomainChart')
-  if (!canvas) return
+  const canvas = document.getElementById("timeDomainChart");
+  if (!canvas) return;
 
   if (timeDomainChart) {
-    timeDomainChart.destroy()
+    timeDomainChart.destroy();
   }
 
-  const signal = store.currentSignal
-  if (signal.timeData.length === 0) return
+  const signal = store.currentSignal;
+  if (signal.timeData.length === 0) return;
 
   // Sample data for display
-  const sampleRate = Math.ceil(signal.timeData.length / 1000)
-  const sampledTime = signal.timeData.filter((_, i) => i % sampleRate === 0)
-  const sampledAmplitude = signal.amplitudeData.filter((_, i) => i % sampleRate === 0)
+  const sampleRate = Math.ceil(signal.timeData.length / 1000);
+  const sampledTime = signal.timeData.filter((_, i) => i % sampleRate === 0);
+  const sampledAmplitude = signal.amplitudeData.filter(
+    (_, i) => i % sampleRate === 0,
+  );
 
   timeDomainChart = new Chart(canvas, {
-    type: 'line',
+    type: "line",
     data: {
-      labels: sampledTime.map(t => t.toFixed(3)),
-      datasets: [{
-        label: params.value.name,
-        data: sampledAmplitude,
-        borderColor: '#2563EB',
-        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.4,
-        fill: true
-      }]
+      labels: sampledTime.map((t) => t.toFixed(3)),
+      datasets: [
+        {
+          label: params.value.name,
+          data: sampledAmplitude,
+          borderColor: "#2563EB",
+          backgroundColor: "rgba(37, 99, 235, 0.1)",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: true,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -403,64 +432,73 @@ function drawTimeDomainChart() {
       plugins: {
         legend: {
           display: true,
-          labels: { usePointStyle: true }
-        }
+          labels: { usePointStyle: true },
+        },
       },
       scales: {
         y: {
           title: {
             display: true,
-            text: 'Amplitude'
-          }
+            text: "Amplitude",
+          },
         },
         x: {
           title: {
             display: true,
-            text: 'Time (s)'
-          }
-        }
-      }
-    }
-  })
+            text: "Time (s)",
+          },
+        },
+      },
+    },
+  });
 }
 
 function drawFFTChart() {
-  const canvas = document.getElementById('fftChart')
-  if (!canvas) return
+  const canvas = document.getElementById("fftChart");
+  if (!canvas) return;
 
   if (fftChart) {
-    fftChart.destroy()
+    fftChart.destroy();
   }
 
-  const signal = store.currentSignal
-  if (signal.amplitudeData.length === 0) return
+  const signal = store.currentSignal;
+  if (signal.amplitudeData.length === 0) return;
 
-  let signalData = new Float64Array(signal.amplitudeData)
+  let signalData = new Float64Array(signal.amplitudeData);
   if (options.value.enableWindow) {
-    signalData = signalProcessing.applyHannWindow(signalData)
+    signalData = signalProcessing.applyHannWindow(signalData);
   }
 
-  const fftResult = signalProcessing.computeFFTMagnitude(signalData, params.value.samplingRate)
-  
+  const fftResult = signalProcessing.computeFFTMagnitude(
+    signalData,
+    params.value.samplingRate,
+  );
+
   // Sample FFT data
-  const sampleRate = Math.ceil(fftResult.frequency.length / 500)
-  const sampledFreq = Array.from(fftResult.frequency).filter((_, i) => i % sampleRate === 0)
-  const sampledMag = Array.from(fftResult.magnitude).filter((_, i) => i % sampleRate === 0)
+  const sampleRate = Math.ceil(fftResult.frequency.length / 500);
+  const sampledFreq = Array.from(fftResult.frequency).filter(
+    (_, i) => i % sampleRate === 0,
+  );
+  const sampledMag = Array.from(fftResult.magnitude).filter(
+    (_, i) => i % sampleRate === 0,
+  );
 
   fftChart = new Chart(canvas, {
-    type: 'line',
+    type: "line",
     data: {
-      labels: sampledFreq.map(f => f.toFixed(1)),
-      datasets: [{
-        label: 'FFT Magnitude',
-        data: sampledMag,
-        borderColor: '#FF6B35',
-        backgroundColor: 'rgba(255, 107, 53, 0.1)',
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.4,
-        fill: true
-      }]
+      labels: sampledFreq.map((f) => f.toFixed(1)),
+      datasets: [
+        {
+          label: "FFT Magnitude",
+          data: sampledMag,
+          borderColor: "#FF6B35",
+          backgroundColor: "rgba(255, 107, 53, 0.1)",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: true,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -468,47 +506,56 @@ function drawFFTChart() {
       plugins: {
         legend: {
           display: true,
-          labels: { usePointStyle: true }
-        }
+          labels: { usePointStyle: true },
+        },
       },
       scales: {
         y: {
-          type: options.value.logScale ? 'logarithmic' : 'linear',
+          type: options.value.logScale ? "logarithmic" : "linear",
           title: {
             display: true,
-            text: 'Magnitude'
-          }
+            text: "Magnitude",
+          },
         },
         x: {
           title: {
             display: true,
-            text: 'Frequency (Hz)'
-          }
-        }
-      }
-    }
-  })
+            text: "Frequency (Hz)",
+          },
+        },
+      },
+    },
+  });
 }
 
 onMounted(() => {
-  generateSignal()
-})
+  generateSignal();
+});
 
-watch(() => options.value.enableFFT, () => {
-  updateCharts()
-})
+watch(
+  () => options.value.enableFFT,
+  () => {
+    updateCharts();
+  },
+);
 
-watch(() => options.value.enableWindow, () => {
-  if (options.value.enableFFT) {
-    updateCharts()
-  }
-})
+watch(
+  () => options.value.enableWindow,
+  () => {
+    if (options.value.enableFFT) {
+      updateCharts();
+    }
+  },
+);
 
-watch(() => options.value.logScale, () => {
-  if (options.value.enableFFT) {
-    drawFFTChart()
-  }
-})
+watch(
+  () => options.value.logScale,
+  () => {
+    if (options.value.enableFFT) {
+      drawFFTChart();
+    }
+  },
+);
 </script>
 
 <style scoped>

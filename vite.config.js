@@ -3,7 +3,7 @@ import vue from "@vitejs/plugin-vue";
 
 export default defineConfig({
   plugins: [vue()],
-  base: "/SignalLabWEB/",
+  base: process.env.NODE_ENV === "production" ? "/signal-lab/" : "/",
   server: {
     port: 3000,
     open: true,

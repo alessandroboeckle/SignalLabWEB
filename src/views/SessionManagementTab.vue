@@ -4,7 +4,11 @@
       <v-col cols="12">
         <div class="d-flex justify-space-between align-center mb-4">
           <h2 class="text-h5 font-weight-bold">Session Management</h2>
-          <v-btn color="primary" @click="showNewSessionDialog = true" prepend-icon="mdi-plus">
+          <v-btn
+            color="primary"
+            @click="showNewSessionDialog = true"
+            prepend-icon="mdi-plus"
+          >
             New Session
           </v-btn>
         </div>
@@ -40,11 +44,19 @@
                       </v-btn>
                     </template>
                     <v-list>
-                      <v-list-item @click.stop="renameSession(session.id, session.name)">
-                        <v-list-item-title class="text-caption">Rename</v-list-item-title>
+                      <v-list-item
+                        @click.stop="renameSession(session.id, session.name)"
+                      >
+                        <v-list-item-title class="text-caption"
+                          >Rename</v-list-item-title
+                        >
                       </v-list-item>
-                      <v-list-item @click.stop="deleteSessionConfirm(session.id)">
-                        <v-list-item-title class="text-caption text-error">Delete</v-list-item-title>
+                      <v-list-item
+                        @click.stop="deleteSessionConfirm(session.id)"
+                      >
+                        <v-list-item-title class="text-caption text-error"
+                          >Delete</v-list-item-title
+                        >
                       </v-list-item>
                     </v-list>
                   </v-menu>
@@ -52,7 +64,10 @@
               </v-list-item>
             </v-list>
 
-            <div v-if="store.allSessions.length === 0" class="text-center text-disabled py-4 text-caption">
+            <div
+              v-if="store.allSessions.length === 0"
+              class="text-center text-disabled py-4 text-caption"
+            >
               No sessions yet
             </div>
           </v-card-text>
@@ -68,11 +83,15 @@
             <v-row class="mb-4">
               <v-col cols="12" sm="6">
                 <div class="text-caption text-disabled">Created</div>
-                <div class="text-body2">{{ new Date(store.currentSession.created).toLocaleString() }}</div>
+                <div class="text-body2">
+                  {{ new Date(store.currentSession.created).toLocaleString() }}
+                </div>
               </v-col>
               <v-col cols="12" sm="6">
                 <div class="text-caption text-disabled">Signals</div>
-                <div class="text-body2">{{ store.currentSession.signals.length }} signals</div>
+                <div class="text-body2">
+                  {{ store.currentSession.signals.length }} signals
+                </div>
               </v-col>
             </v-row>
 
@@ -85,13 +104,17 @@
                 dense
                 rows="4"
               ></v-textarea>
-              <v-btn size="small" color="primary" @click="saveNotes">Save Notes</v-btn>
+              <v-btn size="small" color="primary" @click="saveNotes"
+                >Save Notes</v-btn
+              >
             </div>
 
             <v-divider class="my-4"></v-divider>
 
             <!-- Signals in Session -->
-            <h3 class="text-subtitle2 font-weight-bold mb-3">Signals in This Session</h3>
+            <h3 class="text-subtitle2 font-weight-bold mb-3">
+              Signals in This Session
+            </h3>
             <v-list dense>
               <v-list-item
                 v-for="signal in store.currentSession.signals"
@@ -101,7 +124,9 @@
                 <template v-slot:prepend>
                   <v-icon small color="primary">mdi-sine-wave</v-icon>
                 </template>
-                <v-list-item-title class="text-body2">{{ signal.name }}</v-list-item-title>
+                <v-list-item-title class="text-body2">{{
+                  signal.name
+                }}</v-list-item-title>
                 <v-list-item-subtitle class="text-caption">
                   {{ signal.waveType }} @ {{ signal.frequency }}Hz
                 </v-list-item-subtitle>
@@ -110,7 +135,12 @@
                     <v-btn size="x-small" icon @click="loadSignal(signal.id)">
                       <v-icon small>mdi-eye</v-icon>
                     </v-btn>
-                    <v-btn size="x-small" icon color="error" @click="deleteSignalConfirm(signal.id)">
+                    <v-btn
+                      size="x-small"
+                      icon
+                      color="error"
+                      @click="deleteSignalConfirm(signal.id)"
+                    >
                       <v-icon small>mdi-delete</v-icon>
                     </v-btn>
                   </v-btn-group>
@@ -118,7 +148,10 @@
               </v-list-item>
             </v-list>
 
-            <div v-if="store.currentSession.signals.length === 0" class="text-center text-disabled py-4 text-caption">
+            <div
+              v-if="store.currentSession.signals.length === 0"
+              class="text-center text-disabled py-4 text-caption"
+            >
               No signals in this session yet
             </div>
           </v-card-text>
@@ -173,7 +206,8 @@
       <v-card>
         <v-card-title>Delete {{ deleteTarget.type }}?</v-card-title>
         <v-card-text>
-          Are you sure you want to delete this {{ deleteTarget.type }}? This action cannot be undone.
+          Are you sure you want to delete this {{ deleteTarget.type }}? This
+          action cannot be undone.
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -191,98 +225,98 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useSignalStore } from '../stores/signalStore'
+import { ref, computed } from "vue";
+import { useSignalStore } from "../stores/signalStore";
 
-const store = useSignalStore()
+const store = useSignalStore();
 
-const showNewSessionDialog = ref(false)
-const showRenameDialog = ref(false)
-const showDeleteDialog = ref(false)
-const showSnackbar = ref(false)
+const showNewSessionDialog = ref(false);
+const showRenameDialog = ref(false);
+const showDeleteDialog = ref(false);
+const showSnackbar = ref(false);
 
-const newSessionName = ref('New Session')
-const editingNotes = ref('')
-const renamingSessionName = ref('')
+const newSessionName = ref("New Session");
+const editingNotes = ref("");
+const renamingSessionName = ref("");
 
-const snackbarMessage = ref('')
+const snackbarMessage = ref("");
 
 const deleteTarget = ref({
-  type: 'session',
-  id: null
-})
+  type: "session",
+  id: null,
+});
 
-const renamingSessionId = ref(null)
+const renamingSessionId = ref(null);
 
 function selectSession(sessionId) {
-  store.setCurrentSession(sessionId)
-  editingNotes.value = store.currentSession.notes
+  store.setCurrentSession(sessionId);
+  editingNotes.value = store.currentSession.notes;
 }
 
 function createNewSession() {
   if (newSessionName.value.trim()) {
-    store.createSession(newSessionName.value)
-    editingNotes.value = ''
-    newSessionName.value = 'New Session'
-    showNewSessionDialog.value = false
-    snackbarMessage.value = 'Session created!'
-    showSnackbar.value = true
+    store.createSession(newSessionName.value);
+    editingNotes.value = "";
+    newSessionName.value = "New Session";
+    showNewSessionDialog.value = false;
+    snackbarMessage.value = "Session created!";
+    showSnackbar.value = true;
   }
 }
 
 function renameSession(sessionId, currentName) {
-  renamingSessionId.value = sessionId
-  renamingSessionName.value = currentName
-  showRenameDialog.value = true
+  renamingSessionId.value = sessionId;
+  renamingSessionName.value = currentName;
+  showRenameDialog.value = true;
 }
 
 function confirmRename() {
   if (renamingSessionName.value.trim()) {
-    store.updateSession({ name: renamingSessionName.value })
-    showRenameDialog.value = false
-    snackbarMessage.value = 'Session renamed!'
-    showSnackbar.value = true
+    store.updateSession({ name: renamingSessionName.value });
+    showRenameDialog.value = false;
+    snackbarMessage.value = "Session renamed!";
+    showSnackbar.value = true;
   }
 }
 
 function deleteSessionConfirm(sessionId) {
   deleteTarget.value = {
-    type: 'session',
-    id: sessionId
-  }
-  showDeleteDialog.value = true
+    type: "session",
+    id: sessionId,
+  };
+  showDeleteDialog.value = true;
 }
 
 function deleteSignalConfirm(signalId) {
   deleteTarget.value = {
-    type: 'signal',
-    id: signalId
-  }
-  showDeleteDialog.value = true
+    type: "signal",
+    id: signalId,
+  };
+  showDeleteDialog.value = true;
 }
 
 function confirmDelete() {
-  if (deleteTarget.value.type === 'session') {
-    store.deleteSession(deleteTarget.value.id)
-    snackbarMessage.value = 'Session deleted!'
+  if (deleteTarget.value.type === "session") {
+    store.deleteSession(deleteTarget.value.id);
+    snackbarMessage.value = "Session deleted!";
   } else {
-    store.deleteSignal(deleteTarget.value.id)
-    snackbarMessage.value = 'Signal deleted!'
+    store.deleteSignal(deleteTarget.value.id);
+    snackbarMessage.value = "Signal deleted!";
   }
-  showDeleteDialog.value = false
-  showSnackbar.value = true
+  showDeleteDialog.value = false;
+  showSnackbar.value = true;
 }
 
 function loadSignal(signalId) {
-  store.loadSignal(signalId)
-  snackbarMessage.value = 'Signal loaded!'
-  showSnackbar.value = true
+  store.loadSignal(signalId);
+  snackbarMessage.value = "Signal loaded!";
+  showSnackbar.value = true;
 }
 
 function saveNotes() {
-  store.updateSession({ notes: editingNotes.value })
-  snackbarMessage.value = 'Notes saved!'
-  showSnackbar.value = true
+  store.updateSession({ notes: editingNotes.value });
+  snackbarMessage.value = "Notes saved!";
+  showSnackbar.value = true;
 }
 </script>
 

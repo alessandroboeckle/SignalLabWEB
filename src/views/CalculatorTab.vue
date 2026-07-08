@@ -18,20 +18,30 @@
               dense
               class="mb-4"
             ></v-text-field>
-            
+
             <div class="mb-4">
               <div class="text-caption mb-1"><strong>Period:</strong></div>
-              <div class="text-body2">{{ formatNumber(1 / freq.frequency) }} s</div>
+              <div class="text-body2">
+                {{ formatNumber(1 / freq.frequency) }} s
+              </div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Angular Frequency:</strong></div>
-              <div class="text-body2">{{ formatNumber(2 * Math.PI * freq.frequency) }} rad/s</div>
+              <div class="text-caption mb-1">
+                <strong>Angular Frequency:</strong>
+              </div>
+              <div class="text-body2">
+                {{ formatNumber(2 * Math.PI * freq.frequency) }} rad/s
+              </div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Wavelength (in air):</strong></div>
-              <div class="text-body2">{{ formatNumber(343 / freq.frequency) }} m</div>
+              <div class="text-caption mb-1">
+                <strong>Wavelength (in air):</strong>
+              </div>
+              <div class="text-body2">
+                {{ formatNumber(343 / freq.frequency) }} m
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -48,20 +58,36 @@
               dense
               class="mb-4"
             ></v-text-field>
-            
+
             <div class="mb-4">
               <div class="text-caption mb-1"><strong>RMS Value:</strong></div>
-              <div class="text-body2">{{ formatNumber(amplitude.peakValue / Math.sqrt(2)) }} (for sine wave)</div>
+              <div class="text-body2">
+                {{ formatNumber(amplitude.peakValue / Math.sqrt(2)) }} (for sine
+                wave)
+              </div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Peak-to-Peak:</strong></div>
-              <div class="text-body2">{{ formatNumber(2 * amplitude.peakValue) }}</div>
+              <div class="text-caption mb-1">
+                <strong>Peak-to-Peak:</strong>
+              </div>
+              <div class="text-body2">
+                {{ formatNumber(2 * amplitude.peakValue) }}
+              </div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Crest Factor:</strong></div>
-              <div class="text-body2">{{ formatNumber(amplitude.peakValue / (amplitude.peakValue / Math.sqrt(2))) }} (for sine wave)</div>
+              <div class="text-caption mb-1">
+                <strong>Crest Factor:</strong>
+              </div>
+              <div class="text-body2">
+                {{
+                  formatNumber(
+                    amplitude.peakValue / (amplitude.peakValue / Math.sqrt(2)),
+                  )
+                }}
+                (for sine wave)
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -80,15 +106,25 @@
               dense
               class="mb-4"
             ></v-text-field>
-            
+
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Nyquist Frequency:</strong></div>
-              <div class="text-body2 text-success">{{ formatNumber(2 * sampling.frequency) }} Hz (minimum sampling rate)</div>
+              <div class="text-caption mb-1">
+                <strong>Nyquist Frequency:</strong>
+              </div>
+              <div class="text-body2 text-success">
+                {{ formatNumber(2 * sampling.frequency) }} Hz (minimum sampling
+                rate)
+              </div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Recommended Sampling Rate:</strong></div>
-              <div class="text-body2">{{ formatNumber(10 * sampling.frequency) }} Hz (10x signal frequency)</div>
+              <div class="text-caption mb-1">
+                <strong>Recommended Sampling Rate:</strong>
+              </div>
+              <div class="text-body2">
+                {{ formatNumber(10 * sampling.frequency) }} Hz (10x signal
+                frequency)
+              </div>
             </div>
 
             <v-text-field
@@ -101,8 +137,19 @@
 
             <div class="mb-4">
               <div class="text-caption mb-1"><strong>Status:</strong></div>
-              <div class="text-body2" :class="sampling.samplingRate >= 2 * sampling.frequency ? 'text-success' : 'text-error'">
-                {{ sampling.samplingRate >= 2 * sampling.frequency ? '✓ Sufficient sampling rate' : '✗ Aliasing will occur' }}
+              <div
+                class="text-body2"
+                :class="
+                  sampling.samplingRate >= 2 * sampling.frequency
+                    ? 'text-success'
+                    : 'text-error'
+                "
+              >
+                {{
+                  sampling.samplingRate >= 2 * sampling.frequency
+                    ? "✓ Sufficient sampling rate"
+                    : "✗ Aliasing will occur"
+                }}
               </div>
             </div>
           </v-card-text>
@@ -128,20 +175,35 @@
               dense
               class="mb-4"
             ></v-text-field>
-            
+
             <div class="mb-4">
               <div class="text-caption mb-1"><strong>Power (RMS):</strong></div>
-              <div class="text-body2">{{ formatNumber((energy.voltage * energy.voltage) / energy.resistance) }} W</div>
+              <div class="text-body2">
+                {{
+                  formatNumber(
+                    (energy.voltage * energy.voltage) / energy.resistance,
+                  )
+                }}
+                W
+              </div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Current (RMS):</strong></div>
-              <div class="text-body2">{{ formatNumber(energy.voltage / energy.resistance) }} A</div>
+              <div class="text-caption mb-1">
+                <strong>Current (RMS):</strong>
+              </div>
+              <div class="text-body2">
+                {{ formatNumber(energy.voltage / energy.resistance) }} A
+              </div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>dB (referenced to 1V):</strong></div>
-              <div class="text-body2">{{ formatNumber(20 * Math.log10(energy.voltage)) }} dB</div>
+              <div class="text-caption mb-1">
+                <strong>dB (referenced to 1V):</strong>
+              </div>
+              <div class="text-body2">
+                {{ formatNumber(20 * Math.log10(energy.voltage)) }} dB
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -177,14 +239,22 @@
             <v-row>
               <v-col cols="12" md="6">
                 <div class="mb-4">
-                  <div class="text-caption mb-1"><strong>Frequency Resolution:</strong></div>
-                  <div class="text-body2">{{ formatNumber(fft.samplingRate / fft.fftSize) }} Hz/bin</div>
+                  <div class="text-caption mb-1">
+                    <strong>Frequency Resolution:</strong>
+                  </div>
+                  <div class="text-body2">
+                    {{ formatNumber(fft.samplingRate / fft.fftSize) }} Hz/bin
+                  </div>
                 </div>
               </v-col>
               <v-col cols="12" md="6">
                 <div class="mb-4">
-                  <div class="text-caption mb-1"><strong>Analysis Time:</strong></div>
-                  <div class="text-body2">{{ formatNumber(fft.fftSize / fft.samplingRate) }} s</div>
+                  <div class="text-caption mb-1">
+                    <strong>Analysis Time:</strong>
+                  </div>
+                  <div class="text-body2">
+                    {{ formatNumber(fft.fftSize / fft.samplingRate) }} s
+                  </div>
                 </div>
               </v-col>
             </v-row>
@@ -196,46 +266,46 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref } from "vue";
 
 const freq = ref({
-  frequency: 50
-})
+  frequency: 50,
+});
 
 const amplitude = ref({
-  peakValue: 10
-})
+  peakValue: 10,
+});
 
 const sampling = ref({
   frequency: 100,
-  samplingRate: 1000
-})
+  samplingRate: 1000,
+});
 
 const energy = ref({
   voltage: 1,
-  resistance: 50
-})
+  resistance: 50,
+});
 
 const fft = ref({
   samplingRate: 10000,
-  fftSize: 1024
-})
+  fftSize: 1024,
+});
 
 function formatNumber(num) {
-  if (typeof num !== 'number') return '0'
+  if (typeof num !== "number") return "0";
   if (Math.abs(num) > 1000 || Math.abs(num) < 0.001) {
-    return num.toExponential(3)
+    return num.toExponential(3);
   }
-  return num.toFixed(3)
+  return num.toFixed(3);
 }
 </script>
 
 <style scoped>
 .text-success {
-  color: #10B981;
+  color: #10b981;
 }
 
 .text-error {
-  color: #EF4444;
+  color: #ef4444;
 }
 </style>

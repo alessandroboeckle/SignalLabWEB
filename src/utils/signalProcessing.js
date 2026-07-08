@@ -80,7 +80,9 @@ export function generateSawtooth(t, frequency, amplitude, phase = 0) {
   const phaseRad = (phase * Math.PI) / 180;
   const signal = new Float64Array(t.length);
   for (let i = 0; i < t.length; i++) {
-    const arg = ((2 * Math.PI * frequency * t[i] + phaseRad) % (2 * Math.PI)) / (2 * Math.PI);
+    const arg =
+      ((2 * Math.PI * frequency * t[i] + phaseRad) % (2 * Math.PI)) /
+      (2 * Math.PI);
     signal[i] = amplitude * (2 * arg - 1);
   }
   return signal;
@@ -98,7 +100,9 @@ export function generateTriangle(t, frequency, amplitude, phase = 0) {
   const phaseRad = (phase * Math.PI) / 180;
   const signal = new Float64Array(t.length);
   for (let i = 0; i < t.length; i++) {
-    const arg = ((2 * Math.PI * frequency * t[i] + phaseRad) % (2 * Math.PI)) / (2 * Math.PI);
+    const arg =
+      ((2 * Math.PI * frequency * t[i] + phaseRad) % (2 * Math.PI)) /
+      (2 * Math.PI);
     if (arg < 0.25) {
       signal[i] = amplitude * (4 * arg);
     } else if (arg < 0.75) {
@@ -115,20 +119,20 @@ export function generateTriangle(t, frequency, amplitude, phase = 0) {
  */
 export function generateSignal(t, waveType, frequency, amplitude, phase = 0) {
   switch (waveType.toLowerCase()) {
-    case 'sinus':
-    case 'sine':
+    case "sinus":
+    case "sine":
       return generateSine(t, frequency, amplitude, phase);
-    case 'cosinus':
-    case 'cosine':
+    case "cosinus":
+    case "cosine":
       return generateCosine(t, frequency, amplitude, phase);
-    case 'rechteck':
-    case 'square':
+    case "rechteck":
+    case "square":
       return generateSquare(t, frequency, amplitude, phase);
-    case 'sägezahn':
-    case 'sawtooth':
+    case "sägezahn":
+    case "sawtooth":
       return generateSawtooth(t, frequency, amplitude, phase);
-    case 'dreieck':
-    case 'triangle':
+    case "dreieck":
+    case "triangle":
       return generateTriangle(t, frequency, amplitude, phase);
     default:
       return generateSine(t, frequency, amplitude, phase);
@@ -141,16 +145,16 @@ export function generateSignal(t, waveType, frequency, amplitude, phase = 0) {
 export function computeFFT(signal) {
   const n = signal.length;
   if (n <= 1) return signal;
-  
+
   // Pad to power of 2
   let powerOf2 = 1;
   while (powerOf2 < n) powerOf2 *= 2;
-  
+
   const padded = new Float64Array(powerOf2);
   for (let i = 0; i < n; i++) {
     padded[i] = signal[i];
   }
-  
+
   return fft(padded);
 }
 
@@ -160,29 +164,29 @@ export function computeFFT(signal) {
 function fft(signal) {
   const n = signal.length;
   if (n === 1) return signal;
-  
+
   const even = new Float64Array(n / 2);
   const odd = new Float64Array(n / 2);
-  
+
   for (let i = 0; i < n / 2; i++) {
     even[i] = signal[2 * i];
     odd[i] = signal[2 * i + 1];
   }
-  
+
   const fftEven = fft(even);
   const fftOdd = fft(odd);
-  
+
   const result = new Float64Array(n);
   for (let k = 0; k < n / 2; k++) {
-    const twiddle = -2 * Math.PI * k / n;
+    const twiddle = (-2 * Math.PI * k) / n;
     const cosW = Math.cos(twiddle);
     const sinW = Math.sin(twiddle);
     const t = cosW * fftOdd[k] - sinW * fftOdd[k];
-    
+
     result[k] = fftEven[k] + t;
     result[k + n / 2] = fftEven[k] - t;
   }
-  
+
   return result;
 }
 
@@ -192,18 +196,18 @@ function fft(signal) {
 export function computeFFTMagnitude(signal, samplingRate) {
   const n = signal.length;
   const fftResult = computeFFT(signal);
-  
+
   const magnitude = new Float64Array(n / 2);
   const frequency = new Float64Array(n / 2);
-  
+
   const freqResolution = samplingRate / n;
-  
+
   for (let i = 0; i < n / 2; i++) {
     // Simplified magnitude calculation
     magnitude[i] = Math.sqrt(fftResult[i] * fftResult[i]);
     frequency[i] = i * freqResolution;
   }
-  
+
   return { magnitude, frequency };
 }
 
@@ -249,7 +253,7 @@ export function applyHannWindow(signal) {
   const windowed = new Float64Array(signal.length);
   const n = signal.length;
   for (let i = 0; i < n; i++) {
-    const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / (n - 1)));
+    const window = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (n - 1)));
     windowed[i] = signal[i] * window;
   }
   return windowed;

@@ -13,7 +13,9 @@
           <v-card-text>
             <!-- Theme Selection -->
             <div class="mb-6">
-              <label class="text-caption font-weight-500 mb-2 d-block">Theme</label>
+              <label class="text-caption font-weight-500 mb-2 d-block"
+                >Theme</label
+              >
               <v-btn-toggle v-model="settings.theme" group class="w-100">
                 <v-btn value="light" class="flex-grow-1">
                   <v-icon left small>mdi-white-balance-sunny</v-icon>
@@ -72,7 +74,8 @@
               <div class="text-caption text-disabled">Storage Usage</div>
               <div class="text-body2 mb-2">{{ storageInfo.storageUsage }}</div>
               <div class="text-caption mb-3">
-                {{ storageInfo.sessionCount }} sessions, {{ storageInfo.signalCount }} signals
+                {{ storageInfo.sessionCount }} sessions,
+                {{ storageInfo.signalCount }} signals
               </div>
               <v-progress-linear
                 :value="storagePercentage"
@@ -163,7 +166,8 @@
       <v-card>
         <v-card-title>Clear All Data?</v-card-title>
         <v-card-text>
-          This will permanently delete all sessions, signals, and settings. This action cannot be undone.
+          This will permanently delete all sessions, signals, and settings. This
+          action cannot be undone.
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -181,95 +185,107 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch } from 'vue'
-import { useTheme } from 'vuetify'
-import { useSignalStore } from '../stores/signalStore'
-import * as storage from '../utils/storage'
+import { ref, computed, reactive, watch } from "vue";
+import { useTheme } from "vuetify";
+import { useSignalStore } from "../stores/signalStore";
+import * as storage from "../utils/storage";
 
-const theme = useTheme()
-const store = useSignalStore()
+const theme = useTheme();
+const store = useSignalStore();
 
-const showClearDialog = ref(false)
-const showSnackbar = ref(false)
-const snackbarMessage = ref('')
+const showClearDialog = ref(false);
+const showSnackbar = ref(false);
+const snackbarMessage = ref("");
 
 const settings = reactive({
   theme: store.settings.theme,
   autoFFT: store.settings.autoFFT,
   windowFunction: store.settings.windowFunction,
-  gridEnabled: store.settings.gridEnabled
-})
+  gridEnabled: store.settings.gridEnabled,
+});
 
-const windowFunctions = ['none', 'hann', 'hamming', 'blackman']
+const windowFunctions = ["none", "hann", "hamming", "blackman"];
 
 const currentDate = computed(() => {
-  return new Date().toLocaleDateString()
-})
+  return new Date().toLocaleDateString();
+});
 
 const storageInfo = computed(() => {
-  return storage.getStorageInfo()
-})
+  return storage.getStorageInfo();
+});
 
 const storagePercentage = computed(() => {
   // Assume 5MB limit
-  const usage = parseFloat(storageInfo.value.storageUsage)
-  return Math.min((usage / 5000) * 100, 100)
-})
+  const usage = parseFloat(storageInfo.value.storageUsage);
+  return Math.min((usage / 5000) * 100, 100);
+});
 
 const storageColor = computed(() => {
-  const percentage = storagePercentage.value
-  if (percentage > 80) return 'error'
-  if (percentage > 50) return 'warning'
-  return 'success'
-})
+  const percentage = storagePercentage.value;
+  if (percentage > 80) return "error";
+  if (percentage > 50) return "warning";
+  return "success";
+});
 
 function exportAllData() {
   const data = {
     sessions: storage.loadAllSessions(),
     signals: storage.loadAllSignals(),
-    exportDate: new Date().toISOString()
-  }
+    exportDate: new Date().toISOString(),
+  };
 
-  const dataStr = JSON.stringify(data, null, 2)
-  const dataBlob = new Blob([dataStr], { type: 'application/json' })
-  const url = URL.createObjectURL(dataBlob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `signal-lab-backup-${Date.now()}.json`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  const dataStr = JSON.stringify(data, null, 2);
+  const dataBlob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `signal-lab-backup-${Date.now()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 
-  snackbarMessage.value = 'Data exported successfully!'
-  showSnackbar.value = true
+  snackbarMessage.value = "Data exported successfully!";
+  showSnackbar.value = true;
 }
 
 function clearAllData() {
-  store.clearAllData()
-  showClearDialog.value = false
-  snackbarMessage.value = 'All data cleared!'
-  showSnackbar.value = true
+  store.clearAllData();
+  showClearDialog.value = false;
+  snackbarMessage.value = "All data cleared!";
+  showSnackbar.value = true;
 }
 
 // Watch for changes and update theme
-watch(() => settings.theme, (newTheme) => {
-  theme.global.name.value = newTheme === 'dark' ? 'dark' : 'light'
-  store.updateSettings({ theme: newTheme })
-})
+watch(
+  () => settings.theme,
+  (newTheme) => {
+    theme.global.name.value = newTheme === "dark" ? "dark" : "light";
+    store.updateSettings({ theme: newTheme });
+  },
+);
 
 // Watch for other settings changes
-watch(() => settings.autoFFT, (val) => {
-  store.updateSettings({ autoFFT: val })
-})
+watch(
+  () => settings.autoFFT,
+  (val) => {
+    store.updateSettings({ autoFFT: val });
+  },
+);
 
-watch(() => settings.windowFunction, (val) => {
-  store.updateSettings({ windowFunction: val })
-})
+watch(
+  () => settings.windowFunction,
+  (val) => {
+    store.updateSettings({ windowFunction: val });
+  },
+);
 
-watch(() => settings.gridEnabled, (val) => {
-  store.updateSettings({ gridEnabled: val })
-})
+watch(
+  () => settings.gridEnabled,
+  (val) => {
+    store.updateSettings({ gridEnabled: val });
+  },
+);
 </script>
 
 <style scoped>

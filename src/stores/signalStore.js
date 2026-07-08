@@ -1,23 +1,23 @@
-import { defineStore } from 'pinia'
-import { reactive } from 'vue'
-import * as storage from '../utils/storage.js'
-import * as signalProcessing from '../utils/signalProcessing.js'
+import { defineStore } from "pinia";
+import { reactive } from "vue";
+import * as storage from "../utils/storage.js";
+import * as signalProcessing from "../utils/signalProcessing.js";
 
-export const useSignalStore = defineStore('signal', () => {
+export const useSignalStore = defineStore("signal", () => {
   // State
   const currentSession = reactive({
     id: null,
-    name: 'Neue Session',
+    name: "Neue Session",
     created: new Date().toISOString(),
-    notes: '',
-    signals: []
-  })
+    notes: "",
+    signals: [],
+  });
 
-  const allSessions = reactive([])
+  const allSessions = reactive([]);
   const currentSignal = reactive({
     id: null,
-    name: 'Signal 1',
-    waveType: 'sinus',
+    name: "Signal 1",
+    waveType: "sinus",
     frequency: 5,
     amplitude: 10,
     phase: 0,
@@ -25,88 +25,91 @@ export const useSignalStore = defineStore('signal', () => {
     samplingRate: 1000,
     timeData: [],
     amplitudeData: [],
-    meta: {}
-  })
+    meta: {},
+  });
 
   const settings = reactive({
-    theme: localStorage.getItem('signal_lab_theme') || 'light',
+    theme: localStorage.getItem("signal_lab_theme") || "light",
     autoFFT: false,
-    windowFunction: 'none',
-    gridEnabled: true
-  })
+    windowFunction: "none",
+    gridEnabled: true,
+  });
 
   // Load sessions on init
   function loadSessions() {
-    const sessions = storage.loadAllSessions()
-    allSessions.length = 0
-    allSessions.push(...sessions)
+    const sessions = storage.loadAllSessions();
+    allSessions.length = 0;
+    allSessions.push(...sessions);
   }
 
   // Create new session
-  function createSession(name = 'Neue Session') {
+  function createSession(name = "Neue Session") {
     const session = {
       id: Date.now().toString(),
       name,
       created: new Date().toISOString(),
-      notes: '',
-      signals: []
-    }
-    
-    storage.saveSession(session)
-    allSessions.push(session)
-    
-    setCurrentSession(session.id)
-    return session
+      notes: "",
+      signals: [],
+    };
+
+    storage.saveSession(session);
+    allSessions.push(session);
+
+    setCurrentSession(session.id);
+    return session;
   }
 
   // Set current session
   function setCurrentSession(sessionId) {
-    const session = storage.loadSession(sessionId)
+    const session = storage.loadSession(sessionId);
     if (session) {
-      currentSession.id = session.id
-      currentSession.name = session.name
-      currentSession.created = session.created
-      currentSession.notes = session.notes
-      
+      currentSession.id = session.id;
+      currentSession.name = session.name;
+      currentSession.created = session.created;
+      currentSession.notes = session.notes;
+
       // Load signals for this session
-      const signals = storage.loadSessionSignals(sessionId)
-      currentSession.signals = signals
+      const signals = storage.loadSessionSignals(sessionId);
+      currentSession.signals = signals;
     }
   }
 
   // Update session
   function updateSession(updates) {
-    Object.assign(currentSession, updates)
-    storage.updateSession(currentSession.id, updates)
+    Object.assign(currentSession, updates);
+    storage.updateSession(currentSession.id, updates);
   }
 
   // Delete session
   function deleteSession(sessionId) {
-    storage.deleteSession(sessionId)
-    const index = allSessions.findIndex(s => s.id === sessionId)
+    storage.deleteSession(sessionId);
+    const index = allSessions.findIndex((s) => s.id === sessionId);
     if (index >= 0) {
-      allSessions.splice(index, 1)
+      allSessions.splice(index, 1);
     }
     if (currentSession.id === sessionId) {
       if (allSessions.length > 0) {
-        setCurrentSession(allSessions[0].id)
+        setCurrentSession(allSessions[0].id);
       } else {
-        currentSession.id = null
-        currentSession.signals = []
+        currentSession.id = null;
+        currentSession.signals = [];
       }
     }
   }
 
   // Generate signal
   function generateSignal(params) {
-    const timeData = signalProcessing.generateTimeArray(params.duration, params.samplingRate)
+    const timeData = signalProcessing.generateTimeArray(
+      params.duration,
+      params.samplingRate,
+    );
     const amplitudeData = signalProcessing.generateSignal(
       timeData,
       params.waveType,
       params.frequency,
       params.amplitude,
-      params.phase
-    )
+      params.phase,
+    );
 
     Object.assign(currentSignal, {
       id: Date.now().toString(),
@@ -122,92 +125,94 @@ export const useSignalStore = defineStore('signal', () => {
       meta: {
         rms: signalProcessing.calculateRMS(amplitudeData),
         peak: signalProcessing.calculatePeak(amplitudeData),
-        peakToPeak: signalProcessing.calculatePeakToPeak(amplitudeData)
-      }
-    })
+        peakToPeak: signalProcessing.calculatePeakToPeak(amplitudeData),
+      },
+    });
 
-    return currentSignal
+    return currentSignal;
   }
 
   // Save current signal to session
   function saveCurrentSignal() {
     if (!currentSession.id) {
-      createSession()
+      createSession();
     }
 
     const signal = {
       ...currentSignal,
       sessionId: currentSession.id,
-      savedAt: new Date().toISOString()
-    }
+      savedAt: new Date().toISOString(),
+    };
 
-    storage.saveSignal(signal)
-    const index = currentSession.signals.findIndex(s => s.id === signal.id)
+    storage.saveSignal(signal);
+    const index = currentSession.signals.findIndex((s) => s.id === signal.id);
     if (index >= 0) {
-      currentSession.signals[index] = signal
+      currentSession.signals[index] = signal;
     } else {
-      currentSession.signals.push(signal)
+      currentSession.signals.push(signal);
     }
 
-    return signal
+    return signal;
   }
 
   // Load signal
   function loadSignal(signalId) {
-    const signal = storage.loadSignal(signalId)
+    const signal = storage.loadSignal(signalId);
     if (signal) {
-      Object.assign(currentSignal, signal)
+      Object.assign(currentSignal, signal);
     }
-    return signal
+    return signal;
   }
 
   // Delete signal
   function deleteSignal(signalId) {
-    storage.deleteSignal(signalId)
-    const index = currentSession.signals.findIndex(s => s.id === signalId)
+    storage.deleteSignal(signalId);
+    const index = currentSession.signals.findIndex((s) => s.id === signalId);
     if (index >= 0) {
-      currentSession.signals.splice(index, 1)
+      currentSession.signals.splice(index, 1);
     }
   }
 
   // Compare signals
   function compareSignals(signalIds) {
-    const signals = signalIds.map(id => storage.loadSignal(id)).filter(Boolean)
-    return signals
+    const signals = signalIds
+      .map((id) => storage.loadSignal(id))
+      .filter(Boolean);
+    return signals;
   }
 
   // Update settings
   function updateSettings(newSettings) {
-    Object.assign(settings, newSettings)
-    localStorage.setItem('signal_lab_theme', settings.theme)
+    Object.assign(settings, newSettings);
+    localStorage.setItem("signal_lab_theme", settings.theme);
   }
 
   // Export signal
-  function exportSignal(signalId, format = 'json') {
-    const signal = storage.loadSignal(signalId)
-    if (!signal) return null
+  function exportSignal(signalId, format = "json") {
+    const signal = storage.loadSignal(signalId);
+    if (!signal) return null;
 
-    let blob
-    let filename
+    let blob;
+    let filename;
 
-    if (format === 'csv') {
-      blob = storage.exportSignalAsCSV(signal)
-      filename = `${signal.name}.csv`
+    if (format === "csv") {
+      blob = storage.exportSignalAsCSV(signal);
+      filename = `${signal.name}.csv`;
     } else {
-      blob = storage.exportSignalAsJSON(signal)
-      filename = `${signal.name}.json`
+      blob = storage.exportSignalAsJSON(signal);
+      filename = `${signal.name}.json`;
     }
 
-    storage.downloadFile(blob, filename)
+    storage.downloadFile(blob, filename);
   }
 
   // Clear all data
   function clearAllData() {
-    localStorage.removeItem('signal_lab_sessions')
-    localStorage.removeItem('signal_lab_signals')
-    allSessions.length = 0
-    currentSession.id = null
-    currentSession.signals = []
+    localStorage.removeItem("signal_lab_sessions");
+    localStorage.removeItem("signal_lab_signals");
+    allSessions.length = 0;
+    currentSession.id = null;
+    currentSession.signals = [];
   }
 
   return {
@@ -227,6 +232,6 @@ export const useSignalStore = defineStore('signal', () => {
     compareSignals,
     updateSettings,
     exportSignal,
-    clearAllData
-  }
-})
+    clearAllData,
+  };
+});

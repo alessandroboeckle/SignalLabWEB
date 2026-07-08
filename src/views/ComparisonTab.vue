@@ -16,7 +16,9 @@
                 v-for="signal in availableSignals"
                 :key="signal.id"
                 @click="toggleSignalSelection(signal.id)"
-                :class="{ 'bg-primary-light': selectedSignals.includes(signal.id) }"
+                :class="{
+                  'bg-primary-light': selectedSignals.includes(signal.id),
+                }"
                 class="mb-2"
               >
                 <template v-slot:prepend>
@@ -34,7 +36,10 @@
               </v-list-item>
             </v-list>
 
-            <div v-if="availableSignals.length === 0" class="text-center text-disabled py-4 text-caption">
+            <div
+              v-if="availableSignals.length === 0"
+              class="text-center text-disabled py-4 text-caption"
+            >
               No signals to compare. Create signals first!
             </div>
 
@@ -82,7 +87,9 @@
               </thead>
               <tbody>
                 <tr v-for="signal in selectedSignalObjects" :key="signal.id">
-                  <td><strong>{{ signal.name }}</strong></td>
+                  <td>
+                    <strong>{{ signal.name }}</strong>
+                  </td>
                   <td>{{ signal.waveType }}</td>
                   <td>{{ signal.frequency }}</td>
                   <td>{{ formatNumber(signal.meta?.rms || 0) }}</td>
@@ -99,83 +106,85 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useSignalStore } from '../stores/signalStore'
-import * as storage from '../utils/storage'
-import Chart from 'chart.js/auto'
+import { ref, computed, onMounted, watch } from "vue";
+import { useSignalStore } from "../stores/signalStore";
+import * as storage from "../utils/storage";
+import Chart from "chart.js/auto";
 
-const store = useSignalStore()
-const selectedSignals = ref([])
-const comparisonData = ref([])
-let comparisonChart = null
+const store = useSignalStore();
+const selectedSignals = ref([]);
+const comparisonData = ref([]);
+let comparisonChart = null;
 
 const availableSignals = computed(() => {
-  return store.currentSession.signals
-})
+  return store.currentSession.signals;
+});
 
 const selectedSignalObjects = computed(() => {
   return selectedSignals.value
-    .map(id => storage.loadSignal(id))
-    .filter(Boolean)
-})
+    .map((id) => storage.loadSignal(id))
+    .filter(Boolean);
+});
 
 const colors = [
-  '#2563EB',
-  '#FF6B35',
-  '#10B981',
-  '#F59E0B',
-  '#8B5CF6',
-  '#EC4899'
-]
+  "#2563EB",
+  "#FF6B35",
+  "#10B981",
+  "#F59E0B",
+  "#8B5CF6",
+  "#EC4899",
+];
 
 function toggleSignalSelection(signalId) {
-  const index = selectedSignals.value.indexOf(signalId)
+  const index = selectedSignals.value.indexOf(signalId);
   if (index >= 0) {
-    selectedSignals.value.splice(index, 1)
+    selectedSignals.value.splice(index, 1);
   } else {
-    selectedSignals.value.push(signalId)
+    selectedSignals.value.push(signalId);
   }
 }
 
 function compareSelected() {
-  const signals = store.compareSignals(selectedSignals.value)
-  comparisonData.value = signals
-  drawComparisonChart()
+  const signals = store.compareSignals(selectedSignals.value);
+  comparisonData.value = signals;
+  drawComparisonChart();
 }
 
 function drawComparisonChart() {
-  const canvas = document.getElementById('comparisonChart')
-  if (!canvas) return
+  const canvas = document.getElementById("comparisonChart");
+  if (!canvas) return;
 
   if (comparisonChart) {
-    comparisonChart.destroy()
+    comparisonChart.destroy();
   }
 
-  if (comparisonData.value.length === 0) return
+  if (comparisonData.value.length === 0) return;
 
   // Use the first signal as time reference
-  const timeData = comparisonData.value[0].timeData
-  const sampleRate = Math.ceil(timeData.length / 500)
-  const sampledTime = timeData.filter((_, i) => i % sampleRate === 0)
+  const timeData = comparisonData.value[0].timeData;
+  const sampleRate = Math.ceil(timeData.length / 500);
+  const sampledTime = timeData.filter((_, i) => i % sampleRate === 0);
 
   const datasets = comparisonData.value.map((signal, idx) => {
-    const sampledAmplitude = signal.amplitudeData.filter((_, i) => i % sampleRate === 0)
+    const sampledAmplitude = signal.amplitudeData.filter(
+      (_, i) => i % sampleRate === 0,
+    );
     return {
       label: signal.name,
       data: sampledAmplitude,
       borderColor: colors[idx % colors.length],
-      backgroundColor: 'transparent',
+      backgroundColor: "transparent",
       borderWidth: 2,
       pointRadius: 0,
-      tension: 0.4
-    }
-  })
+      tension: 0.4,
+    };
+  });
 
   comparisonChart = new Chart(canvas, {
-    type: 'line',
+    type: "line",
     data: {
-      labels: sampledTime.map(t => t.toFixed(3)),
-      datasets
+      labels: sampledTime.map((t) => t.toFixed(3)),
+      datasets,
     },
     options: {
       responsive: true,
@@ -183,36 +192,40 @@ function drawComparisonChart() {
       plugins: {
         legend: {
           display: true,
-          labels: { usePointStyle: true }
-        }
+          labels: { usePointStyle: true },
+        },
       },
       scales: {
         y: {
           title: {
             display: true,
-            text: 'Amplitude'
-          }
+            text: "Amplitude",
+          },
         },
         x: {
           title: {
             display: true,
-            text: 'Time (s)'
-          }
-        }
-      }
-    }
-  })
+            text: "Time (s)",
+          },
+        },
+      },
+    },
+  });
 }
 
 function formatNumber(num) {
-  return typeof num === 'number' ? num.toFixed(3) : '0'
+  return typeof num === "number" ? num.toFixed(3) : "0";
 }
 
-watch(selectedSignals, () => {
-  if (selectedSignals.value.length === 0) {
-    comparisonData.value = []
-  }
-}, { deep: true })
+watch(
+  selectedSignals,
+  () => {
+    if (selectedSignals.value.length === 0) {
+      comparisonData.value = [];
+    }
+  },
+  { deep: true },
+);
 </script>
 
 <style scoped>

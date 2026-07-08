@@ -1,40 +1,17 @@
 <template>
   <v-app>
     <!-- Modern Top Navigation -->
-    <v-app-bar elevation="1" class="app-header">
+    <v-app-bar elevation="0" class="app-header">
       <template v-slot:prepend>
         <div class="app-logo">
-          <svg
-            class="logo-svg"
-            viewBox="0 0 200 200"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <!-- Background circle -->
-            <circle
-              cx="100"
-              cy="100"
-              r="95"
-              fill="rgba(255,255,255,0.1)"
-              stroke="white"
-              stroke-width="2"
-            />
-            <!-- Sine wave -->
-            <path
-              d="M 30 100 Q 50 50 70 100 T 110 100 T 150 100 T 170 100"
-              stroke="white"
-              stroke-width="6"
-              fill="none"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <v-icon size="32" color="primary">mdi-sine-wave</v-icon>
           <span class="logo-text">Signal Lab</span>
         </div>
       </template>
 
       <v-spacer></v-spacer>
 
-      <v-btn icon @click="toggleTheme" variant="text" color="white">
+      <v-btn icon @click="toggleTheme" variant="text">
         <v-icon>{{
           isDark ? "mdi-white-balance-sunny" : "mdi-moon-waning-crescent"
         }}</v-icon>
@@ -43,7 +20,7 @@
         }}</v-tooltip>
       </v-btn>
 
-      <v-btn icon @click="showAbout = true" variant="text" color="white">
+      <v-btn icon @click="showAbout = true" variant="text">
         <v-icon>mdi-information-outline</v-icon>
         <v-tooltip activator="parent">About</v-tooltip>
       </v-btn>
@@ -120,7 +97,7 @@
             <h2 class="text-h4 font-weight-bold">Signal Lab</h2>
           </div>
 
-          <p class="text-body1 text-center mb-6 text-secondary">
+          <p class="text-body1 text-center mb-6 text-grey">
             Professional signal processing and analysis tool
           </p>
 
@@ -128,23 +105,23 @@
 
           <div class="feature-list">
             <div class="feature-item">
-              <v-icon small color="success">mdi-check-circle</v-icon>
+              <v-icon small color="primary">mdi-check-circle</v-icon>
               <span class="ml-2">Signal Generation (5 waveforms)</span>
             </div>
             <div class="feature-item">
-              <v-icon small color="success">mdi-check-circle</v-icon>
+              <v-icon small color="primary">mdi-check-circle</v-icon>
               <span class="ml-2">FFT Analysis & Visualization</span>
             </div>
             <div class="feature-item">
-              <v-icon small color="success">mdi-check-circle</v-icon>
+              <v-icon small color="primary">mdi-check-circle</v-icon>
               <span class="ml-2">Signal Comparison</span>
             </div>
             <div class="feature-item">
-              <v-icon small color="success">mdi-check-circle</v-icon>
+              <v-icon small color="primary">mdi-check-circle</v-icon>
               <span class="ml-2">Session Management</span>
             </div>
             <div class="feature-item">
-              <v-icon small color="success">mdi-check-circle</v-icon>
+              <v-icon small color="primary">mdi-check-circle</v-icon>
               <span class="ml-2">Export (JSON/CSV)</span>
             </div>
           </div>
@@ -215,14 +192,16 @@ if (store.allSessions.length > 0) {
 
 <style scoped>
 .app-header {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, #2563eb) 0%,
+    var(--color-secondary, #64748b) 100%
+  );
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding: 0 24px;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
 }
 
 .dark .app-header {
-  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%) !important;
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -232,28 +211,20 @@ if (store.allSessions.length > 0) {
   gap: 12px;
   cursor: pointer;
   transition: transform 0.2s ease;
-  padding: 6px 12px;
-  border-radius: 8px;
 }
 
 .app-logo:hover {
-  transform: scale(1.08);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.logo-svg {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  transform: scale(1.02);
 }
 
 .logo-text {
   font-size: 20px;
   font-weight: 700;
-  color: white;
+  background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   letter-spacing: -0.5px;
-  white-space: nowrap;
 }
 
 .main-content {
@@ -305,9 +276,9 @@ if (store.allSessions.length > 0) {
 }
 
 .tab-content {
-  padding: 0;
-  max-width: none;
-  margin: 0;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .modern-card {
@@ -339,21 +310,5 @@ if (store.allSessions.length > 0) {
 
 .dark .feature-item {
   color: #d1d5db;
-}
-
-.text-secondary {
-  color: #6b7280;
-}
-
-.dark .text-secondary {
-  color: #cbd5e1;
-}
-
-.text-disabled {
-  color: #9ca3af;
-}
-
-.dark .text-disabled {
-  color: #6b7280;
 }
 </style>
