@@ -253,9 +253,9 @@ function selectSession(sessionId) {
   editingNotes.value = store.currentSession.notes;
 }
 
-function createNewSession() {
+async function createNewSession() {
   if (newSessionName.value.trim()) {
-    store.createSession(newSessionName.value);
+    await store.createSession(newSessionName.value);
     editingNotes.value = "";
     newSessionName.value = "New Session";
     showNewSessionDialog.value = false;
@@ -270,9 +270,9 @@ function renameSession(sessionId, currentName) {
   showRenameDialog.value = true;
 }
 
-function confirmRename() {
+async function confirmRename() {
   if (renamingSessionName.value.trim()) {
-    store.updateSession({ name: renamingSessionName.value });
+    await store.updateSession({ name: renamingSessionName.value });
     showRenameDialog.value = false;
     snackbarMessage.value = "Session renamed!";
     showSnackbar.value = true;
@@ -295,12 +295,12 @@ function deleteSignalConfirm(signalId) {
   showDeleteDialog.value = true;
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (deleteTarget.value.type === "session") {
-    store.deleteSession(deleteTarget.value.id);
+    await store.deleteSession(deleteTarget.value.id);
     snackbarMessage.value = "Session deleted!";
   } else {
-    store.deleteSignal(deleteTarget.value.id);
+    await store.deleteSignal(deleteTarget.value.id);
     snackbarMessage.value = "Signal deleted!";
   }
   showDeleteDialog.value = false;
@@ -313,8 +313,8 @@ function loadSignal(signalId) {
   showSnackbar.value = true;
 }
 
-function saveNotes() {
-  store.updateSession({ notes: editingNotes.value });
+async function saveNotes() {
+  await store.updateSession({ notes: editingNotes.value });
   snackbarMessage.value = "Notes saved!";
   showSnackbar.value = true;
 }

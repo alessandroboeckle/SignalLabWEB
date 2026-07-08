@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import * as storage from "../utils/storage.js";
 import * as signalProcessing from "../utils/signalProcessing.js";
 
@@ -14,6 +14,8 @@ export const useSignalStore = defineStore("signal", () => {
   });
 
   const allSessions = reactive([]);
+  const loaded = ref(false);
+
   const currentSignal = reactive({
     id: null,
     name: "Signal 1",
@@ -35,31 +37,30 @@ export const useSignalStore = defineStore("signal", () => {
     gridEnabled: true,
   });
 
-  // Load sessions on init
-  function loadSessions() {
+  // Load everything from Supabase (called after approval)
+  async function loadSessions() {
+    await storage.init();
     const sessions = storage.loadAllSessions();
     allSessions.length = 0;
     allSessions.push(...sessions);
+    loaded.value = true;
+
+    if (allSessions.length === 0) {
+      await createSession("Default Session");
+    } else {
+      setCurrentSession(allSessions[0].id);
+    }
   }
 
-  // Create new session
-  function createSession(name = "Neue Session") {
-    const session = {
-      id: Date.now().toString(),
-      name,
-      created: new Date().toISOString(),
-      notes: "",
-      signals: [],
-    };
-
-    storage.saveSession(session);
-    allSessions.push(session);
-
-    setCurrentSession(session.id);
-    return session;
+  // Create new session (async — Supabase generates the UUID)
+  async function createSession(name = "Neue Session") {
+    const created = await storage.saveSession({ name, notes: "" });
+    allSessions.push(created);
+    setCurrentSession(created.id);
+    return created;
   }
 
-  // Set current session
+  // Set current session (sync — reads from cache)
   function setCurrentSession(sessionId) {
     const session = storage.loadSession(sessionId);
     if (session) {
@@ -67,26 +68,24 @@ export const useSignalStore = defineStore("signal", () => {
       currentSession.name = session.name;
       currentSession.created = session.created;
       currentSession.notes = session.notes;
-
-      // Load signals for this session
-      const signals = storage.loadSessionSignals(sessionId);
-      currentSession.signals = signals;
+      currentSession.signals = storage.loadSessionSignals(sessionId);
     }
   }
 
-  // Update session
-  function updateSession(updates) {
+  // Update current session (async)
+  async function updateSession(updates) {
     Object.assign(currentSession, updates);
-    storage.updateSession(currentSession.id, updates);
+    await storage.updateSession(currentSession.id, updates);
+    const idx = allSessions.findIndex((s) => s.id === currentSession.id);
+    if (idx >= 0) Object.assign(allSessions[idx], updates);
   }
 
-  // Delete session
-  function deleteSession(sessionId) {
-    storage.deleteSession(sessionId);
+  // Delete session (async)
+  async function deleteSession(sessionId) {
+    await storage.deleteSession(sessionId);
     const index = allSessions.findIndex((s) => s.id === sessionId);
-    if (index >= 0) {
-      allSessions.splice(index, 1);
-    }
+    if (index >= 0) allSessions.splice(index, 1);
+
     if (currentSession.id === sessionId) {
       if (allSessions.length > 0) {
         setCurrentSession(allSessions[0].id);
@@ -97,7 +96,7 @@ export const useSignalStore = defineStore("signal", () => {
     }
   }
 
-  // Generate signal
+  // Generate signal (pure computation, stays sync)
   function generateSignal(params) {
     const timeData = signalProcessing.generateTimeArray(
       params.duration,
@@ -112,7 +111,7 @@ export const useSignalStore = defineStore("signal", () => {
     );
 
     Object.assign(currentSignal, {
-      id: Date.now().toString(),
+      id: null,
       name: params.name || currentSignal.name,
       waveType: params.waveType,
       frequency: params.frequency,
@@ -132,30 +131,32 @@ export const useSignalStore = defineStore("signal", () => {
     return currentSignal;
   }
 
-  // Save current signal to session
-  function saveCurrentSignal() {
+  // Save current signal to session (async)
+  async function saveCurrentSignal() {
     if (!currentSession.id) {
-      createSession();
+      await createSession();
     }
 
     const signal = {
       ...currentSignal,
       sessionId: currentSession.id,
-      savedAt: new Date().toISOString(),
     };
 
-    storage.saveSignal(signal);
-    const index = currentSession.signals.findIndex((s) => s.id === signal.id);
-    if (index >= 0) {
-      currentSession.signals[index] = signal;
-    } else {
-      currentSession.signals.push(signal);
-    }
+    const saved = await storage.saveSignal(signal);
 
-    return signal;
+    const index = currentSession.signals.findIndex((s) => s.id === saved.id);
+    if (index >= 0) {
+      currentSession.signals[index] = saved;
+    } else {
+      currentSession.signals.push(saved);
+    }
+    // keep currentSignal id in sync so re-saving updates instead of duplicating
+    currentSignal.id = saved.id;
+
+    return saved;
   }
 
-  // Load signal
+  // Load signal into currentSignal (sync — from cache)
   function loadSignal(signalId) {
     const signal = storage.loadSignal(signalId);
     if (signal) {
@@ -164,24 +165,19 @@ export const useSignalStore = defineStore("signal", () => {
     return signal;
   }
 
-  // Delete signal
-  function deleteSignal(signalId) {
-    storage.deleteSignal(signalId);
+  // Delete signal (async)
+  async function deleteSignal(signalId) {
+    await storage.deleteSignal(signalId);
     const index = currentSession.signals.findIndex((s) => s.id === signalId);
-    if (index >= 0) {
-      currentSession.signals.splice(index, 1);
-    }
+    if (index >= 0) currentSession.signals.splice(index, 1);
   }
 
-  // Compare signals
+  // Compare signals (sync — from cache)
   function compareSignals(signalIds) {
-    const signals = signalIds
-      .map((id) => storage.loadSignal(id))
-      .filter(Boolean);
-    return signals;
+    return signalIds.map((id) => storage.loadSignal(id)).filter(Boolean);
   }
 
-  // Update settings
+  // Update settings (theme stays in localStorage — personal)
   function updateSettings(newSettings) {
     Object.assign(settings, newSettings);
     localStorage.setItem("signal_lab_theme", settings.theme);
@@ -189,12 +185,11 @@ export const useSignalStore = defineStore("signal", () => {
 
   // Export signal
   function exportSignal(signalId, format = "json") {
-    const signal = storage.loadSignal(signalId);
+    const signal = storage.loadSignal(signalId) || currentSignal;
     if (!signal) return null;
 
     let blob;
     let filename;
-
     if (format === "csv") {
       blob = storage.exportSignalAsCSV(signal);
       filename = `${signal.name}.csv`;
@@ -202,17 +197,16 @@ export const useSignalStore = defineStore("signal", () => {
       blob = storage.exportSignalAsJSON(signal);
       filename = `${signal.name}.json`;
     }
-
     storage.downloadFile(blob, filename);
   }
 
-  // Clear all data
-  function clearAllData() {
-    localStorage.removeItem("signal_lab_sessions");
-    localStorage.removeItem("signal_lab_signals");
+  // Clear ALL shared data (async, destructive)
+  async function clearAllData() {
+    await storage.clearAll();
     allSessions.length = 0;
     currentSession.id = null;
     currentSession.signals = [];
+    await createSession("Default Session");
   }
 
   return {
@@ -220,6 +214,7 @@ export const useSignalStore = defineStore("signal", () => {
     allSessions,
     currentSignal,
     settings,
+    loaded,
     loadSessions,
     createSession,
     setCurrentSession,

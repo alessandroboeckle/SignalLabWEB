@@ -1,151 +1,241 @@
-// Local storage utilities
+// Supabase-backed storage with a synchronous in-memory cache.
+//
+// Reads are synchronous (from the cache) so existing computed properties in the
+// views keep working. Writes are async: they update Supabase AND the cache.
+// Call `init()` once after the user is approved to fill the cache.
 
-const SESSIONS_KEY = "signal_lab_sessions";
-const SIGNALS_KEY = "signal_lab_signals";
+import { supabase } from "../lib/supabase";
 
-/**
- * Save a session
- */
-export function saveSession(session) {
-  const sessions = loadAllSessions();
-  const existingIndex = sessions.findIndex((s) => s.id === session.id);
+let _sessions = []; // app-shaped sessions
+let _signals = []; // app-shaped signals (flat list, with sessionId)
+let _ready = false;
 
-  if (existingIndex >= 0) {
-    sessions[existingIndex] = session;
-  } else {
-    if (!session.id) {
-      session.id = Date.now().toString();
-    }
-    sessions.push(session);
-  }
+// ---- mapping between DB (snake_case) and app (camelCase) ----
 
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-  return session;
+function sessionFromDb(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    notes: row.notes || "",
+    created: row.created_at || new Date().toISOString(),
+    signals: [],
+  };
 }
 
-/**
- * Load all sessions
- */
+function signalFromDb(row) {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    name: row.name,
+    waveType: row.wave_type,
+    frequency: row.frequency,
+    amplitude: row.amplitude,
+    phase: row.phase,
+    duration: row.duration,
+    samplingRate: row.sampling_rate,
+    timeData: row.time_data || [],
+    amplitudeData: row.amplitude_data || [],
+    meta: row.meta || {},
+    savedAt: row.created_at,
+  };
+}
+
+function signalToDb(signal, userId) {
+  return {
+    session_id: signal.sessionId,
+    name: signal.name,
+    wave_type: signal.waveType,
+    frequency: signal.frequency,
+    amplitude: signal.amplitude,
+    phase: signal.phase,
+    duration: signal.duration,
+    sampling_rate: signal.samplingRate,
+    time_data: signal.timeData,
+    amplitude_data: signal.amplitudeData,
+    meta: signal.meta || {},
+    created_by: userId || null,
+  };
+}
+
+async function currentUserId() {
+  const { data } = await supabase.auth.getUser();
+  return data?.user?.id ?? null;
+}
+
+// ---- initial load ----
+
+export async function init() {
+  const { data: sessionRows, error: sErr } = await supabase
+    .from("sessions")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (sErr) throw sErr;
+
+  const { data: signalRows, error: gErr } = await supabase
+    .from("signals")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (gErr) throw gErr;
+
+  _sessions = (sessionRows || []).map(sessionFromDb);
+  _signals = (signalRows || []).map(signalFromDb);
+  _ready = true;
+}
+
+export function isReady() {
+  return _ready;
+}
+
+// ---- synchronous reads (from cache) ----
+
 export function loadAllSessions() {
-  const data = localStorage.getItem(SESSIONS_KEY);
-  return data ? JSON.parse(data) : [];
+  return [..._sessions];
 }
 
-/**
- * Load session by ID
- */
 export function loadSession(sessionId) {
-  const sessions = loadAllSessions();
-  return sessions.find((s) => s.id === sessionId);
+  return _sessions.find((s) => s.id === sessionId) || null;
 }
 
-/**
- * Delete session
- */
-export function deleteSession(sessionId) {
-  const sessions = loadAllSessions();
-  const filtered = sessions.filter((s) => s.id !== sessionId);
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(filtered));
-
-  // Also delete all signals in this session
-  const signals = loadAllSignals();
-  const remainingSignals = signals.filter((s) => s.sessionId !== sessionId);
-  localStorage.setItem(SIGNALS_KEY, JSON.stringify(remainingSignals));
-}
-
-/**
- * Update session
- */
-export function updateSession(sessionId, updates) {
-  const session = loadSession(sessionId);
-  if (session) {
-    Object.assign(session, updates);
-    saveSession(session);
-  }
-  return session;
-}
-
-/**
- * Save a signal
- */
-export function saveSignal(signal) {
-  const signals = loadAllSignals();
-  const existingIndex = signals.findIndex((s) => s.id === signal.id);
-
-  if (existingIndex >= 0) {
-    signals[existingIndex] = signal;
-  } else {
-    if (!signal.id) {
-      signal.id = Date.now().toString();
-    }
-    signals.push(signal);
-  }
-
-  localStorage.setItem(SIGNALS_KEY, JSON.stringify(signals));
-  return signal;
-}
-
-/**
- * Load all signals
- */
 export function loadAllSignals() {
-  const data = localStorage.getItem(SIGNALS_KEY);
-  return data ? JSON.parse(data) : [];
+  return [..._signals];
 }
 
-/**
- * Load signals for a session
- */
 export function loadSessionSignals(sessionId) {
-  const signals = loadAllSignals();
-  return signals.filter((s) => s.sessionId === sessionId);
+  return _signals.filter((s) => s.sessionId === sessionId);
 }
 
-/**
- * Load signal by ID
- */
 export function loadSignal(signalId) {
-  const signals = loadAllSignals();
-  return signals.find((s) => s.id === signalId);
+  return _signals.find((s) => s.id === signalId) || null;
 }
 
-/**
- * Delete signal
- */
-export function deleteSignal(signalId) {
-  const signals = loadAllSignals();
-  const filtered = signals.filter((s) => s.id !== signalId);
-  localStorage.setItem(SIGNALS_KEY, JSON.stringify(filtered));
+export function getStorageInfo() {
+  return {
+    sessionCount: _sessions.length,
+    signalCount: _signals.length,
+    storageUsage: `${_sessions.length + _signals.length} records`,
+  };
 }
 
-/**
- * Export signal as JSON
- */
+// ---- async writes (Supabase + cache) ----
+
+export async function saveSession(session) {
+  const userId = await currentUserId();
+
+  if (session.id && _sessions.some((s) => s.id === session.id)) {
+    // update
+    const { error } = await supabase
+      .from("sessions")
+      .update({ name: session.name, notes: session.notes || "" })
+      .eq("id", session.id);
+    if (error) throw error;
+
+    const idx = _sessions.findIndex((s) => s.id === session.id);
+    if (idx >= 0)
+      _sessions[idx] = { ..._sessions[idx], name: session.name, notes: session.notes };
+    return _sessions[idx];
+  }
+
+  // insert — let Supabase generate the UUID
+  const { data, error } = await supabase
+    .from("sessions")
+    .insert({ name: session.name, notes: session.notes || "", created_by: userId })
+    .select()
+    .single();
+  if (error) throw error;
+
+  const created = sessionFromDb(data);
+  _sessions.push(created);
+  return created;
+}
+
+export async function updateSession(sessionId, updates) {
+  const patch = {};
+  if (updates.name !== undefined) patch.name = updates.name;
+  if (updates.notes !== undefined) patch.notes = updates.notes;
+
+  const { error } = await supabase
+    .from("sessions")
+    .update(patch)
+    .eq("id", sessionId);
+  if (error) throw error;
+
+  const idx = _sessions.findIndex((s) => s.id === sessionId);
+  if (idx >= 0) _sessions[idx] = { ..._sessions[idx], ...patch };
+  return _sessions[idx];
+}
+
+export async function deleteSession(sessionId) {
+  const { error } = await supabase.from("sessions").delete().eq("id", sessionId);
+  if (error) throw error;
+
+  _sessions = _sessions.filter((s) => s.id !== sessionId);
+  _signals = _signals.filter((s) => s.sessionId !== sessionId);
+}
+
+export async function saveSignal(signal) {
+  const userId = await currentUserId();
+
+  if (signal.id && _signals.some((s) => s.id === signal.id)) {
+    // update
+    const { error } = await supabase
+      .from("signals")
+      .update(signalToDb(signal, userId))
+      .eq("id", signal.id);
+    if (error) throw error;
+
+    const idx = _signals.findIndex((s) => s.id === signal.id);
+    if (idx >= 0) _signals[idx] = { ...signal };
+    return _signals[idx];
+  }
+
+  // insert
+  const { data, error } = await supabase
+    .from("signals")
+    .insert(signalToDb(signal, userId))
+    .select()
+    .single();
+  if (error) throw error;
+
+  const created = signalFromDb(data);
+  _signals.push(created);
+  return created;
+}
+
+export async function deleteSignal(signalId) {
+  const { error } = await supabase.from("signals").delete().eq("id", signalId);
+  if (error) throw error;
+
+  _signals = _signals.filter((s) => s.id !== signalId);
+}
+
+export async function clearAll() {
+  // Deletes ALL sessions (signals cascade). Destructive & shared!
+  const ids = _sessions.map((s) => s.id);
+  if (ids.length) {
+    const { error } = await supabase.from("sessions").delete().in("id", ids);
+    if (error) throw error;
+  }
+  _sessions = [];
+  _signals = [];
+}
+
+// ---- export helpers (unchanged, still used by views) ----
+
 export function exportSignalAsJSON(signal) {
   const dataStr = JSON.stringify(signal, null, 2);
-  const dataBlob = new Blob([dataStr], { type: "application/json" });
-  return dataBlob;
+  return new Blob([dataStr], { type: "application/json" });
 }
 
-/**
- * Export signal as CSV
- */
 export function exportSignalAsCSV(signal) {
   let csv = "Time,Amplitude\n";
   const t = signal.timeData;
   const y = signal.amplitudeData;
-
   for (let i = 0; i < t.length; i++) {
     csv += `${t[i].toFixed(6)},${y[i].toFixed(6)}\n`;
   }
-
-  const dataBlob = new Blob([csv], { type: "text/csv" });
-  return dataBlob;
+  return new Blob([csv], { type: "text/csv" });
 }
 
-/**
- * Download file
- */
 export function downloadFile(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -155,24 +245,4 @@ export function downloadFile(blob, filename) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-}
-
-/**
- * Get storage info
- */
-export function getStorageInfo() {
-  const sessions = loadAllSessions();
-  const signals = loadAllSignals();
-
-  let storageSize = 0;
-  const data = localStorage.getItem(SESSIONS_KEY) || "";
-  const signalData = localStorage.getItem(SIGNALS_KEY) || "";
-
-  storageSize = (data.length + signalData.length) * 2; // Estimate in bytes
-
-  return {
-    sessionCount: sessions.length,
-    signalCount: signals.length,
-    storageUsage: (storageSize / 1024).toFixed(2) + " KB",
-  };
 }

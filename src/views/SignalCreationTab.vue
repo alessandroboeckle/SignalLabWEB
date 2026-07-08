@@ -352,9 +352,13 @@ function generateSignal() {
   updateCharts();
 }
 
-function saveSignal() {
-  const saved = store.saveCurrentSignal();
-  snackbarMessage.value = `Signal "${saved.name}" saved!`;
+async function saveSignal() {
+  try {
+    const saved = await store.saveCurrentSignal();
+    snackbarMessage.value = `Signal "${saved.name}" saved!`;
+  } catch (e) {
+    snackbarMessage.value = "Fehler beim Speichern: " + (e.message || e);
+  }
   showSnackbar.value = true;
 }
 

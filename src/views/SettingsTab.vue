@@ -249,10 +249,14 @@ function exportAllData() {
   showSnackbar.value = true;
 }
 
-function clearAllData() {
-  store.clearAllData();
+async function clearAllData() {
+  try {
+    await store.clearAllData();
+    snackbarMessage.value = "All data cleared!";
+  } catch (e) {
+    snackbarMessage.value = "Fehler: " + (e.message || e);
+  }
   showClearDialog.value = false;
-  snackbarMessage.value = "All data cleared!";
   showSnackbar.value = true;
 }
 

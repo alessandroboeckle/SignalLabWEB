@@ -139,6 +139,21 @@ function toggleTheme() {
 // Start auth check on load
 auth.init();
 
+// When the user becomes approved, load the shared sessions from Supabase.
+watch(
+  () => auth.approved,
+  async (isApproved) => {
+    if (isApproved && !store.loaded) {
+      try {
+        await store.loadSessions();
+      } catch (e) {
+        console.error("Failed to load sessions:", e);
+      }
+    }
+  },
+  { immediate: true }
+);
+
 // Apply saved theme
 watch(
   () => store.settings.theme,
