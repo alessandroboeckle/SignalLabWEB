@@ -11,7 +11,7 @@
       <div class="brand">
         <svg class="brand-icon" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" />
-          <path d="M 15 50 Q 27 20 39 50 T 63 50 T 87 50" stroke="white" stroke-width="5"
+          <path class="brand-wave" d="M 15 50 Q 27 20 39 50 T 63 50 T 87 50" stroke="white" stroke-width="5"
                 fill="none" stroke-linecap="round" />
         </svg>
         <h1 class="brand-title">Signal Lab</h1>
@@ -111,6 +111,17 @@ function buildWave(amp, wavelength, phase, yBase) {
   return `M ${pts.join(" L ")} L 1440,900 L 0,900 Z`;
 }
 
+// Builds an open sine line (not a filled shape) for the small logo wave.
+function buildLogoWave(phase) {
+  const pts = [];
+  for (let x = 14; x <= 86; x += 4) {
+    // sine across the circle; amplitude ~12, centered at y=50
+    const y = 50 + Math.sin((x - 14) / 9 + phase) * 12;
+    pts.push(`${x},${y.toFixed(1)}`);
+  }
+  return `M ${pts.join(" L ")}`;
+}
+
 function animate() {
   t += 0.015;
   const w1 = document.querySelector(".wave1");
@@ -119,6 +130,11 @@ function animate() {
   if (w1) w1.setAttribute("d", buildWave(40, 180, t, 480));
   if (w2) w2.setAttribute("d", buildWave(55, 240, t * 0.8 + 2, 540));
   if (w3) w3.setAttribute("d", buildWave(30, 140, t * 1.3 + 4, 600));
+
+  // logo wave runs through the circle
+  const lw = document.querySelector(".brand-wave");
+  if (lw) lw.setAttribute("d", buildLogoWave(t * 2.2));
+
   raf = requestAnimationFrame(animate);
 }
 
