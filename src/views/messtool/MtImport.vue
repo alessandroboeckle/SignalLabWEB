@@ -42,16 +42,61 @@
       {{ errorMsg }}
     </v-alert>
 
+    <!-- Cloud files (shared) -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center">
+        <v-icon class="mr-2">mdi-cloud</v-icon>
+        Gespeicherte Messdateien
+        <v-spacer></v-spacer>
+        <v-btn size="small" variant="text" icon="mdi-refresh" :loading="loadingList" @click="loadList"></v-btn>
+      </v-card-title>
+      <v-divider></v-divider>
+      <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
+        Noch keine Dateien in der Cloud.
+      </div>
+      <v-list v-else density="compact">
+        <v-list-item v-for="f in cloudFiles" :key="f.id">
+          <template #prepend>
+            <v-icon color="primary">mdi-file-chart</v-icon>
+          </template>
+          <v-list-item-title class="font-weight-medium">{{ f.name }}</v-list-item-title>
+          <v-list-item-subtitle>
+            {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
+            {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
+          </v-list-item-subtitle>
+          <template #append>
+            <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
+              Öffnen
+            </v-btn>
+            <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="removeCloudFile(f)"></v-btn>
+          </template>
+        </v-list-item>
+      </v-list>
+    </v-card>
+
     <!-- Result -->
     <template v-if="parsed">
+      <div class="d-flex align-center mb-4">
+        <h3 class="text-h6">Geladen: {{ fileName }}</h3>
+        <v-spacer></v-spacer>
+        <v-btn
+          v-if="lastFile"
+          color="primary"
+          prepend-icon="mdi-cloud-upload"
+          :loading="uploading"
+          @click="saveToCloud"
+        >
+          In Cloud speichern
+        </v-btn>
+      </div>
+
       <v-row class="mb-4">
         <v-col cols="6" sm="3">
           <v-card variant="tonal" color="primary" class="pa-3 text-center">
             <div class="text-h5 font-weight-bold">{{ parsed.meta.signalCount }}</div>
             <div class="text-caption">Signale</div>
           </v-card>
-        </v-col>
-        <v-col cols="6" sm="3">
+        </v-col>        <v-col cols="6" sm="3">
           <v-card variant="tonal" color="primary" class="pa-3 text-center">
             <div class="text-h5 font-weight-bold">{{ parsed.meta.rowCount.toLocaleString() }}</div>
             <div class="text-caption">Messpunkte</div>
@@ -115,9 +160,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, watch, nextTick, onMounted } from "vue";
 import Chart from "chart.js/auto";
 import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
+import * as mtStorage from "../../utils/messtoolStorage.js";
 
 const fileInput = ref(null);
 const canvas = ref(null);
@@ -127,7 +173,14 @@ const errorMsg = ref("");
 const parsed = ref(null);
 const fileName = ref("");
 const selectedIdx = ref(0);
+const lastFile = ref(null); // the raw File, kept for uploading
 let chart = null;
+
+// cloud state
+const cloudFiles = ref([]);
+const loadingList = ref(false);
+const uploading = ref(false);
+const busyId = ref(null);
 
 const selectedSignal = computed(() =>
   parsed.value ? parsed.value.signals[selectedIdx.value] : null,
@@ -149,11 +202,11 @@ async function handleFile(file) {
   parsed.value = null;
   parsing.value = true;
   fileName.value = file.name;
+  lastFile.value = file;
 
   try {
     const buffer = await file.arrayBuffer();
     const text = decodeLatin1(buffer);
-    // parse in a microtask so the spinner can render
     await new Promise((r) => setTimeout(r, 20));
     const result = parseMesstoolCsv(text);
     if (result.signals.length === 0) {
@@ -169,6 +222,70 @@ async function handleFile(file) {
     parsing.value = false;
   }
 }
+
+// ---- cloud ----
+
+async function loadList() {
+  loadingList.value = true;
+  try {
+    cloudFiles.value = await mtStorage.listMessfiles();
+  } catch (e) {
+    errorMsg.value = "Liste konnte nicht geladen werden: " + (e.message || e);
+  }
+  loadingList.value = false;
+}
+
+async function saveToCloud() {
+  if (!lastFile.value || !parsed.value) return;
+  uploading.value = true;
+  errorMsg.value = "";
+  try {
+    await mtStorage.uploadMessfile(lastFile.value, parsed.value.meta);
+    await loadList();
+  } catch (e) {
+    errorMsg.value = "Upload fehlgeschlagen: " + (e.message || e);
+  }
+  uploading.value = false;
+}
+
+async function openCloudFile(f) {
+  busyId.value = f.id;
+  errorMsg.value = "";
+  try {
+    const buffer = await mtStorage.downloadMessfile(f.storage_path);
+    const text = decodeLatin1(buffer);
+    const result = parseMesstoolCsv(text);
+    parsed.value = result;
+    fileName.value = f.name;
+    lastFile.value = null; // came from cloud, no re-upload
+    selectedIdx.value = 0;
+    await nextTick();
+    drawChart();
+  } catch (e) {
+    errorMsg.value = "Öffnen fehlgeschlagen: " + (e.message || e);
+  }
+  busyId.value = null;
+}
+
+async function removeCloudFile(f) {
+  if (!confirm(`Datei "${f.name}" wirklich löschen?`)) return;
+  try {
+    await mtStorage.deleteMessfile(f);
+    await loadList();
+  } catch (e) {
+    errorMsg.value = "Löschen fehlgeschlagen: " + (e.message || e);
+  }
+}
+
+function formatDate(d) {
+  if (!d) return "";
+  return new Date(d).toLocaleString("de-DE", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+onMounted(loadList);
 
 function drawChart() {
   if (!canvas.value || !selectedSignal.value) return;
