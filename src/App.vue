@@ -127,7 +127,7 @@
             <MtImport />
           </v-window-item>
           <v-window-item value="mt-filter">
-            <MesstoolPlaceholder title="Filter" subtitle="Butterworth, Chebyshev, Bessel – Tief-/Hoch-/Bandpass" icon="mdi-tune-variant" />
+            <MtFilter />
           </v-window-item>
           <v-window-item value="mt-analyse">
             <MtAnalyse />
@@ -193,6 +193,7 @@ import MesstoolPlaceholder from "./views/messtool/MesstoolPlaceholder.vue";
 import MtImport from "./views/messtool/MtImport.vue";
 import MtAnalyse from "./views/messtool/MtAnalyse.vue";
 import MtVerarbeitung from "./views/messtool/MtVerarbeitung.vue";
+import MtFilter from "./views/messtool/MtFilter.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
