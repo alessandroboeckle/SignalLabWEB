@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 export const useAuthStore = defineStore("auth", () => {
   const user = ref(null); // Supabase user object, or null
   const approved = ref(false); // is this user approved in profiles?
+  const isAdmin = ref(false); // is this user an admin?
   const loading = ref(true); // true while we check the initial session
   const errorMsg = ref("");
 
@@ -12,19 +13,22 @@ export const useAuthStore = defineStore("auth", () => {
   async function refreshApproval() {
     if (!user.value) {
       approved.value = false;
+      isAdmin.value = false;
       return;
     }
     const { data, error } = await supabase
       .from("profiles")
-      .select("approved")
+      .select("approved, is_admin")
       .eq("id", user.value.id)
       .single();
 
     if (error) {
       approved.value = false;
+      isAdmin.value = false;
       return;
     }
     approved.value = !!data?.approved;
+    isAdmin.value = !!data?.is_admin;
   }
 
   // Called once on app start, and whenever auth state changes.
@@ -70,6 +74,7 @@ export const useAuthStore = defineStore("auth", () => {
     await supabase.auth.signOut();
     user.value = null;
     approved.value = false;
+    isAdmin.value = false;
   }
 
   // Turn common Supabase messages into friendlier German text.
@@ -89,6 +94,7 @@ export const useAuthStore = defineStore("auth", () => {
   return {
     user,
     approved,
+    isAdmin,
     loading,
     errorMsg,
     init,

@@ -82,6 +82,7 @@
           <v-window-item value="comparison"><ComparisonTab /></v-window-item>
           <v-window-item value="sessions"><SessionManagementTab /></v-window-item>
           <v-window-item value="settings"><SettingsTab /></v-window-item>
+          <v-window-item value="admin"><AdminTab /></v-window-item>
         </v-window>
       </v-main>
 
@@ -132,6 +133,7 @@ import CalculatorTab from "./views/CalculatorTab.vue";
 import ComparisonTab from "./views/ComparisonTab.vue";
 import SessionManagementTab from "./views/SessionManagementTab.vue";
 import SettingsTab from "./views/SettingsTab.vue";
+import AdminTab from "./views/AdminTab.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
@@ -143,14 +145,20 @@ const drawer = ref(true);
 const rail = ref(false);
 const logoHover = ref(false);
 
-const navItems = [
-  { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
-  { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
-  { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
-  { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
-  { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
-  { value: "settings", label: "Settings", icon: "mdi-cog" },
-];
+const navItems = computed(() => {
+  const items = [
+    { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
+    { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
+    { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
+    { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
+    { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
+    { value: "settings", label: "Settings", icon: "mdi-cog" },
+  ];
+  if (auth.isAdmin) {
+    items.push({ value: "admin", label: "Admin", icon: "mdi-shield-account" });
+  }
+  return items;
+});
 
 const isDark = computed({
   get: () => theme.global.current.value.dark,
