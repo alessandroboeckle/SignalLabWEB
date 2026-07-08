@@ -143,16 +143,11 @@
 
         <!-- Preview chart -->
         <v-col cols="12" md="7">
-          <v-card variant="outlined" rounded="lg">
-            <v-card-title class="d-flex align-center">
-              <v-icon class="mr-2">mdi-chart-line</v-icon>
-              Vorschau: {{ selectedSignal?.name }}
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text>
-              <canvas ref="canvas" height="300"></canvas>
-            </v-card-text>
-          </v-card>
+          <ChartCard
+            :title="`Vorschau: ${selectedSignal?.name || ''}`"
+            :config="previewConfig"
+            :height="300"
+          />
         </v-col>
       </v-row>
     </template>
@@ -161,15 +156,14 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from "vue";
-import Chart from "chart.js/auto";
 import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import ChartCard from "./ChartCard.vue";
 
 const mtStore = useMesstoolStore();
 
 const fileInput = ref(null);
-const canvas = ref(null);
 const isDragging = ref(false);
 const parsing = ref(false);
 const errorMsg = ref("");
@@ -177,7 +171,6 @@ const parsed = ref(null);
 const fileName = ref("");
 const selectedIdx = ref(0);
 const lastFile = ref(null); // the raw File, kept for uploading
-let chart = null;
 
 // cloud state
 const cloudFiles = ref([]);
@@ -188,6 +181,40 @@ const busyId = ref(null);
 const selectedSignal = computed(() =>
   parsed.value ? parsed.value.signals[selectedIdx.value] : null,
 );
+
+// config for the preview ChartCard (fresh function when signal changes)
+const previewConfig = computed(() => {
+  const p = parsed.value;
+  const idx = selectedIdx.value;
+  return () => {
+    if (!p) return { type: "line", data: { labels: [], datasets: [] } };
+    const s = p.signals[idx];
+    const time = p.time;
+    const step = Math.max(1, Math.ceil(time.length / 800));
+    const labels = [], values = [];
+    for (let i = 0; i < time.length; i += step) { labels.push(time[i]); values.push(s.data[i]); }
+    return {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: `${s.name} [${s.unit || "-"}]`,
+          data: values,
+          borderColor: "#2563EB",
+          backgroundColor: "rgba(37,99,235,0.08)",
+          borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
+        }],
+      },
+      options: {
+        responsive: true, animation: false,
+        scales: {
+          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 10 } },
+          y: { title: { display: true, text: s.unit || "" } },
+        },
+      },
+    };
+  };
+});
 
 function onFileSelect(e) {
   const file = e.target.files?.[0];
@@ -218,8 +245,6 @@ async function handleFile(file) {
     parsed.value = result;
     mtStore.setData(result, file.name);
     selectedIdx.value = 0;
-    await nextTick();
-    drawChart();
   } catch (err) {
     errorMsg.value = "Konnte Datei nicht parsen: " + (err.message || err);
   } finally {
@@ -264,8 +289,6 @@ async function openCloudFile(f) {
     fileName.value = f.name;
     lastFile.value = null; // came from cloud, no re-upload
     selectedIdx.value = 0;
-    await nextTick();
-    drawChart();
   } catch (e) {
     errorMsg.value = "Öffnen fehlgeschlagen: " + (e.message || e);
   }
@@ -291,56 +314,6 @@ function formatDate(d) {
 }
 
 onMounted(loadList);
-
-function drawChart() {
-  if (!canvas.value || !selectedSignal.value) return;
-  if (chart) {
-    chart.destroy();
-    chart = null;
-  }
-
-  const time = parsed.value.time;
-  const data = selectedSignal.value.data;
-
-  // downsample to ~800 points for smooth rendering
-  const step = Math.max(1, Math.ceil(time.length / 800));
-  const labels = [];
-  const values = [];
-  for (let i = 0; i < time.length; i += step) {
-    labels.push(time[i]);
-    values.push(data[i]);
-  }
-
-  chart = new Chart(canvas.value.getContext("2d"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: `${selectedSignal.value.name} [${selectedSignal.value.unit || "-"}]`,
-          data: values,
-          borderColor: "#2563EB",
-          backgroundColor: "rgba(37,99,235,0.08)",
-          borderWidth: 1.5,
-          pointRadius: 0,
-          tension: 0.1,
-          fill: true,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      animation: false,
-      scales: {
-        x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 10 } },
-        y: { title: { display: true, text: selectedSignal.value.unit || "" } },
-      },
-      plugins: { legend: { display: true } },
-    },
-  });
-}
-
-watch(selectedIdx, () => drawChart());
 
 function formatDuration(sec) {
   if (sec < 60) return `${sec.toFixed(0)} s`;
