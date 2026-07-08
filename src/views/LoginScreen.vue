@@ -181,6 +181,11 @@ onBeforeUnmount(() => {
   width: 64px;
   height: 64px;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+  animation: floaty 3.5s ease-in-out infinite;
+}
+@keyframes floaty {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(3deg); }
 }
 .brand-title {
   color: #fff;

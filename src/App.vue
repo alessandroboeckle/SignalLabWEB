@@ -13,52 +13,68 @@
 
     <!-- Logged in AND approved -> the real app -->
     <template v-else>
-      <v-app-bar color="primary" elevation="2" class="app-header">
-        <template v-slot:prepend>
-          <div class="app-logo">
-            <v-icon size="32" color="white">mdi-sine-wave</v-icon>
-            <span class="logo-text">Signal Lab</span>
-          </div>
-        </template>
+      <!-- Top bar with gradient -->
+      <v-app-bar :elevation="3" class="app-header" height="64">
+        <v-app-bar-nav-icon color="white" @click="rail = !rail">
+          <v-icon>mdi-menu</v-icon>
+        </v-app-bar-nav-icon>
+
+        <div class="app-logo" @mouseenter="logoHover = true" @mouseleave="logoHover = false">
+          <svg class="logo-svg" :class="{ wiggle: logoHover }" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="3" />
+            <path d="M 18 50 Q 30 24 42 50 T 66 50 T 84 50" stroke="white" stroke-width="5"
+                  fill="none" stroke-linecap="round" />
+          </svg>
+          <span class="logo-text">Signal Lab</span>
+        </div>
 
         <v-spacer></v-spacer>
 
-        <span class="user-email">{{ auth.user.email }}</span>
+        <span class="user-email d-none d-sm-inline">{{ auth.user.email }}</span>
 
-        <v-btn icon @click="toggleTheme" variant="text">
+        <v-btn icon variant="text" @click="toggleTheme">
           <v-icon color="white">{{ isDark ? 'mdi-white-balance-sunny' : 'mdi-weather-night' }}</v-icon>
           <v-tooltip activator="parent" location="bottom">
             {{ isDark ? 'Light Mode' : 'Dark Mode' }}
           </v-tooltip>
         </v-btn>
 
-        <v-btn icon @click="showAbout = true" variant="text">
+        <v-btn icon variant="text" @click="showAbout = true">
           <v-icon color="white">mdi-information-outline</v-icon>
           <v-tooltip activator="parent" location="bottom">About</v-tooltip>
         </v-btn>
 
-        <v-btn icon @click="auth.signOut()" variant="text">
+        <v-btn icon variant="text" @click="auth.signOut()">
           <v-icon color="white">mdi-logout</v-icon>
           <v-tooltip activator="parent" location="bottom">Abmelden</v-tooltip>
         </v-btn>
       </v-app-bar>
 
-      <v-main>
-        <v-tabs
-          v-model="activeTab"
-          bg-color="surface"
-          color="primary"
-          show-arrows
-          class="tab-bar"
-        >
-          <v-tab value="overview"><v-icon start>mdi-view-dashboard</v-icon>Dashboard</v-tab>
-          <v-tab value="signal"><v-icon start>mdi-sine-wave</v-icon>Generator</v-tab>
-          <v-tab value="calculator"><v-icon start>mdi-calculator</v-icon>Calculator</v-tab>
-          <v-tab value="comparison"><v-icon start>mdi-chart-multiple</v-icon>Compare</v-tab>
-          <v-tab value="sessions"><v-icon start>mdi-folder-open</v-icon>Sessions</v-tab>
-          <v-tab value="settings"><v-icon start>mdi-cog</v-icon>Settings</v-tab>
-        </v-tabs>
+      <!-- Permanent sidebar (collapses to rail) -->
+      <v-navigation-drawer
+        v-model="drawer"
+        :rail="rail"
+        permanent
+        class="side-nav"
+        width="220"
+      >
+        <v-list nav density="comfortable" class="nav-list">
+          <v-list-item
+            v-for="item in navItems"
+            :key="item.value"
+            :value="item.value"
+            :active="activeTab === item.value"
+            :prepend-icon="item.icon"
+            :title="item.label"
+            rounded="lg"
+            class="nav-item"
+            @click="activeTab = item.value"
+          ></v-list-item>
+        </v-list>
+      </v-navigation-drawer>
 
+      <!-- Main content -->
+      <v-main class="main-area">
         <v-window v-model="activeTab" class="tab-content">
           <v-window-item value="overview"><OverviewTab /></v-window-item>
           <v-window-item value="signal"><SignalCreationTab /></v-window-item>
@@ -123,6 +139,18 @@ const auth = useAuthStore();
 
 const activeTab = ref("overview");
 const showAbout = ref(false);
+const drawer = ref(true);
+const rail = ref(false);
+const logoHover = ref(false);
+
+const navItems = [
+  { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
+  { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
+  { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
+  { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
+  { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
+  { value: "settings", label: "Settings", icon: "mdi-cog" },
+];
 
 const isDark = computed({
   get: () => theme.global.current.value.dark,
@@ -185,38 +213,59 @@ watch(
   to { transform: rotate(360deg); }
 }
 
+/* Top bar with a smooth multi-stop gradient */
 .app-header {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  background: linear-gradient(100deg, #1e3a8a 0%, #2563eb 45%, #3b82f6 80%, #60a5fa 100%) !important;
+  color: white;
 }
+
 .app-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-left: 8px;
+  gap: 10px;
+  cursor: pointer;
+  padding: 0 6px;
+}
+.logo-svg {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+/* wiggle only on hover */
+.logo-svg.wiggle {
+  animation: wiggle 0.9s ease-in-out infinite;
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-8deg) scale(1.08); }
+  75% { transform: rotate(8deg) scale(1.08); }
 }
 .logo-text {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   color: white;
   letter-spacing: -0.5px;
+  white-space: nowrap;
 }
 .user-email {
   color: rgba(255, 255, 255, 0.85);
   font-size: 13px;
   margin-right: 8px;
 }
-.tab-bar {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+
+.side-nav {
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
 }
+.nav-list {
+  padding: 8px;
+}
+.nav-item {
+  margin-bottom: 4px;
+  transition: all 0.2s ease;
+}
+
 .tab-content {
-  min-height: calc(100vh - 128px);
-}
-:deep(.v-tab) {
-  text-transform: none;
-  font-weight: 500;
-  letter-spacing: 0.2px;
+  min-height: calc(100vh - 64px);
 }
 </style>
