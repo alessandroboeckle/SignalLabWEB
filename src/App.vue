@@ -133,7 +133,7 @@
             <MtAnalyse />
           </v-window-item>
           <v-window-item value="mt-verarbeitung">
-            <MesstoolPlaceholder title="Verarbeitung" subtitle="Normalisieren, Glätten, Detrend, Fensterung" icon="mdi-cog-transfer" />
+            <MtVerarbeitung />
           </v-window-item>
           <v-window-item value="mt-export">
             <MesstoolPlaceholder title="Export" subtitle="Bild, SVG, PDF-Report" icon="mdi-file-export" />
@@ -192,6 +192,7 @@ import AdminTab from "./views/AdminTab.vue";
 import MesstoolPlaceholder from "./views/messtool/MesstoolPlaceholder.vue";
 import MtImport from "./views/messtool/MtImport.vue";
 import MtAnalyse from "./views/messtool/MtAnalyse.vue";
+import MtVerarbeitung from "./views/messtool/MtVerarbeitung.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
