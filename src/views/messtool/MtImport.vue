@@ -164,6 +164,9 @@ import { ref, computed, watch, nextTick, onMounted } from "vue";
 import Chart from "chart.js/auto";
 import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
+import { useMesstoolStore } from "../../stores/messtoolStore.js";
+
+const mtStore = useMesstoolStore();
 
 const fileInput = ref(null);
 const canvas = ref(null);
@@ -213,6 +216,7 @@ async function handleFile(file) {
       throw new Error("Keine Signale in der Datei gefunden.");
     }
     parsed.value = result;
+    mtStore.setData(result, file.name);
     selectedIdx.value = 0;
     await nextTick();
     drawChart();
@@ -256,6 +260,7 @@ async function openCloudFile(f) {
     const text = decodeLatin1(buffer);
     const result = parseMesstoolCsv(text);
     parsed.value = result;
+    mtStore.setData(result, f.name);
     fileName.value = f.name;
     lastFile.value = null; // came from cloud, no re-upload
     selectedIdx.value = 0;

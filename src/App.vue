@@ -130,7 +130,7 @@
             <MesstoolPlaceholder title="Filter" subtitle="Butterworth, Chebyshev, Bessel – Tief-/Hoch-/Bandpass" icon="mdi-tune-variant" />
           </v-window-item>
           <v-window-item value="mt-analyse">
-            <MesstoolPlaceholder title="Analyse" subtitle="Mittelwert, RMS, Varianz, Ableitung, Integral, FFT" icon="mdi-chart-bell-curve" />
+            <MtAnalyse />
           </v-window-item>
           <v-window-item value="mt-verarbeitung">
             <MesstoolPlaceholder title="Verarbeitung" subtitle="Normalisieren, Glätten, Detrend, Fensterung" icon="mdi-cog-transfer" />
@@ -191,6 +191,7 @@ import SettingsTab from "./views/SettingsTab.vue";
 import AdminTab from "./views/AdminTab.vue";
 import MesstoolPlaceholder from "./views/messtool/MesstoolPlaceholder.vue";
 import MtImport from "./views/messtool/MtImport.vue";
+import MtAnalyse from "./views/messtool/MtAnalyse.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
