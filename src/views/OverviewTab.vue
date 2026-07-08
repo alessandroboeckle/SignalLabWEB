@@ -83,7 +83,7 @@
         <v-card class="elevation-2">
           <v-card-title>Quick Actions</v-card-title>
           <v-card-text>
-            <v-btn class="mb-2 w-100" color="primary" prepend-icon="mdi-plus">
+            <v-btn class="mb-2 w-100" color="primary" prepend-icon="mdi-plus" @click="quickNewSession">
               New Session
             </v-btn>
             <v-btn
@@ -91,6 +91,7 @@
               color="primary"
               variant="outlined"
               prepend-icon="mdi-sine-wave"
+              @click="emit('navigate', 'signal')"
             >
               Generate Signal
             </v-btn>
@@ -99,6 +100,7 @@
               color="primary"
               variant="outlined"
               prepend-icon="mdi-download"
+              @click="emit('navigate', 'settings')"
             >
               Export Data
             </v-btn>
@@ -107,6 +109,7 @@
               color="primary"
               variant="outlined"
               prepend-icon="mdi-delete"
+              @click="emit('navigate', 'settings')"
             >
               Clear All
             </v-btn>
@@ -137,6 +140,17 @@ import Chart from "chart.js/auto";
 
 const store = useSignalStore();
 let chart = null;
+
+const emit = defineEmits(["navigate"]);
+
+async function quickNewSession() {
+  try {
+    await store.createSession("Neue Session");
+    emit("navigate", "sessions");
+  } catch (e) {
+    console.error("New session failed:", e);
+  }
+}
 
 const totalSignals = computed(() => {
   return store.allSessions.reduce((sum, session) => {

@@ -59,8 +59,9 @@
         width="220"
       >
         <v-list nav density="comfortable" class="nav-list">
+          <!-- Core Signal Lab items -->
           <v-list-item
-            v-for="item in navItems"
+            v-for="item in coreItems"
             :key="item.value"
             :value="item.value"
             :active="activeTab === item.value"
@@ -70,19 +71,73 @@
             class="nav-item"
             @click="activeTab = item.value"
           ></v-list-item>
+
+          <!-- Messtool group (expandable) -->
+          <v-list-group value="messtool">
+            <template #activator="{ props }">
+              <v-list-item
+                v-bind="props"
+                prepend-icon="mdi-tools"
+                title="Messtool"
+                rounded="lg"
+                class="nav-item"
+              ></v-list-item>
+            </template>
+
+            <v-list-item
+              v-for="sub in messtoolItems"
+              :key="sub.value"
+              :value="sub.value"
+              :active="activeTab === sub.value"
+              :prepend-icon="sub.icon"
+              :title="sub.label"
+              rounded="lg"
+              class="nav-item nav-sub"
+              @click="activeTab = sub.value"
+            ></v-list-item>
+          </v-list-group>
+
+          <!-- Admin (only for admins) -->
+          <v-list-item
+            v-if="auth.isAdmin"
+            value="admin"
+            :active="activeTab === 'admin'"
+            prepend-icon="mdi-shield-account"
+            title="Admin"
+            rounded="lg"
+            class="nav-item"
+            @click="activeTab = 'admin'"
+          ></v-list-item>
         </v-list>
       </v-navigation-drawer>
 
       <!-- Main content -->
       <v-main class="main-area">
         <v-window v-model="activeTab" class="tab-content">
-          <v-window-item value="overview"><OverviewTab /></v-window-item>
+          <v-window-item value="overview"><OverviewTab @navigate="activeTab = $event" /></v-window-item>
           <v-window-item value="signal"><SignalCreationTab /></v-window-item>
           <v-window-item value="calculator"><CalculatorTab /></v-window-item>
           <v-window-item value="comparison"><ComparisonTab /></v-window-item>
           <v-window-item value="sessions"><SessionManagementTab /></v-window-item>
           <v-window-item value="settings"><SettingsTab /></v-window-item>
           <v-window-item value="admin"><AdminTab /></v-window-item>
+
+          <!-- Messtool sub-pages (placeholders for now) -->
+          <v-window-item value="mt-import">
+            <MesstoolPlaceholder title="Import" subtitle="Messdateien laden (CSV / Excel)" icon="mdi-file-upload" />
+          </v-window-item>
+          <v-window-item value="mt-filter">
+            <MesstoolPlaceholder title="Filter" subtitle="Butterworth, Chebyshev, Bessel – Tief-/Hoch-/Bandpass" icon="mdi-tune-variant" />
+          </v-window-item>
+          <v-window-item value="mt-analyse">
+            <MesstoolPlaceholder title="Analyse" subtitle="Mittelwert, RMS, Varianz, Ableitung, Integral, FFT" icon="mdi-chart-bell-curve" />
+          </v-window-item>
+          <v-window-item value="mt-verarbeitung">
+            <MesstoolPlaceholder title="Verarbeitung" subtitle="Normalisieren, Glätten, Detrend, Fensterung" icon="mdi-cog-transfer" />
+          </v-window-item>
+          <v-window-item value="mt-export">
+            <MesstoolPlaceholder title="Export" subtitle="Bild, SVG, PDF-Report" icon="mdi-file-export" />
+          </v-window-item>
         </v-window>
       </v-main>
 
@@ -134,6 +189,7 @@ import ComparisonTab from "./views/ComparisonTab.vue";
 import SessionManagementTab from "./views/SessionManagementTab.vue";
 import SettingsTab from "./views/SettingsTab.vue";
 import AdminTab from "./views/AdminTab.vue";
+import MesstoolPlaceholder from "./views/messtool/MesstoolPlaceholder.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
@@ -145,20 +201,22 @@ const drawer = ref(true);
 const rail = ref(false);
 const logoHover = ref(false);
 
-const navItems = computed(() => {
-  const items = [
-    { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
-    { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
-    { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
-    { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
-    { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
-    { value: "settings", label: "Settings", icon: "mdi-cog" },
-  ];
-  if (auth.isAdmin) {
-    items.push({ value: "admin", label: "Admin", icon: "mdi-shield-account" });
-  }
-  return items;
-});
+const coreItems = [
+  { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
+  { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
+  { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
+  { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
+  { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
+  { value: "settings", label: "Settings", icon: "mdi-cog" },
+];
+
+const messtoolItems = [
+  { value: "mt-import", label: "Import", icon: "mdi-file-upload" },
+  { value: "mt-filter", label: "Filter", icon: "mdi-tune-variant" },
+  { value: "mt-analyse", label: "Analyse", icon: "mdi-chart-bell-curve" },
+  { value: "mt-verarbeitung", label: "Verarbeitung", icon: "mdi-cog-transfer" },
+  { value: "mt-export", label: "Export", icon: "mdi-file-export" },
+];
 
 const isDark = computed({
   get: () => theme.global.current.value.dark,
