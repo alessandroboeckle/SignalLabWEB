@@ -124,7 +124,7 @@
 
           <!-- Messtool sub-pages (placeholders for now) -->
           <v-window-item value="mt-import">
-            <MesstoolPlaceholder title="Import" subtitle="Messdateien laden (CSV / Excel)" icon="mdi-file-upload" />
+            <MtImport />
           </v-window-item>
           <v-window-item value="mt-filter">
             <MesstoolPlaceholder title="Filter" subtitle="Butterworth, Chebyshev, Bessel – Tief-/Hoch-/Bandpass" icon="mdi-tune-variant" />
@@ -190,6 +190,7 @@ import SessionManagementTab from "./views/SessionManagementTab.vue";
 import SettingsTab from "./views/SettingsTab.vue";
 import AdminTab from "./views/AdminTab.vue";
 import MesstoolPlaceholder from "./views/messtool/MesstoolPlaceholder.vue";
+import MtImport from "./views/messtool/MtImport.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
