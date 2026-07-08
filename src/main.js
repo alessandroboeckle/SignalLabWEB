@@ -4,6 +4,10 @@ import "vuetify/styles";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
+import { aliases, mdi } from "vuetify/iconsets/mdi";
+
+// Import MDI icon font (THIS makes icons visible!)
+import "@mdi/font/css/materialdesignicons.css";
 
 // Import global styles
 import "./styles/global.css";
@@ -13,6 +17,11 @@ import App from "./App.vue";
 const vuetify = createVuetify({
   components,
   directives,
+  icons: {
+    defaultSet: "mdi",
+    aliases,
+    sets: { mdi },
+  },
   theme: {
     defaultTheme: "light",
     themes: {
