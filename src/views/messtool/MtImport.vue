@@ -160,6 +160,7 @@ import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import ChartCard from "./ChartCard.vue";
+import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
 
@@ -186,13 +187,11 @@ const selectedSignal = computed(() =>
 const previewConfig = computed(() => {
   const p = parsed.value;
   const idx = selectedIdx.value;
-  return () => {
+  return (peakMode) => {
     if (!p) return { type: "line", data: { labels: [], datasets: [] } };
     const s = p.signals[idx];
     const time = p.time;
-    const step = Math.max(1, Math.ceil(time.length / 800));
-    const labels = [], values = [];
-    for (let i = 0; i < time.length; i += step) { labels.push(time[i]); values.push(s.data[i]); }
+    const { rx: labels, ry: values } = downsample(s.data, time, peakMode ? "minmax" : "simple", 800);
     return {
       type: "line",
       data: {

@@ -3,6 +3,18 @@
     <v-card-title class="text-subtitle-1 d-flex align-center">
       {{ title }}
       <v-spacer></v-spacer>
+      <v-btn
+        size="small"
+        variant="text"
+        :color="peakMode ? 'primary' : undefined"
+        icon="mdi-chart-sawtooth"
+        @click="peakMode = !peakMode"
+      >
+        <v-icon>mdi-chart-sawtooth</v-icon>
+        <v-tooltip activator="parent" location="bottom">
+          {{ peakMode ? 'Spitzen-Modus AN (Min/Max)' : 'Spitzen-Modus AUS (schnell)' }}
+        </v-tooltip>
+      </v-btn>
       <v-btn size="small" variant="text" icon="mdi-restore" @click="resetZoom('inline')">
         <v-icon>mdi-restore</v-icon>
         <v-tooltip activator="parent" location="bottom">Zoom zurücksetzen</v-tooltip>
@@ -57,6 +69,7 @@ const props = defineProps({
 const inlineCanvas = ref(null);
 const fsCanvas = ref(null);
 const fullscreen = ref(false);
+const peakMode = ref(false);
 let inlineChart = null;
 let fsChart = null;
 
@@ -105,13 +118,13 @@ function withInteractions(cfg) {
 function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
-  inlineChart = new Chart(inlineCanvas.value.getContext("2d"), withInteractions(props.config()));
+  inlineChart = new Chart(inlineCanvas.value.getContext("2d"), withInteractions(props.config(peakMode.value)));
 }
 
 function buildFullscreen() {
   if (fsChart) { fsChart.destroy(); fsChart = null; }
   if (!fsCanvas.value) return;
-  fsChart = new Chart(fsCanvas.value.getContext("2d"), withInteractions(props.config()));
+  fsChart = new Chart(fsCanvas.value.getContext("2d"), withInteractions(props.config(peakMode.value)));
 }
 
 function resetZoom(which) {
@@ -126,6 +139,7 @@ async function openFullscreen() {
 }
 
 watch(() => props.config, async () => { await nextTick(); buildInline(); });
+watch(peakMode, async () => { await nextTick(); buildInline(); if (fullscreen.value) buildFullscreen(); });
 
 watch(fullscreen, (open) => {
   if (!open && fsChart) { fsChart.destroy(); fsChart = null; }

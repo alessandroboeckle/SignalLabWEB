@@ -65,6 +65,7 @@ import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import ChartCard from "./ChartCard.vue";
+import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
 
@@ -106,11 +107,8 @@ const stats = computed(() => {
   ];
 });
 
-function down(arr, xs) {
-  const step = Math.max(1, Math.ceil(arr.length / 800));
-  const rx = [], ry = [];
-  for (let i = 0; i < arr.length; i += step) { rx.push(xs[i]); ry.push(arr[i]); }
-  return { rx, ry };
+function down(arr, xs, mode) {
+  return downsample(arr, xs, mode ? 'minmax' : 'simple', 800);
 }
 
 // Each config is a computed returning a FRESH function.
@@ -119,12 +117,12 @@ function down(arr, xs) {
 
 const derivConfig = computed(() => {
   const s = sig.value, t = time.value;
-  return () => {
+  return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const y = s.data.map((v) => (v == null ? 0 : v));
     const unit = s.unit || "";
     const deriv = A.derivative(y, t);
-    const sD = down(y, t), dD = down(deriv, t);
+    const sD = down(y, t, peakMode), dD = down(deriv, t, peakMode);
     return {
       type: "line",
       data: {
@@ -149,12 +147,12 @@ const derivConfig = computed(() => {
 
 const integralConfig = computed(() => {
   const s = sig.value, t = time.value;
-  return () => {
+  return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const y = s.data.map((v) => (v == null ? 0 : v));
     const unit = s.unit || "";
     const integ = A.integral(y, t);
-    const iD = down(integ, t);
+    const iD = down(integ, t, peakMode);
     return {
       type: "line",
       data: {
@@ -174,12 +172,12 @@ const integralConfig = computed(() => {
 
 const fftConfig = computed(() => {
   const s = sig.value, t = time.value, wt = windowType.value;
-  return () => {
+  return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const y = s.data.map((v) => (v == null ? 0 : v));
     const unit = s.unit || "";
     const { freq, amp } = A.fft(y, t, { windowType: wt, normalize: true });
-    const fD = down(amp, freq);
+    const fD = down(amp, freq, peakMode);
     return {
       type: "line",
       data: {

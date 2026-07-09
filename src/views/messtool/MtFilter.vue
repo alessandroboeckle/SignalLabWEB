@@ -101,6 +101,7 @@ import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { applyFilter } from "../../utils/messtoolFilter.js";
 import ChartCard from "./ChartCard.vue";
+import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
 
@@ -161,18 +162,15 @@ const cutoffWarning = computed(() => {
   return "";
 });
 
-function down(arr, xs) {
-  const step = Math.max(1, Math.ceil(arr.length / 800));
-  const rx = [], ry = [];
-  for (let i = 0; i < arr.length; i += step) { rx.push(xs[i]); ry.push(arr[i]); }
-  return { rx, ry };
+function down(arr, xs, mode) {
+  return downsample(arr, xs, mode ? 'minmax' : 'simple', 800);
 }
 
 const filterConfig = computed(() => {
   const s = sig.value, t = time.value, fs = sampleRate.value;
   const bt = btype.value, ord = order.value, c1 = cutoff.value, c2 = cutoff2.value;
   const char = characteristic.value;
-  return () => {
+  return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const y = s.data.map((v) => (v == null ? 0 : v));
     const unit = s.unit || "";
@@ -184,8 +182,8 @@ const filterConfig = computed(() => {
     } catch {
       filtered = y.slice();
     }
-    const oD = down(y, t);
-    const fD = down(filtered, t);
+    const oD = down(y, t, peakMode);
+    const fD = down(filtered, t, peakMode);
     return {
       type: "line",
       data: {

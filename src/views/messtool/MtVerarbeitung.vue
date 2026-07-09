@@ -119,6 +119,7 @@ import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
 import ChartCard from "./ChartCard.vue";
+import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
 const registry = OP_REGISTRY;
@@ -157,24 +158,21 @@ function recompute() {
   version.value++;
 }
 
-function down(arr, xs) {
-  const step = Math.max(1, Math.ceil(arr.length / 800));
-  const rx = [], ry = [];
-  for (let i = 0; i < arr.length; i += step) { rx.push(xs[i]); ry.push(arr[i]); }
-  return { rx, ry };
+function down(arr, xs, mode) {
+  return downsample(arr, xs, mode ? 'minmax' : 'simple', 800);
 }
 
 const compareConfig = computed(() => {
   const s = sig.value, t = time.value, _v = version.value, idx = selectedIdx.value;
   // snapshot ops (id + params) so identity changes when they change
   const opSnapshot = ops.value.map((o) => o);
-  return () => {
+  return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const y = s.data.map((v) => (v == null ? 0 : v));
     const processed = applyChain(y, t, opSnapshot);
     const unit = s.unit || "";
-    const oD = down(y, t);
-    const pD = down(processed, t);
+    const oD = down(y, t, peakMode);
+    const pD = down(processed, t, peakMode);
     return {
       type: "line",
       data: {
