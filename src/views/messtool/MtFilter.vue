@@ -4,7 +4,7 @@
       <v-icon color="primary" size="28" class="mr-3">mdi-tune-variant</v-icon>
       <h2 class="text-h4 font-weight-bold">Filter</h2>
     </div>
-    <p class="text-medium-emphasis mb-6">Digitale Filter (Butterworth) – Tief-/Hoch-/Bandpass, nullphasig</p>
+    <p class="text-medium-emphasis mb-6">Digitale Filter – Butterworth, Chebyshev I, Bessel · nullphasig</p>
 
     <v-card v-if="!mtStore.parsed" variant="outlined" rounded="lg" class="pa-8 text-center">
       <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-file-question-outline</v-icon>
@@ -23,6 +23,15 @@
               variant="outlined"
               density="comfortable"
               prepend-inner-icon="mdi-sine-wave"
+              class="mb-3"
+            ></v-select>
+
+            <v-select
+              v-model="characteristic"
+              :items="charOptions"
+              label="Charakteristik"
+              variant="outlined"
+              density="comfortable"
               class="mb-3"
             ></v-select>
 
@@ -80,16 +89,23 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
-import { applyButterworth } from "../../utils/messtoolFilter.js";
+import { applyFilter } from "../../utils/messtoolFilter.js";
 import ChartCard from "./ChartCard.vue";
 
 const mtStore = useMesstoolStore();
 
 const selectedIdx = ref(0);
+const characteristic = ref("butterworth");
 const btype = ref("low");
 const order = ref(4);
 const cutoff = ref(5);
 const cutoff2 = ref(20);
+
+const charOptions = [
+  { title: "Butterworth", value: "butterworth" },
+  { title: "Chebyshev I", value: "cheby1" },
+  { title: "Bessel", value: "bessel" },
+];
 
 const btypeOptions = [
   { title: "Tiefpass", value: "low" },
@@ -126,14 +142,15 @@ function down(arr, xs) {
 const filterConfig = computed(() => {
   const s = sig.value, t = time.value, fs = sampleRate.value;
   const bt = btype.value, ord = order.value, c1 = cutoff.value, c2 = cutoff2.value;
+  const char = characteristic.value;
   return () => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const y = s.data.map((v) => (v == null ? 0 : v));
     const unit = s.unit || "";
     let filtered;
     try {
-      filtered = applyButterworth(y, {
-        order: ord, cutoffHz: c1, cutoff2Hz: c2, sampleRate: fs, btype: bt,
+      filtered = applyFilter(y, {
+        order: ord, cutoffHz: c1, cutoff2Hz: c2, sampleRate: fs, btype: bt, characteristic: char,
       });
     } catch {
       filtered = y.slice();
