@@ -1,18 +1,18 @@
 <template>
   <v-card variant="outlined" rounded="lg" class="mb-4">
-    <v-card-title class="text-subtitle-1 d-flex align-center">
+    <v-card-title class="text-subtitle-1 d-flex align-center flex-wrap ga-2">
       {{ title }}
       <v-spacer></v-spacer>
       <v-btn
         size="small"
-        variant="text"
-        :color="peakMode ? 'primary' : undefined"
-        icon="mdi-chart-sawtooth"
+        :variant="peakMode ? 'flat' : 'outlined'"
+        :color="peakMode ? 'primary' : 'default'"
+        prepend-icon="mdi-chart-sawtooth"
         @click="peakMode = !peakMode"
       >
-        <v-icon>mdi-chart-sawtooth</v-icon>
+        Spitzen {{ peakMode ? "AN" : "AUS" }}
         <v-tooltip activator="parent" location="bottom">
-          {{ peakMode ? 'Spitzen-Modus AN (Min/Max)' : 'Spitzen-Modus AUS (schnell)' }}
+          {{ peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen' }}
         </v-tooltip>
       </v-btn>
       <v-btn size="small" variant="text" icon="mdi-restore" @click="resetZoom('inline')">
