@@ -178,14 +178,17 @@ export function butterSOS(order, wnNorm, btype = "low") {
   return designSOS(order, wnNorm, btype, "butterworth");
 }
 
-// ---------- apply SOS (single direction) ----------
-function sosfiltOnce(sos, x) {
+// ---------- apply SOS with optional per-section initial state ----------
+// Returns { y, zf } where zf are the final states (for chaining/matching scipy).
+function sosfiltWithState(sos, x, zi) {
   let y = x.slice();
-  for (const s of sos) {
-    const [b0, b1, b2, a0, a1, a2] = s;
+  const zfOut = [];
+  for (let s = 0; s < sos.length; s++) {
+    const [b0, b1, b2, a0, a1, a2] = sos[s];
     const nb0 = b0 / a0, nb1 = b1 / a0, nb2 = b2 / a0;
     const na1 = a1 / a0, na2 = a2 / a0;
-    let z1 = 0, z2 = 0;
+    let z1 = zi ? zi[s][0] : 0;
+    let z2 = zi ? zi[s][1] : 0;
     const out = new Array(y.length);
     for (let i = 0; i < y.length; i++) {
       const xn = y[i];
@@ -194,37 +197,83 @@ function sosfiltOnce(sos, x) {
       z2 = nb2 * xn - na2 * yn;
       out[i] = yn;
     }
+    zfOut.push([z1, z2]);
     y = out;
   }
-  return y;
+  return { y, zf: zfOut };
 }
 
-// ---------- zero-phase filtering (like scipy sosfiltfilt) ----------
-// filter forward, reverse, filter again, reverse back.
+function sosfiltOnce(sos, x) {
+  return sosfiltWithState(sos, x, null).y;
+}
+
+// steady-state initial conditions per section (matches scipy.signal.sosfilt_zi)
+function sosfiltZi(sos) {
+  const zis = [];
+  let scale = 1;
+  for (const [b0, b1, b2, a0, a1, a2] of sos) {
+    const nb0 = b0 / a0, nb1 = b1 / a0, nb2 = b2 / a0;
+    const na1 = a1 / a0, na2 = a2 / a0;
+    // solve for lfilter_zi of this section:
+    // (1+a1) zi0 - zi1 = b1 - a1*b0
+    // a2*zi0 + zi1 = b2 - a2*b0
+    const B0 = nb1 - na1 * nb0;
+    const B1 = nb2 - na2 * nb0;
+    const zi0 = (B0 + B1) / (1 + na1 + na2);
+    const zi1 = B1 - na2 * zi0;
+    zis.push([scale * zi0, scale * zi1]);
+    scale *= (nb0 + nb1 + nb2) / (1 + na1 + na2);
+  }
+  return zis;
+}
+
+// odd extension of length `edge` at both ends, matching scipy's odd_ext
+function oddExt(x, edge) {
+  const n = x.length;
+  const left = [];
+  for (let i = edge; i >= 1; i--) left.push(2 * x[0] - x[i]);
+  const right = [];
+  for (let i = n - 2; i >= n - 1 - edge; i--) right.push(2 * x[n - 1] - x[i]);
+  return left.concat(x, right);
+}
+
+// ---------- zero-phase filtering (matches scipy.signal.sosfiltfilt) ----------
 export function sosfiltfilt(sos, x) {
   if (!x || x.length === 0) return [];
-  // simple edge padding to reduce transients (odd reflection)
   const n = x.length;
-  const padLen = Math.min(3 * sos.length * 2, n - 1);
-  if (padLen < 1) {
+  const nSections = sos.length;
+
+  // padlen formula from scipy: 3*(2*n_sections+1 - min(#b2==0, #a2==0))
+  let zeroB2 = 0, zeroA2 = 0;
+  for (const s of sos) {
+    if (s[2] === 0) zeroB2++;
+    if (s[5] === 0) zeroA2++;
+  }
+  const ntaps = 2 * nSections + 1 - Math.min(zeroB2, zeroA2);
+  let edge = 3 * ntaps;
+  if (edge >= n) edge = Math.max(0, n - 1); // fall back safely for short signals
+  if (edge === 0) {
     let y = sosfiltOnce(sos, x);
     y.reverse();
     y = sosfiltOnce(sos, y);
     y.reverse();
     return y;
   }
-  const pre = [];
-  for (let i = padLen; i >= 1; i--) pre.push(2 * x[0] - x[i]);
-  const post = [];
-  for (let i = 2; i <= padLen + 1; i++) post.push(2 * x[n - 1] - x[n - 1 - i + 1]);
-  let ext = pre.concat(x, post);
 
-  let y = sosfiltOnce(sos, ext);
-  y.reverse();
-  y = sosfiltOnce(sos, y);
-  y.reverse();
+  const ext = oddExt(x, edge);
+  const zi = sosfiltZi(sos);
 
-  return y.slice(padLen, padLen + n);
+  // forward pass, scaled by first sample of the extended signal
+  const zi1 = zi.map(([a, b]) => [a * ext[0], b * ext[0]]);
+  let { y } = sosfiltWithState(sos, ext, zi1);
+
+  // backward pass, scaled by last sample of the forward result
+  const yRev = y.slice().reverse();
+  const zi2 = zi.map(([a, b]) => [a * yRev[0], b * yRev[0]]);
+  let { y: y2 } = sosfiltWithState(sos, yRev, zi2);
+  y2.reverse();
+
+  return y2.slice(edge, edge + n);
 }
 
 // convenience: design + apply, with characteristic
