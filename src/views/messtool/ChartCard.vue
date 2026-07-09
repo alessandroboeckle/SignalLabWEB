@@ -7,7 +7,7 @@
         size="small"
         :variant="peakMode ? 'flat' : 'outlined'"
         :color="peakMode ? 'primary' : 'default'"
-        prepend-icon="mdi-chart-sawtooth"
+        prepend-icon="mdi-pulse"
         @click="peakMode = !peakMode"
       >
         Spitzen {{ peakMode ? "AN" : "AUS" }}
