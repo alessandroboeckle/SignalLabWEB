@@ -72,8 +72,18 @@
               class="mb-3"
             ></v-text-field>
 
-            <v-alert type="info" variant="tonal" density="compact" class="text-caption">
+            <v-alert type="info" variant="tonal" density="compact" class="text-caption mb-2">
               Abtastrate: {{ sampleRate.toFixed(1) }} Hz · Nyquist: {{ (sampleRate/2).toFixed(1) }} Hz
+            </v-alert>
+
+            <v-alert
+              v-if="cutoffWarning"
+              type="warning"
+              variant="tonal"
+              density="compact"
+              class="text-caption"
+            >
+              {{ cutoffWarning }}
             </v-alert>
           </v-card>
         </v-col>
@@ -98,8 +108,8 @@ const selectedIdx = ref(0);
 const characteristic = ref("butterworth");
 const btype = ref("low");
 const order = ref(4);
-const cutoff = ref(5);
-const cutoff2 = ref(20);
+const cutoff = ref(1);
+const cutoff2 = ref(3);
 
 const charOptions = [
   { title: "Butterworth", value: "butterworth" },
@@ -130,6 +140,25 @@ const sampleRate = computed(() => {
   const t = time.value;
   if (!t || t.length < 2) return 1;
   return (t.length - 1) / (t[t.length - 1] - t[0]);
+});
+
+// Warn when a cutoff is at/above Nyquist (filter can't work there).
+const cutoffWarning = computed(() => {
+  const nyq = sampleRate.value / 2;
+  const maxHz = (nyq * 0.95).toFixed(2); // safe practical max
+  if (btype.value === "band") {
+    if (cutoff2.value >= nyq || cutoff.value >= nyq) {
+      return `Grenzfrequenz zu hoch! Bei dieser Datei muss sie unter der Nyquist-Frequenz (${nyq.toFixed(2)} Hz) liegen. Empfohlen: max. ${maxHz} Hz.`;
+    }
+    if (cutoff.value >= cutoff2.value) {
+      return "Untere Grenzfrequenz muss kleiner als die obere sein.";
+    }
+  } else {
+    if (cutoff.value >= nyq) {
+      return `Grenzfrequenz zu hoch! Bei dieser Datei muss sie unter der Nyquist-Frequenz (${nyq.toFixed(2)} Hz) liegen. Empfohlen: max. ${maxHz} Hz. — Der Filter macht sonst nichts.`;
+    }
+  }
+  return "";
 });
 
 function down(arr, xs) {
