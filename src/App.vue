@@ -15,7 +15,7 @@
     <template v-else>
       <!-- Top bar with gradient -->
       <v-app-bar :elevation="3" class="app-header" height="64">
-        <v-app-bar-nav-icon color="white" @click="rail = !rail">
+        <v-app-bar-nav-icon color="white" @click="toggleDrawer">
           <v-icon>mdi-menu</v-icon>
         </v-app-bar-nav-icon>
 
@@ -50,27 +50,51 @@
         </v-btn>
       </v-app-bar>
 
-      <!-- Permanent sidebar (collapses to rail) -->
+      <!-- Sidebar: permanent + collapsible rail on desktop, overlay on mobile -->
       <v-navigation-drawer
         v-model="drawer"
-        :rail="rail"
-        permanent
+        :rail="!mobile && rail"
+        :permanent="!mobile"
+        :temporary="mobile"
         class="side-nav"
         width="220"
       >
         <v-list nav density="comfortable" class="nav-list">
-          <!-- Core Signal Lab items -->
+          <!-- Dashboard (always visible top-level) -->
           <v-list-item
-            v-for="item in coreItems"
-            :key="item.value"
-            :value="item.value"
-            :active="activeTab === item.value"
-            :prepend-icon="item.icon"
-            :title="item.label"
+            value="overview"
+            :active="activeTab === 'overview'"
+            prepend-icon="mdi-view-dashboard"
+            title="Dashboard"
             rounded="lg"
             class="nav-item"
-            @click="activeTab = item.value"
+            @click="selectTab('overview')"
           ></v-list-item>
+
+          <!-- Generier-Tool group (expandable) -->
+          <v-list-group value="generiertool">
+            <template #activator="{ props }">
+              <v-list-item
+                v-bind="props"
+                prepend-icon="mdi-waveform"
+                title="Generier-Tool"
+                rounded="lg"
+                class="nav-item"
+              ></v-list-item>
+            </template>
+
+            <v-list-item
+              v-for="sub in generierToolItems"
+              :key="sub.value"
+              :value="sub.value"
+              :active="activeTab === sub.value"
+              :prepend-icon="sub.icon"
+              :title="sub.label"
+              rounded="lg"
+              class="nav-item nav-sub"
+              @click="selectTab(sub.value)"
+            ></v-list-item>
+          </v-list-group>
 
           <!-- Messtool group (expandable) -->
           <v-list-group value="messtool">
@@ -93,9 +117,22 @@
               :title="sub.label"
               rounded="lg"
               class="nav-item nav-sub"
-              @click="activeTab = sub.value"
+              @click="selectTab(sub.value)"
             ></v-list-item>
           </v-list-group>
+
+          <!-- Sessions & Settings (always visible top-level) -->
+          <v-list-item
+            v-for="item in bottomItems"
+            :key="item.value"
+            :value="item.value"
+            :active="activeTab === item.value"
+            :prepend-icon="item.icon"
+            :title="item.label"
+            rounded="lg"
+            class="nav-item"
+            @click="selectTab(item.value)"
+          ></v-list-item>
 
           <!-- Admin (only for admins) -->
           <v-list-item
@@ -106,7 +143,7 @@
             title="Admin"
             rounded="lg"
             class="nav-item"
-            @click="activeTab = 'admin'"
+            @click="selectTab('admin')"
           ></v-list-item>
         </v-list>
       </v-navigation-drawer>
@@ -176,7 +213,7 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { useTheme } from "vuetify";
+import { useTheme, useDisplay } from "vuetify";
 import { useSignalStore } from "./stores/signalStore";
 import { useAuthStore } from "./stores/authStore";
 
@@ -202,15 +239,38 @@ const auth = useAuthStore();
 
 const activeTab = ref("overview");
 const showAbout = ref(false);
+const { mobile } = useDisplay();
 const drawer = ref(true);
 const rail = ref(false);
+
+// On mobile, the sidebar becomes an overlay (not permanent) and starts closed,
+// so it doesn't eat screen space; the hamburger toggles it in/out.
+watch(mobile, (isMobile) => {
+  drawer.value = !isMobile;
+  rail.value = false;
+}, { immediate: true });
+
+function toggleDrawer() {
+  if (mobile.value) {
+    drawer.value = !drawer.value;
+  } else {
+    rail.value = !rail.value;
+  }
+}
+
+function selectTab(value) {
+  activeTab.value = value;
+  if (mobile.value) drawer.value = false;
+}
 const logoHover = ref(false);
 
-const coreItems = [
-  { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
+const generierToolItems = [
   { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
   { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
   { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
+];
+
+const bottomItems = [
   { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
   { value: "settings", label: "Settings", icon: "mdi-cog" },
 ];

@@ -44,6 +44,16 @@
               class="mb-3"
             ></v-select>
 
+            <v-text-field
+              v-if="characteristic === 'elliptic'"
+              v-model.number="stopbandDb"
+              type="number"
+              label="Sperrdämpfung [dB]"
+              variant="outlined"
+              density="comfortable"
+              class="mb-3"
+            ></v-text-field>
+
             <v-select
               v-model="order"
               :items="[2,3,4,5,6,8]"
@@ -111,11 +121,13 @@ const btype = ref("low");
 const order = ref(4);
 const cutoff = ref(1);
 const cutoff2 = ref(3);
+const stopbandDb = ref(40);
 
 const charOptions = [
   { title: "Butterworth", value: "butterworth" },
   { title: "Chebyshev I", value: "cheby1" },
   { title: "Bessel", value: "bessel" },
+  { title: "Elliptic (Cauer)", value: "elliptic" },
 ];
 
 const btypeOptions = [
@@ -169,7 +181,7 @@ function down(arr, xs, mode) {
 const filterConfig = computed(() => {
   const s = sig.value, t = time.value, fs = sampleRate.value;
   const bt = btype.value, ord = order.value, c1 = cutoff.value, c2 = cutoff2.value;
-  const char = characteristic.value;
+  const char = characteristic.value, rs = stopbandDb.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const y = s.data.map((v) => (v == null ? 0 : v));
@@ -177,7 +189,7 @@ const filterConfig = computed(() => {
     let filtered;
     try {
       filtered = applyFilter(y, {
-        order: ord, cutoffHz: c1, cutoff2Hz: c2, sampleRate: fs, btype: bt, characteristic: char,
+        order: ord, cutoffHz: c1, cutoff2Hz: c2, sampleRate: fs, btype: bt, characteristic: char, rs,
       });
     } catch {
       filtered = y.slice();
