@@ -5,6 +5,18 @@
       <v-spacer></v-spacer>
       <v-btn
         size="small"
+        :variant="cursorMode ? 'flat' : 'outlined'"
+        :color="cursorMode ? 'secondary' : 'default'"
+        prepend-icon="mdi-ruler"
+        @click="toggleCursorMode"
+      >
+        Cursor {{ cursorMode ? "AN" : "AUS" }}
+        <v-tooltip activator="parent" location="bottom">
+          Zwei Punkte anklicken, um Δt und ΔWert zu messen
+        </v-tooltip>
+      </v-btn>
+      <v-btn
+        size="small"
         :variant="peakMode ? 'flat' : 'outlined'"
         :color="peakMode ? 'primary' : 'default'"
         prepend-icon="mdi-pulse"
@@ -28,9 +40,21 @@
     <v-card-text>
       <div class="hint text-caption text-medium-emphasis mb-1">
         Mausrad = Zoom · Rechteck ziehen = Bereich · Ziehen mit gedrückter Umschalt = verschieben
+        <span v-if="cursorMode"> · Cursor-Modus: 2 Punkte anklicken</span>
       </div>
+
+      <v-alert
+        v-if="cursorMode && cursorInfo"
+        type="info"
+        variant="tonal"
+        density="compact"
+        class="mb-2 text-caption"
+      >
+        {{ cursorInfo }}
+      </v-alert>
+
       <div :style="{ height: height + 'px' }">
-        <canvas ref="inlineCanvas"></canvas>
+        <canvas ref="inlineCanvas" @click="onCanvasClick($event, 'inline')"></canvas>
       </div>
     </v-card-text>
 
@@ -46,7 +70,16 @@
           </v-btn>
         </v-toolbar>
         <v-card-text class="pa-4" style="height: calc(100vh - 64px)">
-          <canvas ref="fsCanvas"></canvas>
+          <v-alert
+            v-if="cursorMode && cursorInfo"
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="mb-2 text-caption"
+          >
+            {{ cursorInfo }}
+          </v-alert>
+          <canvas ref="fsCanvas" @click="onCanvasClick($event, 'fs')"></canvas>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -54,7 +87,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import Chart from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
 
@@ -70,8 +103,75 @@ const inlineCanvas = ref(null);
 const fsCanvas = ref(null);
 const fullscreen = ref(false);
 const peakMode = ref(false);
+const cursorMode = ref(false);
+const cursors = ref([]); // up to 2 points: {x, y, label}
 let inlineChart = null;
 let fsChart = null;
+
+const cursorInfo = computed(() => {
+  if (cursors.value.length < 2) return cursors.value.length === 1
+    ? "Erster Punkt gesetzt – zweiten Punkt anklicken."
+    : "";
+  const [a, b] = cursors.value;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  return `Δx = ${dx.toFixed(4)}  ·  Δy = ${dy.toFixed(4)}  (P1: x=${a.x.toFixed(3)}, y=${a.y.toFixed(3)} · P2: x=${b.x.toFixed(3)}, y=${b.y.toFixed(3)})`;
+});
+
+function toggleCursorMode() {
+  cursorMode.value = !cursorMode.value;
+  cursors.value = [];
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+}
+
+function onCanvasClick(evt, which) {
+  if (!cursorMode.value) return;
+  const chart = which === "inline" ? inlineChart : fsChart;
+  if (!chart) return;
+
+  const points = chart.getElementsAtEventForMode(evt, "nearest", { intersect: false }, true);
+  if (!points.length) return;
+  const p = points[0];
+  const ds = chart.data.datasets[p.datasetIndex];
+  const rawX = chart.data.labels[p.index];
+  const rawY = ds.data[p.index];
+  const x = typeof rawX === "number" ? rawX : parseFloat(rawX);
+  const y = typeof rawY === "number" ? rawY : parseFloat(rawY);
+
+  if (cursors.value.length >= 2) cursors.value = [];
+  cursors.value = [...cursors.value, { x, y }];
+
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+}
+
+// Custom plugin: draws vertical lines + dots at cursor positions.
+const cursorPlugin = {
+  id: "cursorMarkers",
+  afterDraw(chart) {
+    if (!cursorMode.value || cursors.value.length === 0) return;
+    const { ctx, chartArea, scales } = chart;
+    const xScale = scales.x;
+    ctx.save();
+    cursors.value.forEach((c, i) => {
+      const px = xScale.getPixelForValue(c.x);
+      if (px < chartArea.left || px > chartArea.right) return;
+      ctx.strokeStyle = i === 0 ? "#DC2626" : "#059669";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(px, chartArea.top);
+      ctx.lineTo(px, chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = i === 0 ? "#DC2626" : "#059669";
+      ctx.font = "11px sans-serif";
+      ctx.fillText(`P${i + 1}`, px + 3, chartArea.top + 12);
+    });
+    ctx.restore();
+  },
+};
 
 // Shared interaction + zoom + tooltip options merged into every chart.
 function withInteractions(cfg) {
@@ -118,13 +218,17 @@ function withInteractions(cfg) {
 function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
-  inlineChart = new Chart(inlineCanvas.value.getContext("2d"), withInteractions(props.config(peakMode.value)));
+  const cfg = withInteractions(props.config(peakMode.value));
+  cfg.plugins = [cursorPlugin];
+  inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
 }
 
 function buildFullscreen() {
   if (fsChart) { fsChart.destroy(); fsChart = null; }
   if (!fsCanvas.value) return;
-  fsChart = new Chart(fsCanvas.value.getContext("2d"), withInteractions(props.config(peakMode.value)));
+  const cfg = withInteractions(props.config(peakMode.value));
+  cfg.plugins = [cursorPlugin];
+  fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
 }
 
 function resetZoom(which) {

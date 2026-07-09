@@ -136,7 +136,7 @@
             <MtVerarbeitung />
           </v-window-item>
           <v-window-item value="mt-export">
-            <MesstoolPlaceholder title="Export" subtitle="Bild, SVG, PDF-Report" icon="mdi-file-export" />
+            <MtExport />
           </v-window-item>
         </v-window>
       </v-main>
@@ -194,6 +194,7 @@ import MtImport from "./views/messtool/MtImport.vue";
 import MtAnalyse from "./views/messtool/MtAnalyse.vue";
 import MtVerarbeitung from "./views/messtool/MtVerarbeitung.vue";
 import MtFilter from "./views/messtool/MtFilter.vue";
+import MtExport from "./views/messtool/MtExport.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
