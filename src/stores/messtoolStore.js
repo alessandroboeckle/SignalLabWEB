@@ -6,6 +6,9 @@ import { ref } from "vue";
 export const useMesstoolStore = defineStore("messtool", () => {
   const parsed = ref(null); // { signals:[{name,unit,data}], time:[], meta:{} }
   const fileName = ref("");
+  // FFT window type preselected during Import (Analyse falls back to "hann"
+  // if this is null, and keeps working the way it always has).
+  const fftWindowDefault = ref(null);
 
   function setData(result, name) {
     parsed.value = result;
@@ -17,5 +20,5 @@ export const useMesstoolStore = defineStore("messtool", () => {
     fileName.value = "";
   }
 
-  return { parsed, fileName, setData, clear };
+  return { parsed, fileName, fftWindowDefault, setData, clear };
 });

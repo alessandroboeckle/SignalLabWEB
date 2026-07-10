@@ -27,11 +27,41 @@ function extractUnit(text) {
   return "";
 }
 
+// Convert a spreadsheet-style column reference to a 1-based index.
+// Accepts plain numbers ("12") or letters ("A", "CC", ...).
+export function colRefToNumber(ref) {
+  if (ref === null || ref === undefined || ref === "") return null;
+  const s = String(ref).trim();
+  if (/^\d+$/.test(s)) return parseInt(s, 10);
+  if (!/^[A-Za-z]+$/.test(s)) return null;
+  let n = 0;
+  const up = s.toUpperCase();
+  for (let i = 0; i < up.length; i++) {
+    n = n * 26 + (up.charCodeAt(i) - 64);
+  }
+  return n;
+}
+
 // Parse the raw text of a measurement CSV.
+// options:
+//   startRow, endRow   - 1-based range over the data rows to import (inclusive)
+//   startCol, endCol   - 1-based range (or column-letter, e.g. "A"/"CC") over
+//                        the signal columns (i.e. excluding Nb/Type/Date/Time)
+//   sampleFrequenz     - if set, overrides the time axis with index/fs instead
+//                        of the timestamps found in the file
 // Returns { signals: [{name, unit, data:[numbers]}], time: [...], meta }.
-export function parseMesstoolCsv(text) {
+export function parseMesstoolCsv(text, options = {}) {
   const delimiter = ";";
   const lines = text.split(/\r?\n/);
+
+  const startRow = options.startRow || null;
+  const endRow = options.endRow || null;
+  const startColNum = colRefToNumber(options.startCol);
+  const endColNum = colRefToNumber(options.endCol);
+  const sampleFrequenz =
+    options.sampleFrequenz && options.sampleFrequenz > 0
+      ? options.sampleFrequenz
+      : null;
 
   // --- units from LOGITEM lines ---
   const unitMap = {};
@@ -62,13 +92,24 @@ export function parseMesstoolCsv(text) {
   const headerCells = lines[headerIdx].split(delimiter).map((c) => c.trim());
   // meta columns: Nb, Type, Date, Time -> signals from index 4 on
   const META_COLS = 4;
-  const signalNames = headerCells.slice(META_COLS).filter((n) => n.length > 0);
+  const allSignalNames = headerCells.slice(META_COLS).filter((n) => n.length > 0);
+
+  // apply optional column range (1-based, inclusive) over the signal columns
+  const colFrom = startColNum ? Math.max(1, startColNum) - 1 : 0;
+  const colTo = endColNum
+    ? Math.min(allSignalNames.length, endColNum) - 1
+    : allSignalNames.length - 1;
+  const signalNames =
+    colFrom > 0 || colTo < allSignalNames.length - 1
+      ? allSignalNames.slice(colFrom, colTo + 1)
+      : allSignalNames;
 
   // prepare containers
   const time = [];
   const signalData = signalNames.map(() => []);
 
   let t0 = null;
+  let rowCounter = 0;
 
   for (let i = headerIdx + 1; i < lines.length; i++) {
     const line = lines[i];
@@ -76,14 +117,26 @@ export function parseMesstoolCsv(text) {
     const cells = line.split(delimiter);
     if (cells.length < META_COLS + 1) continue;
 
+    rowCounter++;
+    if (startRow && rowCounter < startRow) continue;
+    if (endRow && rowCounter > endRow) break;
+
     // Time column is index 3, format HH:MM:SS:mmm
     const tSec = parseTimeToSeconds(cells[3]);
     if (t0 === null && tSec !== null) t0 = tSec;
     time.push(tSec !== null ? +(tSec - t0).toFixed(3) : time.length);
 
     for (let s = 0; s < signalNames.length; s++) {
-      const v = parseFloat(cells[META_COLS + s]);
+      const v = parseFloat(cells[META_COLS + colFrom + s]);
       signalData[s].push(Number.isFinite(v) ? v : null);
+    }
+  }
+
+  // optional samplefrequency override: replace the timestamp-derived time
+  // axis with a plain index/fs grid (e.g. when timestamps are unreliable)
+  if (sampleFrequenz) {
+    for (let i = 0; i < time.length; i++) {
+      time[i] = +(i / sampleFrequenz).toFixed(6);
     }
   }
 

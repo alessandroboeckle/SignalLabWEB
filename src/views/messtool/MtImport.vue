@@ -10,7 +10,7 @@
     <v-card
       variant="outlined"
       rounded="lg"
-      class="dropzone pa-8 text-center mb-6"
+      class="dropzone pa-8 text-center mb-4"
       :class="{ dragging: isDragging }"
       @dragover.prevent="isDragging = true"
       @dragleave.prevent="isDragging = false"
@@ -27,6 +27,91 @@
         class="d-none"
         @change="onFileSelect"
       />
+    </v-card>
+
+    <!-- Advanced import settings -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center py-2">
+        <v-icon class="mr-2" size="20">mdi-tune</v-icon>
+        <span class="text-body-1">Erweiterte Einstellungen</span>
+        <v-spacer></v-spacer>
+        <v-switch
+          v-model="advancedMode"
+          color="primary"
+          density="compact"
+          hide-details
+          @click.stop
+        ></v-switch>
+      </v-card-title>
+      <v-expand-transition>
+        <div v-if="advancedMode">
+          <v-divider></v-divider>
+          <v-card-text>
+            <p class="text-caption text-medium-emphasis mb-3">
+              Ohne Angabe wird wie bisher die ganze Datei mit automatischer Zeitachse geladen.
+            </p>
+            <v-row dense>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="startRow"
+                  label="Start Reihe"
+                  placeholder="z.B. 1"
+                  variant="outlined"
+                  density="comfortable"
+                  type="number"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="endRow"
+                  label="End Reihe"
+                  placeholder="z.B. 10000"
+                  variant="outlined"
+                  density="comfortable"
+                  type="number"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="startCol"
+                  label="Start Spalte"
+                  placeholder="z.B. 1 / A"
+                  variant="outlined"
+                  density="comfortable"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="endCol"
+                  label="End Spalte"
+                  placeholder="z.B. 100 / CC"
+                  variant="outlined"
+                  density="comfortable"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="sampleFrequenz"
+                  label="Samplefrequenz"
+                  placeholder="z.B. 20 (leer = aus Zeitstempel)"
+                  variant="outlined"
+                  density="comfortable"
+                  type="number"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-select
+                  v-model="windowTypeImport"
+                  :items="windowOptions"
+                  label="Fenstertyp (FFT, für Analyse)"
+                  variant="outlined"
+                  density="comfortable"
+                ></v-select>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </div>
+      </v-expand-transition>
     </v-card>
 
     <!-- Parsing indicator -->
@@ -173,6 +258,31 @@ const fileName = ref("");
 const selectedIdx = ref(0);
 const lastFile = ref(null); // the raw File, kept for uploading
 
+// advanced import settings (all optional; empty = behave exactly as before)
+const advancedMode = ref(false);
+const startRow = ref(null);
+const endRow = ref(null);
+const startCol = ref(null);
+const endCol = ref(null);
+const sampleFrequenz = ref(null);
+const windowTypeImport = ref("hann");
+const windowOptions = [
+  { title: "Hann", value: "hann" },
+  { title: "Hamming", value: "hamming" },
+  { title: "Rechteck (keins)", value: "none" },
+];
+
+function buildParseOptions() {
+  if (!advancedMode.value) return {};
+  const opts = {};
+  if (startRow.value) opts.startRow = Number(startRow.value);
+  if (endRow.value) opts.endRow = Number(endRow.value);
+  if (startCol.value) opts.startCol = startCol.value;
+  if (endCol.value) opts.endCol = endCol.value;
+  if (sampleFrequenz.value) opts.sampleFrequenz = Number(sampleFrequenz.value);
+  return opts;
+}
+
 // cloud state
 const cloudFiles = ref([]);
 const loadingList = ref(false);
@@ -237,12 +347,13 @@ async function handleFile(file) {
     const buffer = await file.arrayBuffer();
     const text = decodeLatin1(buffer);
     await new Promise((r) => setTimeout(r, 20));
-    const result = parseMesstoolCsv(text);
+    const result = parseMesstoolCsv(text, buildParseOptions());
     if (result.signals.length === 0) {
       throw new Error("Keine Signale in der Datei gefunden.");
     }
     parsed.value = result;
     mtStore.setData(result, file.name);
+    mtStore.fftWindowDefault = advancedMode.value ? windowTypeImport.value : null;
     selectedIdx.value = 0;
   } catch (err) {
     errorMsg.value = "Konnte Datei nicht parsen: " + (err.message || err);
@@ -282,9 +393,10 @@ async function openCloudFile(f) {
   try {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
     const text = decodeLatin1(buffer);
-    const result = parseMesstoolCsv(text);
+    const result = parseMesstoolCsv(text, buildParseOptions());
     parsed.value = result;
     mtStore.setData(result, f.name);
+    mtStore.fftWindowDefault = advancedMode.value ? windowTypeImport.value : null;
     fileName.value = f.name;
     lastFile.value = null; // came from cloud, no re-upload
     selectedIdx.value = 0;

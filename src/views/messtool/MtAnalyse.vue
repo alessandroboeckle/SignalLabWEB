@@ -70,7 +70,7 @@ import { downsample } from "../../utils/downsample.js";
 const mtStore = useMesstoolStore();
 
 const selectedIdx = ref(0);
-const windowType = ref("hann");
+const windowType = ref(mtStore.fftWindowDefault || "hann");
 
 const windowOptions = [
   { title: "Hann", value: "hann" },
