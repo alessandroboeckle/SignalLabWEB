@@ -27,9 +27,39 @@
           ></v-select>
 
           <v-card variant="outlined" rounded="lg" class="mb-4">
-            <v-card-title class="text-subtitle-1 d-flex align-center">
+            <v-card-title class="text-subtitle-1 d-flex align-center flex-wrap ga-2">
               Operationen
               <v-spacer></v-spacer>
+              <v-menu>
+                <template #activator="{ props }">
+                  <v-btn size="small" variant="outlined" v-bind="props" prepend-icon="mdi-folder-open-outline">
+                    Presets
+                  </v-btn>
+                </template>
+                <v-list min-width="220">
+                  <v-list-item v-if="presets.length === 0" disabled title="Noch keine Presets gespeichert"></v-list-item>
+                  <v-list-item
+                    v-for="p in presets"
+                    :key="p.name"
+                    :title="p.name"
+                    :subtitle="`${p.ops.length} Schritt(e)`"
+                    @click="loadPresetByName(p.name)"
+                  >
+                    <template #append>
+                      <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click.stop="removePreset(p.name)"></v-btn>
+                    </template>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+              <v-btn
+                size="small"
+                variant="outlined"
+                prepend-icon="mdi-content-save-outline"
+                :disabled="ops.length === 0"
+                @click="saveDialog = true"
+              >
+                Speichern
+              </v-btn>
               <v-menu>
                 <template #activator="{ props }">
                   <v-btn size="small" variant="tonal" color="primary" v-bind="props" prepend-icon="mdi-plus">
@@ -111,6 +141,36 @@
         </v-col>
       </v-row>
     </template>
+
+    <!-- Save preset dialog -->
+    <v-dialog v-model="saveDialog" max-width="420">
+      <v-card>
+        <v-card-title>Preset speichern</v-card-title>
+        <v-divider></v-divider>
+        <v-card-text>
+          <v-text-field
+            v-model="presetName"
+            label="Name"
+            variant="outlined"
+            density="comfortable"
+            autofocus
+            hide-details
+            @keyup.enter="confirmSave"
+          ></v-text-field>
+          <p class="text-caption text-medium-emphasis mt-2">
+            Speichert die aktuelle Kette ({{ ops.length }} Schritt(e)) mit ihren Parametern.
+          </p>
+          <v-alert v-if="saveError" type="error" variant="tonal" density="compact" class="mt-2">
+            {{ saveError }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="saveDialog = false">Abbrechen</v-btn>
+          <v-btn color="primary" variant="flat" @click="confirmSave">Speichern</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -118,6 +178,7 @@
 import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
+import * as presetsApi from "../../utils/messtoolPresets.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
@@ -127,6 +188,33 @@ const registry = OP_REGISTRY;
 const selectedIdx = ref(0);
 const ops = ref([]);
 const version = ref(0); // bump to force recompute on param edits
+
+const presets = ref(presetsApi.listPresets());
+const saveDialog = ref(false);
+const presetName = ref("");
+const saveError = ref("");
+
+function confirmSave() {
+  try {
+    presets.value = presetsApi.savePreset(presetName.value, ops.value);
+    saveDialog.value = false;
+    presetName.value = "";
+    saveError.value = "";
+  } catch (err) {
+    saveError.value = err.message || "Konnte Preset nicht speichern.";
+  }
+}
+
+function loadPresetByName(name) {
+  const preset = presets.value.find((p) => p.name === name);
+  if (!preset) return;
+  ops.value = presetsApi.instantiatePreset(preset, registry);
+  recompute();
+}
+
+function removePreset(name) {
+  presets.value = presetsApi.deletePreset(name);
+}
 
 const signalOptions = computed(() => {
   if (!mtStore.parsed) return [];
