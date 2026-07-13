@@ -15,14 +15,14 @@
     <template v-else>
       <v-row class="mb-2">
         <v-col cols="12" md="6">
-          <v-select
+          <v-autocomplete
             v-model="selectedIdx"
             :items="signalOptions"
             label="Signal"
             variant="outlined"
             density="comfortable"
             prepend-inner-icon="mdi-sine-wave"
-          ></v-select>
+          ></v-autocomplete>
         </v-col>
         <v-col cols="12" md="6">
           <v-select
@@ -69,7 +69,12 @@ import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
 
-const selectedIdx = ref(0);
+// Shared across Analyse/Filter/Verarbeitung/Export so switching pages
+// keeps showing the same signal instead of resetting to the first one.
+const selectedIdx = computed({
+  get: () => mtStore.selectedSignalIdx,
+  set: (v) => { mtStore.selectedSignalIdx = v; },
+});
 const windowType = ref(mtStore.fftWindowDefault || "hann");
 
 const windowOptions = [

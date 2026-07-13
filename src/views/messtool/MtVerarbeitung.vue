@@ -16,7 +16,7 @@
       <v-row>
         <!-- Left: controls -->
         <v-col cols="12" md="4">
-          <v-select
+          <v-autocomplete
             v-model="selectedIdx"
             :items="signalOptions"
             label="Signal"
@@ -24,7 +24,7 @@
             density="comfortable"
             prepend-inner-icon="mdi-sine-wave"
             class="mb-4"
-          ></v-select>
+          ></v-autocomplete>
 
           <v-card variant="outlined" rounded="lg" class="mb-4">
             <v-card-title class="text-subtitle-1 d-flex align-center flex-wrap ga-2">
@@ -209,7 +209,12 @@ import { downsample } from "../../utils/downsample.js";
 const mtStore = useMesstoolStore();
 const registry = OP_REGISTRY;
 
-const selectedIdx = ref(0);
+// Shared across Analyse/Filter/Verarbeitung/Export so switching pages
+// keeps showing the same signal instead of resetting to the first one.
+const selectedIdx = computed({
+  get: () => mtStore.selectedSignalIdx,
+  set: (v) => { mtStore.selectedSignalIdx = v; },
+});
 const ops = ref([]);
 const version = ref(0); // bump to force recompute on param edits
 

@@ -46,7 +46,7 @@
               </v-btn>
             </div>
 
-            <v-select
+            <v-autocomplete
               v-model="selectedIdx"
               :items="signalOptions"
               label="Signal"
@@ -54,7 +54,7 @@
               density="comfortable"
               prepend-inner-icon="mdi-sine-wave"
               class="mb-3"
-            ></v-select>
+            ></v-autocomplete>
 
             <v-select
               v-model="characteristic"
@@ -176,7 +176,12 @@ import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
 
-const selectedIdx = ref(0);
+// Shared across Analyse/Filter/Verarbeitung/Export so switching pages
+// keeps showing the same signal instead of resetting to the first one.
+const selectedIdx = computed({
+  get: () => mtStore.selectedSignalIdx,
+  set: (v) => { mtStore.selectedSignalIdx = v; },
+});
 const characteristic = ref("butterworth");
 const btype = ref("low");
 const order = ref(4);

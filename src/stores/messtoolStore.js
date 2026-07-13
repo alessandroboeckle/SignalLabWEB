@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 // A small fixed palette so colors stay distinct and consistent across
 // re-renders (assigned in order as files are added).
@@ -16,16 +16,85 @@ export const useMesstoolStore = defineStore("messtool", () => {
   // FFT window type preselected during Import (Analyse falls back to "hann"
   // if this is null, and keeps working the way it always has).
   const fftWindowDefault = ref(null);
+  // Which signal index is "active" — shared across Analyse/Filter/
+  // Verarbeitung/Export so switching pages doesn't reset back to signal 0.
+  const selectedSignalIdx = ref(0);
+
+  // --- session persistence (survive an accidental reload/tab close) -----
+  //
+  // Best-effort only: browsers cap localStorage around 5-10MB per origin,
+  // and a large measurement file can get close to or exceed that once
+  // serialized. Rather than risk a quota error breaking something else,
+  // we simply skip persisting when a session would be too big — the user
+  // just has to re-import in that case, same as today.
+  const SESSION_KEY = "sl_messtool_session";
+  const MAX_PERSIST_BYTES = 4 * 1024 * 1024;
+  const sessionRestored = ref(false);
+  const sessionTooLargeToPersist = ref(false);
+
+  function persistSession() {
+    try {
+      if (!parsed.value) {
+        localStorage.removeItem(SESSION_KEY);
+        return;
+      }
+      const payload = JSON.stringify({
+        parsed: parsed.value,
+        fileName: fileName.value,
+        selectedSignalIdx: selectedSignalIdx.value,
+        fftWindowDefault: fftWindowDefault.value,
+      });
+      if (payload.length > MAX_PERSIST_BYTES) {
+        sessionTooLargeToPersist.value = true;
+        localStorage.removeItem(SESSION_KEY);
+        return;
+      }
+      sessionTooLargeToPersist.value = false;
+      localStorage.setItem(SESSION_KEY, payload);
+    } catch {
+      // storage full/unavailable/disabled — auto-save is a convenience,
+      // not a requirement, so fail silently rather than disrupt the user
+    }
+  }
+
+  function restoreSession() {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (!data || !data.parsed) return false;
+      parsed.value = data.parsed;
+      fileName.value = data.fileName || "";
+      selectedSignalIdx.value = data.selectedSignalIdx || 0;
+      fftWindowDefault.value = data.fftWindowDefault || null;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function dismissRestoredNotice() {
+    sessionRestored.value = false;
+  }
+
+  sessionRestored.value = restoreSession();
 
   function setData(result, name) {
     parsed.value = result;
     fileName.value = name || "";
+    selectedSignalIdx.value = 0; // new file -> back to the first signal
+    sessionRestored.value = false; // this is a fresh explicit import now
+    persistSession();
   }
 
   function clear() {
     parsed.value = null;
     fileName.value = "";
+    selectedSignalIdx.value = 0;
+    persistSession();
   }
+
+  watch(selectedSignalIdx, () => persistSession());
 
   // ---- Multi-file comparison (Messtool -> Vergleich) ----
   // Each entry: { id, name, parsed, color, selectedIdx }
@@ -58,6 +127,10 @@ export const useMesstoolStore = defineStore("messtool", () => {
     parsed,
     fileName,
     fftWindowDefault,
+    selectedSignalIdx,
+    sessionRestored,
+    sessionTooLargeToPersist,
+    dismissRestoredNotice,
     setData,
     clear,
     compareFiles,

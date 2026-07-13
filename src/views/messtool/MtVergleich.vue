@@ -65,14 +65,14 @@
                 </div>
               </v-col>
               <v-col cols="10" sm="6">
-                <v-select
+                <v-autocomplete
                   v-model="f.selectedIdx"
                   :items="signalOptions(f)"
                   label="Signal"
                   variant="outlined"
                   density="compact"
                   hide-details
-                ></v-select>
+                ></v-autocomplete>
               </v-col>
               <v-col cols="2" sm="2" class="text-right">
                 <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="mtStore.removeCompareFile(f.id)"></v-btn>
@@ -191,7 +191,7 @@ async function onFileSelect(e) {
   try {
     const buffer = await file.arrayBuffer();
     const text = decodeLatin1(buffer);
-    const result = parseMesstoolCsv(text, {});
+    const result = await parseMesstoolCsv(text, {});
     if (result.signals.length === 0) throw new Error("Keine Signale gefunden.");
     const added = mtStore.addCompareFile(file.name, result);
     if (!added) errorMsg.value = `"${file.name}" ist bereits in der Liste.`;
@@ -214,7 +214,7 @@ async function addFromCloud(f) {
   try {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
     const text = decodeLatin1(buffer);
-    const result = parseMesstoolCsv(text, {});
+    const result = await parseMesstoolCsv(text, {});
     mtStore.addCompareFile(f.name, result);
   } catch (err) {
     errorMsg.value = err.message || "Datei konnte nicht geladen werden.";

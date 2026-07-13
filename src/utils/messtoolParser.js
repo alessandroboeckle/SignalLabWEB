@@ -50,7 +50,7 @@ export function colRefToNumber(ref) {
 //   sampleFrequenz     - if set, overrides the time axis with index/fs instead
 //                        of the timestamps found in the file
 // Returns { signals: [{name, unit, data:[numbers]}], time: [...], meta }.
-export function parseMesstoolCsv(text, options = {}) {
+export async function parseMesstoolCsv(text, options = {}) {
   const delimiter = ";";
   const lines = text.split(/\r?\n/);
 
@@ -112,6 +112,14 @@ export function parseMesstoolCsv(text, options = {}) {
   const signalData = signalNames.map(() => []);
   const isBoolFlag = signalNames.map((name) => typeMap[name] === "BOOL");
 
+  // Optional progress reporting for large files: called with a 0..1
+  // fraction every YIELD_EVERY rows, with a real (macro-task) yield after
+  // each call so the browser can actually repaint a progress bar instead
+  // of freezing for the whole parse.
+  const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
+  const YIELD_EVERY = 4000;
+  const totalRows = Math.max(1, lines.length - headerIdx - 1);
+
   let t0 = null;
   let rowCounter = 0;
 
@@ -135,7 +143,13 @@ export function parseMesstoolCsv(text, options = {}) {
       const v = isBoolFlag[s] ? parseBoolValue(raw) : parseFloat(raw);
       signalData[s].push(Number.isFinite(v) ? v : null);
     }
+
+    if (onProgress && rowCounter % YIELD_EVERY === 0) {
+      onProgress(Math.min(0.99, rowCounter / totalRows));
+      await new Promise((r) => setTimeout(r, 0));
+    }
   }
+  if (onProgress) onProgress(1);
 
   // Detect irregular sampling (gaps, jitter) from the timestamp-derived time
   // axis, before any samplefrequency override replaces it. Skipped when the

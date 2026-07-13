@@ -6,6 +6,30 @@
     </div>
     <p class="text-medium-emphasis mb-6">Messdatei laden (LOGDATA / CSV)</p>
 
+    <v-alert
+      v-if="mtStore.sessionRestored"
+      type="info"
+      variant="tonal"
+      density="comfortable"
+      class="mb-4"
+      closable
+      @click:close="mtStore.dismissRestoredNotice()"
+    >
+      Sitzung wiederhergestellt: <strong>{{ mtStore.fileName }}</strong> war noch geladen
+      (z.B. nach einem versehentlichen Neuladen der Seite). Zum Verwerfen einfach eine neue
+      Datei laden oder diesen Hinweis schliessen.
+    </v-alert>
+    <v-alert
+      v-if="mtStore.sessionTooLargeToPersist"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="mb-4"
+    >
+      Diese Datei ist zu gross, um automatisch gesichert zu werden — bei einem Neuladen der
+      Seite müsstest du sie erneut importieren.
+    </v-alert>
+
     <!-- Dropzone -->
     <v-card
       variant="outlined"
@@ -116,10 +140,22 @@
 
     <!-- Parsing indicator -->
     <v-card v-if="parsing" variant="tonal" color="primary" class="pa-4 mb-6">
-      <div class="d-flex align-center">
-        <v-progress-circular indeterminate size="24" class="mr-3"></v-progress-circular>
-        <span>Datei wird geparst …</span>
+      <div class="d-flex align-center mb-2">
+        <v-progress-circular
+          v-if="importProgress === 0"
+          indeterminate
+          size="24"
+          class="mr-3"
+        ></v-progress-circular>
+        <span>Datei wird geparst{{ importProgress > 0 ? ` … ${importProgress}%` : " …" }}</span>
       </div>
+      <v-progress-linear
+        v-if="importProgress > 0"
+        :model-value="importProgress"
+        height="6"
+        rounded
+        color="primary"
+      ></v-progress-linear>
     </v-card>
 
     <!-- Error -->
@@ -272,6 +308,7 @@ const mtStore = useMesstoolStore();
 const fileInput = ref(null);
 const isDragging = ref(false);
 const parsing = ref(false);
+const importProgress = ref(0);
 const errorMsg = ref("");
 const parsed = ref(null);
 const fileName = ref("");
@@ -360,6 +397,7 @@ async function handleFile(file) {
   errorMsg.value = "";
   parsed.value = null;
   parsing.value = true;
+  importProgress.value = 0;
   fileName.value = file.name;
   lastFile.value = file;
 
@@ -367,7 +405,10 @@ async function handleFile(file) {
     const buffer = await file.arrayBuffer();
     const text = decodeLatin1(buffer);
     await new Promise((r) => setTimeout(r, 20));
-    const result = parseMesstoolCsv(text, buildParseOptions());
+    const result = await parseMesstoolCsv(text, {
+      ...buildParseOptions(),
+      onProgress: (f) => { importProgress.value = Math.round(f * 100); },
+    });
     if (result.signals.length === 0) {
       throw new Error("Keine Signale in der Datei gefunden.");
     }
@@ -410,10 +451,14 @@ async function saveToCloud() {
 async function openCloudFile(f) {
   busyId.value = f.id;
   errorMsg.value = "";
+  importProgress.value = 0;
   try {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
     const text = decodeLatin1(buffer);
-    const result = parseMesstoolCsv(text, buildParseOptions());
+    const result = await parseMesstoolCsv(text, {
+      ...buildParseOptions(),
+      onProgress: (frac) => { importProgress.value = Math.round(frac * 100); },
+    });
     parsed.value = result;
     mtStore.setData(result, f.name);
     mtStore.fftWindowDefault = advancedMode.value ? windowTypeImport.value : null;
@@ -444,7 +489,16 @@ function formatDate(d) {
   });
 }
 
-onMounted(loadList);
+onMounted(() => {
+  // If the store already has a file (restored session, or just came back
+  // from another Messtool page), reflect it locally so this page's own
+  // "file loaded" summary/signal list shows it too.
+  if (mtStore.parsed && !parsed.value) {
+    parsed.value = mtStore.parsed;
+    fileName.value = mtStore.fileName;
+  }
+  loadList();
+});
 
 function formatDuration(sec) {
   if (sec < 60) return `${sec.toFixed(0)} s`;

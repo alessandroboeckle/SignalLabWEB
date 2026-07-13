@@ -16,7 +16,7 @@
       <v-row>
         <v-col cols="12" md="4">
           <v-card variant="outlined" rounded="lg" class="pa-4 mb-4">
-            <v-select
+            <v-autocomplete
               v-model="selectedIdx"
               :items="signalOptions"
               label="Signal"
@@ -24,7 +24,7 @@
               density="comfortable"
               prepend-inner-icon="mdi-sine-wave"
               class="mb-4"
-            ></v-select>
+            ></v-autocomplete>
 
             <v-btn
               class="mb-3 w-100"
@@ -119,7 +119,12 @@ import ChartCard from "./ChartCard.vue";
 
 const mtStore = useMesstoolStore();
 
-const selectedIdx = ref(0);
+// Shared across Analyse/Filter/Verarbeitung/Export so switching pages
+// keeps showing the same signal instead of resetting to the first one.
+const selectedIdx = computed({
+  get: () => mtStore.selectedSignalIdx,
+  set: (v) => { mtStore.selectedSignalIdx = v; },
+});
 const buildingPdf = ref(false);
 const buildingBatch = ref(false);
 const batchProgress = ref(0);

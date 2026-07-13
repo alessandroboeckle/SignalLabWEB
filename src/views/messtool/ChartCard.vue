@@ -88,10 +88,13 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import { useTheme } from "vuetify";
 import Chart from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
 
 Chart.register(zoomPlugin);
+
+const theme = useTheme();
 
 const props = defineProps({
   title: { type: String, default: "" },
@@ -173,6 +176,33 @@ const cursorPlugin = {
   },
 };
 
+// Chart.js has no idea about Vuetify's theme, so left alone it always
+// renders axis ticks/titles and gridlines in its own (dark) default color
+// — unreadable once the card itself goes dark in dark mode. Inject
+// theme-aware colors into whatever scales/legend the page's own config
+// already defines, without touching the text/labels it set.
+function applyThemeColors(cfg) {
+  const isDark = theme.global.current.value.dark;
+  const textColor = isDark ? "#E2E8F0" : "#334155";
+  const gridColor = isDark ? "rgba(148,163,184,0.15)" : "rgba(100,116,139,0.15)";
+
+  cfg.options.color = textColor;
+
+  cfg.options.scales = cfg.options.scales || {};
+  for (const key of Object.keys(cfg.options.scales)) {
+    const s = cfg.options.scales[key] || {};
+    s.ticks = { color: textColor, ...(s.ticks || {}) };
+    if (s.title) s.title = { color: textColor, ...s.title };
+    s.grid = { color: gridColor, ...(s.grid || {}) };
+    cfg.options.scales[key] = s;
+  }
+
+  cfg.options.plugins.legend = {
+    labels: { color: textColor, ...(cfg.options.plugins.legend?.labels || {}) },
+    ...(cfg.options.plugins.legend || {}),
+  };
+}
+
 // Shared interaction + zoom + tooltip options merged into every chart.
 function withInteractions(cfg) {
   cfg.options = cfg.options || {};
@@ -198,6 +228,8 @@ function withInteractions(cfg) {
     },
     cfg.options.plugins.tooltip || {},
   );
+
+  applyThemeColors(cfg);
 
   // zoom + pan (matplotlib-style)
   cfg.options.plugins.zoom = {
@@ -269,6 +301,7 @@ async function openFullscreen() {
 
 watch(() => props.config, async () => { await nextTick(); buildInline(); });
 watch(peakMode, async () => { await nextTick(); buildInline(); if (fullscreen.value) buildFullscreen(); });
+watch(() => theme.global.name.value, () => { buildInline(); if (fullscreen.value) buildFullscreen(); });
 
 watch(fullscreen, (open) => {
   if (!open && fsChart) { fsChart.destroy(); fsChart = null; }
