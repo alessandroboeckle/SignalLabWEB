@@ -172,6 +172,9 @@
           <v-window-item value="mt-verarbeitung">
             <MtVerarbeitung />
           </v-window-item>
+          <v-window-item value="mt-vergleich">
+            <MtVergleich />
+          </v-window-item>
           <v-window-item value="mt-export">
             <MtExport />
           </v-window-item>
@@ -232,6 +235,7 @@ import MtAnalyse from "./views/messtool/MtAnalyse.vue";
 import MtVerarbeitung from "./views/messtool/MtVerarbeitung.vue";
 import MtFilter from "./views/messtool/MtFilter.vue";
 import MtExport from "./views/messtool/MtExport.vue";
+import MtVergleich from "./views/messtool/MtVergleich.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
@@ -280,6 +284,7 @@ const messtoolItems = [
   { value: "mt-filter", label: "Filter", icon: "mdi-tune-variant" },
   { value: "mt-analyse", label: "Analyse", icon: "mdi-chart-bell-curve" },
   { value: "mt-verarbeitung", label: "Verarbeitung", icon: "mdi-cog-transfer" },
+  { value: "mt-vergleich", label: "Vergleich", icon: "mdi-chart-multiple" },
   { value: "mt-export", label: "Export", icon: "mdi-file-export" },
 ];
 
