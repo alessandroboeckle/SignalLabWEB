@@ -2,7 +2,7 @@
   <v-container fluid class="pa-6">
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-file-upload</v-icon>
-      <h2 class="text-h4 font-weight-bold">Import</h2>
+      <h2 class="text-h5 font-weight-bold">Import</h2>
     </div>
     <p class="text-medium-emphasis mb-6">Messdatei laden (Stadler LOGDATA / CSV)</p>
 
@@ -260,7 +260,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";

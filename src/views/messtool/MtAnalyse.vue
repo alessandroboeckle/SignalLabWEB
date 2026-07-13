@@ -2,7 +2,7 @@
   <v-container fluid class="pa-6">
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-chart-bell-curve</v-icon>
-      <h2 class="text-h4 font-weight-bold">Analyse</h2>
+      <h2 class="text-h5 font-weight-bold">Analyse</h2>
     </div>
     <p class="text-medium-emphasis mb-6">Statistik, Ableitung, Integral & FFT</p>
 
@@ -134,7 +134,6 @@ const derivConfig = computed(() => {
       },
       options: {
         responsive: true, animation: false,
-        interaction: { mode: "index", intersect: false },
         scales: {
           x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
           y: { position: "left", title: { display: true, text: unit } },

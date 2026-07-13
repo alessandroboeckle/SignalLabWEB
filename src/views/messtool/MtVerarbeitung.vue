@@ -2,7 +2,7 @@
   <v-container fluid class="pa-6">
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-cog-transfer</v-icon>
-      <h2 class="text-h4 font-weight-bold">Verarbeitung</h2>
+      <h2 class="text-h5 font-weight-bold">Verarbeitung</h2>
     </div>
     <p class="text-medium-emphasis mb-6">Glätten, Detrend, Normalisieren – verkettbar</p>
 
@@ -294,7 +294,6 @@ const compareConfig = computed(() => {
       },
       options: {
         responsive: true, animation: false,
-        interaction: { mode: "index", intersect: false },
         scales: {
           x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 10 } },
           y: { title: { display: true, text: unit } },

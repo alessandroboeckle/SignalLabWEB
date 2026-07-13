@@ -2,7 +2,7 @@
   <v-container fluid class="pa-6">
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-shield-account</v-icon>
-      <h2 class="text-h4 font-weight-bold">Admin</h2>
+      <h2 class="text-h5 font-weight-bold">Admin</h2>
     </div>
     <p class="text-medium-emphasis mb-6">Nutzer freigeben und verwalten</p>
 

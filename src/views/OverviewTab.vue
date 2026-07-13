@@ -133,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { computed, onMounted, watch } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as storage from "../utils/storage.js";
 import Chart from "chart.js/auto";

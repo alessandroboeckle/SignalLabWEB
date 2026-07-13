@@ -229,7 +229,6 @@ import ComparisonTab from "./views/ComparisonTab.vue";
 import SessionManagementTab from "./views/SessionManagementTab.vue";
 import SettingsTab from "./views/SettingsTab.vue";
 import AdminTab from "./views/AdminTab.vue";
-import MesstoolPlaceholder from "./views/messtool/MesstoolPlaceholder.vue";
 import MtImport from "./views/messtool/MtImport.vue";
 import MtAnalyse from "./views/messtool/MtAnalyse.vue";
 import MtVerarbeitung from "./views/messtool/MtVerarbeitung.vue";

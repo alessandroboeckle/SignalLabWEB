@@ -2,7 +2,7 @@
   <v-container fluid class="pa-6">
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-tune-variant</v-icon>
-      <h2 class="text-h4 font-weight-bold">Filter</h2>
+      <h2 class="text-h5 font-weight-bold">Filter</h2>
     </div>
     <p class="text-medium-emphasis mb-6">Digitale Filter – Butterworth, Chebyshev I, Bessel · nullphasig</p>
 
@@ -327,7 +327,7 @@ const filterConfig = computed(() => {
       data: {
         labels: oD.rx,
         datasets: [
-          { label: `Original [${unit}]`, data: oD.ry, borderColor: "#CBD5E1", borderWidth: 1, pointRadius: 0 },
+          { label: `Original [${unit}]`, data: oD.ry, borderColor: "#94A3B8", borderWidth: 1, pointRadius: 0 },
           { label: `Gefiltert [${unit}]`, data: fD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0 },
         ],
       },
