@@ -1,4 +1,4 @@
-// Generates large, realistic Stadler LOGDATA test CSVs matching the
+// Generates large, realistic LOGDATA test CSVs matching the
 // drivetrain/braking template (see brakeFileTemplate.js): same header/
 // LOGITEM structure as a real file, with per-signal value generation that
 // mimics how each channel actually behaves (drifting temperatures, noisy
@@ -424,7 +424,7 @@ export function generateBrakeTestCsv(options) {
 }
 
 // Encode a JS string as ISO-8859-1 (latin1) bytes, matching the encoding
-// real Stadler LOGDATA exports use (so the generated file round-trips
+// real LOGDATA exports use (so the generated file round-trips
 // through the app's decodeLatin1 exactly like a real one).
 export function encodeLatin1(str) {
   const bytes = new Uint8Array(str.length);

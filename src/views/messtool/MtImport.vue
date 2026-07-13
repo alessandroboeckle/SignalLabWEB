@@ -4,7 +4,7 @@
       <v-icon color="primary" size="28" class="mr-3">mdi-file-upload</v-icon>
       <h2 class="text-h5 font-weight-bold">Import</h2>
     </div>
-    <p class="text-medium-emphasis mb-6">Messdatei laden (Stadler LOGDATA / CSV)</p>
+    <p class="text-medium-emphasis mb-6">Messdatei laden (LOGDATA / CSV)</p>
 
     <!-- Dropzone -->
     <v-card
@@ -19,7 +19,7 @@
     >
       <v-icon size="56" color="primary" class="mb-3">mdi-cloud-upload-outline</v-icon>
       <h3 class="text-h6 mb-1">Datei hierher ziehen oder klicken</h3>
-      <p class="text-medium-emphasis text-caption">CSV im Stadler-Messformat</p>
+      <p class="text-medium-emphasis text-caption">CSV im LOGDATA-Messformat</p>
       <input
         ref="fileInput"
         type="file"

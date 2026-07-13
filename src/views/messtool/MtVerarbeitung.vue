@@ -30,6 +30,20 @@
             <v-card-title class="text-subtitle-1 d-flex align-center flex-wrap ga-2">
               Operationen
               <v-spacer></v-spacer>
+              <v-btn
+                size="small" variant="text" icon="mdi-undo"
+                :disabled="historyIndex <= 0"
+                @click="undo"
+              >
+                <v-tooltip activator="parent" location="bottom">Rückgängig (Strg+Z)</v-tooltip>
+              </v-btn>
+              <v-btn
+                size="small" variant="text" icon="mdi-redo"
+                :disabled="historyIndex >= history.length - 1"
+                @click="redo"
+              >
+                <v-tooltip activator="parent" location="bottom">Wiederholen (Strg+Y)</v-tooltip>
+              </v-btn>
               <v-menu>
                 <template #activator="{ props }">
                   <v-btn size="small" variant="outlined" v-bind="props" prepend-icon="mdi-folder-open-outline">
@@ -107,7 +121,7 @@
                       density="compact"
                       hide-details
                       :label="`Fenster: ${op.params.windowLen}`"
-                      @update:model-value="recompute"
+                      @update:model-value="onParamChange"
                     ></v-slider>
                     <v-select
                       v-model="op.params.windowType"
@@ -117,7 +131,7 @@
                       hide-details
                       label="Fenstertyp"
                       class="mt-2"
-                      @update:model-value="recompute"
+                      @update:model-value="onParamChange"
                     ></v-select>
                   </div>
                   <div v-else-if="op.id === 'normalize'" class="mt-2">
@@ -128,7 +142,7 @@
                       variant="outlined"
                       hide-details
                       label="Ziel-Amplitude"
-                      @update:model-value="recompute"
+                      @update:model-value="onParamChange"
                     ></v-text-field>
                   </div>
 
@@ -184,7 +198,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
 import * as presetsApi from "../../utils/messtoolPresets.js";
@@ -198,6 +212,76 @@ const registry = OP_REGISTRY;
 const selectedIdx = ref(0);
 const ops = ref([]);
 const version = ref(0); // bump to force recompute on param edits
+
+// --- undo/redo -----------------------------------------------------------
+// History holds snapshots of the chain (op id + params, not live class
+// instances — those aren't diffable/serializable). Undo/redo restores a
+// snapshot by re-instantiating fresh ops from OP_REGISTRY, the same way a
+// preset gets loaded.
+const history = ref([]);
+const historyIndex = ref(-1);
+const suppressHistory = ref(false);
+let historyTimer = null;
+
+function snapshotOps() {
+  return ops.value.map((o) => ({ id: o.id, params: { ...o.params } }));
+}
+
+function commitHistory() {
+  if (suppressHistory.value) return;
+  const snap = snapshotOps();
+  const top = history.value[historyIndex.value];
+  if (top && JSON.stringify(top) === JSON.stringify(snap)) return; // no real change
+  history.value.splice(historyIndex.value + 1); // drop any redo branch
+  history.value.push(snap);
+  historyIndex.value = history.value.length - 1;
+}
+
+function commitHistoryDebounced() {
+  clearTimeout(historyTimer);
+  historyTimer = setTimeout(commitHistory, 400);
+}
+
+function restoreSnapshot(snap) {
+  suppressHistory.value = true;
+  ops.value = presetsApi.instantiatePreset({ ops: snap }, registry);
+  recompute();
+  suppressHistory.value = false;
+}
+
+function undo() {
+  if (historyIndex.value <= 0) return;
+  historyIndex.value--;
+  restoreSnapshot(history.value[historyIndex.value]);
+}
+
+function redo() {
+  if (historyIndex.value >= history.value.length - 1) return;
+  historyIndex.value++;
+  restoreSnapshot(history.value[historyIndex.value]);
+}
+
+function onKeydown(e) {
+  const ctrlOrCmd = e.ctrlKey || e.metaKey;
+  if (!ctrlOrCmd) return;
+  if (e.key.toLowerCase() === "z" && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  } else if (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey)) {
+    e.preventDefault();
+    redo();
+  }
+}
+
+onMounted(() => {
+  history.value = [snapshotOps()];
+  historyIndex.value = 0;
+  window.addEventListener("keydown", onKeydown);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKeydown);
+  clearTimeout(historyTimer);
+});
 
 const presets = ref(presetsApi.listPresets());
 const saveDialog = ref(false);
@@ -220,6 +304,7 @@ function loadPresetByName(name) {
   if (!preset) return;
   ops.value = presetsApi.instantiatePreset(preset, registry);
   recompute();
+  commitHistory();
 }
 
 function removePreset(name) {
@@ -254,18 +339,28 @@ const time = computed(() => (mtStore.parsed ? mtStore.parsed.time : []));
 function addOp(entry) {
   ops.value.push(entry.make());
   recompute();
+  commitHistory();
 }
 function removeOp(i) {
   ops.value.splice(i, 1);
   recompute();
+  commitHistory();
 }
 function move(i, dir) {
   const j = i + dir;
   [ops.value[i], ops.value[j]] = [ops.value[j], ops.value[i]];
   recompute();
+  commitHistory();
 }
 function recompute() {
   version.value++;
+}
+// Slider/select/text-field param edits fire on every tick while dragging,
+// so their history entries are debounced — only the settled value gets
+// its own undo step, not every intermediate one.
+function onParamChange() {
+  recompute();
+  commitHistoryDebounced();
 }
 
 function down(arr, xs, mode) {

@@ -1,4 +1,4 @@
-// Parser for Stadler "LOGDATA" measurement CSV files.
+// Parser for "LOGDATA" measurement CSV files.
 //
 // Structure of these files:
 //   SECTION;COMMON ... header sections ...
@@ -63,14 +63,17 @@ export function parseMesstoolCsv(text, options = {}) {
       ? options.sampleFrequenz
       : null;
 
-  // --- units from LOGITEM lines ---
+  // --- units + types from LOGITEM lines ---
   const unitMap = {};
+  const typeMap = {};
   for (const raw of lines) {
     const line = raw.replace(/^\s+/, "");
     if (!line.startsWith("LOGITEM")) continue;
     const parts = line.split(delimiter).map((p) => p.trim());
     if (parts.length < 2) continue;
     const signalName = parts[1];
+    const type = (parts[3] || "").toUpperCase();
+    if (type) typeMap[signalName] = type;
     const desc = parts.slice(2).join(" ");
     const unit = extractUnit(desc);
     if (unit) unitMap[signalName] = unit;
@@ -107,6 +110,7 @@ export function parseMesstoolCsv(text, options = {}) {
   // prepare containers
   const time = [];
   const signalData = signalNames.map(() => []);
+  const isBoolFlag = signalNames.map((name) => typeMap[name] === "BOOL");
 
   let t0 = null;
   let rowCounter = 0;
@@ -127,7 +131,8 @@ export function parseMesstoolCsv(text, options = {}) {
     time.push(tSec !== null ? +(tSec - t0).toFixed(3) : time.length);
 
     for (let s = 0; s < signalNames.length; s++) {
-      const v = parseFloat(cells[META_COLS + colFrom + s]);
+      const raw = cells[META_COLS + colFrom + s];
+      const v = isBoolFlag[s] ? parseBoolValue(raw) : parseFloat(raw);
       signalData[s].push(Number.isFinite(v) ? v : null);
     }
   }
@@ -170,6 +175,8 @@ export function parseMesstoolCsv(text, options = {}) {
   const signals = signalNames.map((name, idx) => ({
     name,
     unit: unitMap[name] || "",
+    type: typeMap[name] || "",
+    isBoolean: isBoolFlag[idx],
     data: signalData[idx],
   }));
 
@@ -183,6 +190,18 @@ export function parseMesstoolCsv(text, options = {}) {
       sampleRateInfo,
     },
   };
+}
+
+// BOOL-type LOGITEM columns store "TRUE"/"FALSE" (or German "WAHR"/"FALSCH")
+// as text rather than a number — map them to 1/0 so they work like any
+// other numeric signal in analysis/filter/processing. Anything else falls
+// back to NaN, same as a failed parseFloat would.
+function parseBoolValue(str) {
+  if (str == null) return NaN;
+  const s = str.trim().toUpperCase();
+  if (s === "TRUE" || s === "WAHR" || s === "1") return 1;
+  if (s === "FALSE" || s === "FALSCH" || s === "0") return 0;
+  return NaN;
 }
 
 // "14:34:28:090" -> seconds since midnight (with millis)

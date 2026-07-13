@@ -1,4 +1,4 @@
-// Template for generating realistic Stadler LOGDATA test files, modeled on
+// Template for generating realistic LOGDATA test files, modeled on
 // a typical drivetrain/braking measurement (power, temperature, voltage,
 // speed and traction-effort channels).
 //

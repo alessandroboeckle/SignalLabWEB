@@ -296,7 +296,7 @@
           <v-card-text>
             <p class="text-body-2 text-medium-emphasis mb-4">
               Erzeugt eine grosse, realistische LOGDATA-CSV im gleichen Format wie eine echte
-              Stadler-Messdatei (SECTION/LOGITEM-Header, 35 typische Antriebs-/Bremssignale,
+              Messdatei (SECTION/LOGITEM-Header, 35 typische Antriebs-/Bremssignale,
               Fahrzyklen mit Beschleunigen/Cruisen/Bremsen) — zum Testen von Import, Filter,
               Analyse und Verarbeitung mit grossen Dateien.
             </p>
@@ -364,6 +364,18 @@
             >
               Testdatei generieren &amp; herunterladen
             </v-btn>
+            <v-btn
+              variant="outlined"
+              prepend-icon="mdi-dice-multiple-outline"
+              class="ml-2"
+              :disabled="brakeGen.busy"
+              @click="randomizeAndGenerate"
+            >
+              Zufällig
+              <v-tooltip activator="parent" location="bottom">
+                Würfelt Zeilen/Samplerate/Fahrzyklen/Seed neu und generiert direkt
+              </v-tooltip>
+            </v-btn>
 
             <v-alert v-if="brakeGen.error" type="error" variant="tonal" density="compact" class="mt-3">
               {{ brakeGen.error }}
@@ -399,6 +411,19 @@ const brakeGen = reactive({
   error: "",
   lastInfo: "",
 });
+
+// Rolls new random-ish generation parameters (rows/samplerate/cycles/seed)
+// within sensible ranges, then generates immediately — a quick "surprise
+// me" variant of a test file without having to fill in the form by hand.
+async function randomizeAndGenerate() {
+  const rowChoices = [2000, 5000, 10000, 25000, 50000, 100000];
+  brakeGen.rows = rowChoices[Math.floor(Math.random() * rowChoices.length)];
+  const fsChoices = [4, 5, 8, 10, 16, 20];
+  brakeGen.fs = fsChoices[Math.floor(Math.random() * fsChoices.length)];
+  brakeGen.cycles = Math.random() < 0.5 ? null : 1 + Math.floor(Math.random() * 6);
+  brakeGen.seed = Math.floor(Math.random() * 1_000_000_000);
+  await generateBrakeFile();
+}
 
 async function generateBrakeFile() {
   brakeGen.error = "";
