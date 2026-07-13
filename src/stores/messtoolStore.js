@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
+import * as idbSession from "../utils/idbSession.js";
 
 // A small fixed palette so colors stay distinct and consistent across
 // re-renders (assigned in order as files are added).
@@ -22,54 +23,63 @@ export const useMesstoolStore = defineStore("messtool", () => {
 
   // --- session persistence (survive an accidental reload/tab close) -----
   //
-  // Best-effort only: browsers cap localStorage around 5-10MB per origin,
-  // and a large measurement file can get close to or exceed that once
-  // serialized. Rather than risk a quota error breaking something else,
-  // we simply skip persisting when a session would be too big — the user
-  // just has to re-import in that case, same as today.
-  const SESSION_KEY = "sl_messtool_session";
-  const MAX_PERSIST_BYTES = 4 * 1024 * 1024;
+  // Backed by IndexedDB rather than localStorage: localStorage tops out
+  // around 5-10MB per origin in most browsers, which a multi-tens-of-MB
+  // measurement file blows straight through. IndexedDB's quota is
+  // normally a generous slice of free disk space instead. We still guard
+  // against genuinely pathological sizes (hundreds of MB) rather than
+  // trust it's unlimited, and any storage error (quota, private browsing,
+  // disabled IndexedDB, ...) is swallowed — auto-save is a convenience,
+  // never a requirement for the app to keep working.
+  const MAX_PERSIST_BYTES = 300 * 1024 * 1024;
   const sessionRestored = ref(false);
   const sessionTooLargeToPersist = ref(false);
+  let persistTimer = null;
 
-  function persistSession() {
+  async function persistSessionNow() {
     try {
       if (!parsed.value) {
-        localStorage.removeItem(SESSION_KEY);
+        await idbSession.clearSession();
         return;
       }
-      const payload = JSON.stringify({
+      // Rough size estimate for the guard only — the actual write stores
+      // the live object directly (structured clone), not this string.
+      const approxBytes = JSON.stringify(parsed.value).length;
+      if (approxBytes > MAX_PERSIST_BYTES) {
+        sessionTooLargeToPersist.value = true;
+        await idbSession.clearSession();
+        return;
+      }
+      sessionTooLargeToPersist.value = false;
+      await idbSession.saveSession({
         parsed: parsed.value,
         fileName: fileName.value,
         selectedSignalIdx: selectedSignalIdx.value,
         fftWindowDefault: fftWindowDefault.value,
       });
-      if (payload.length > MAX_PERSIST_BYTES) {
-        sessionTooLargeToPersist.value = true;
-        localStorage.removeItem(SESSION_KEY);
-        return;
-      }
-      sessionTooLargeToPersist.value = false;
-      localStorage.setItem(SESSION_KEY, payload);
     } catch {
-      // storage full/unavailable/disabled — auto-save is a convenience,
-      // not a requirement, so fail silently rather than disrupt the user
+      // storage full/unavailable/disabled — fail silently, see above
     }
   }
 
-  function restoreSession() {
+  // Debounced so rapid changes (e.g. switching signals quickly) don't
+  // trigger a disk write on every single one.
+  function persistSession() {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(persistSessionNow, 300);
+  }
+
+  async function restoreSession() {
     try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return false;
-      const data = JSON.parse(raw);
-      if (!data || !data.parsed) return false;
+      const data = await idbSession.loadSession();
+      if (!data || !data.parsed) return;
       parsed.value = data.parsed;
       fileName.value = data.fileName || "";
       selectedSignalIdx.value = data.selectedSignalIdx || 0;
       fftWindowDefault.value = data.fftWindowDefault || null;
-      return true;
+      sessionRestored.value = true;
     } catch {
-      return false;
+      // nothing to restore, or storage unavailable — start with a clean slate
     }
   }
 
@@ -77,7 +87,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
     sessionRestored.value = false;
   }
 
-  sessionRestored.value = restoreSession();
+  restoreSession();
 
   function setData(result, name) {
     parsed.value = result;
