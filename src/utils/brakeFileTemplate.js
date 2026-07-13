@@ -1,19 +1,19 @@
 // Template for generating realistic Stadler LOGDATA test files, modeled on
-// a real "Brake_Resisitor_Powermeasure" measurement (METRO Merseytravel).
+// a typical drivetrain/braking measurement (power, temperature, voltage,
+// speed and traction-effort channels).
 //
-// BRAKE_LOGITEM_LINES are the *exact* LOGITEM header lines from that file
-// (name, type, description incl. [unit: X]/[min: X]/[max: X]/[factor ...]),
-// so a generated file's header section is indistinguishable from a real one.
+// BRAKE_LOGITEM_LINES are real-world-style LOGITEM header lines (name,
+// type, description incl. [unit: X]/[min: X]/[max: X]/[factor ...]), so a
+// generated file's header section is indistinguishable from a genuine one.
 //
 // BRAKE_SIGNALS maps each of those signals to a generation "profile" that
-// mimics how it actually behaved in the real recording (which bogies are
-// wired up vs. always-zero, slow temperature drift, noisy DC-link voltage,
-// energy counters that barely move, a speed profile that starts inactive
-// and later reports real values, etc.) — see messtoolTestGenerator.js for
-// what each profile name actually does.
+// mimics realistic drivetrain behaviour: which bogies are wired up vs.
+// always-zero, slow temperature drift, noisy DC-link voltage, energy
+// counters that barely move, a speed profile that starts inactive and
+// later reports real values, etc. — see messtoolTestGenerator.js for what
+// each profile name actually does.
 
-export const BRAKE_LOGRESOURCE_NAME =
-  "METRO Merseytravel / Vehicle 10 / Brake_Resisitor_Powermeasure";
+export const BRAKE_LOGRESOURCE_NAME = "Vehicle 01 / Brake_Resistor_Powermeasure";
 
 export const BRAKE_LOGITEM_LINES = [
   "LOGITEM;IITCU_A.rP_VLU;;REAL;[] Actual power dissipated in Brake resistor [max: 6553.5] [min: 0] [factor CAN->LT: 0.1] [unit: kW];;CHECKED;-1",

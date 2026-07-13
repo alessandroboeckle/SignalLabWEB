@@ -296,9 +296,9 @@
           <v-card-text>
             <p class="text-body-2 text-medium-emphasis mb-4">
               Erzeugt eine grosse, realistische LOGDATA-CSV im gleichen Format wie eine echte
-              Stadler-Messdatei (Header/LOGITEMs 1:1 wie <em>Brake_Resisitor_Powermeasure</em>,
-              35 Signale, Fahrzyklen mit Beschleunigen/Cruisen/Bremsen) — zum Testen von Import,
-              Filter, Analyse und Verarbeitung mit grossen Dateien.
+              Stadler-Messdatei (SECTION/LOGITEM-Header, 35 typische Antriebs-/Bremssignale,
+              Fahrzyklen mit Beschleunigen/Cruisen/Bremsen) — zum Testen von Import, Filter,
+              Analyse und Verarbeitung mit grossen Dateien.
             </p>
             <v-row dense>
               <v-col cols="12" sm="3">
