@@ -132,6 +132,33 @@ export function parseMesstoolCsv(text, options = {}) {
     }
   }
 
+  // Detect irregular sampling (gaps, jitter) from the timestamp-derived time
+  // axis, before any samplefrequency override replaces it. Skipped when the
+  // user already forces a samplefrequenz, since the axis is synthetic then.
+  let sampleRateInfo = null;
+  if (!sampleFrequenz && time.length > 2) {
+    const dts = [];
+    for (let i = 1; i < time.length; i++) dts.push(time[i] - time[i - 1]);
+    const sorted = [...dts].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)] || 0;
+    const detectedFs = median > 0 ? 1 / median : null;
+
+    const gaps = [];
+    if (median > 0) {
+      for (let i = 0; i < dts.length; i++) {
+        if (dts[i] > median * 1.5) {
+          gaps.push({ atRow: i + 2, atTimeSec: +time[i + 1].toFixed(3), dt: +dts[i].toFixed(3) });
+        }
+      }
+    }
+    sampleRateInfo = {
+      detectedFs: detectedFs ? +detectedFs.toFixed(3) : null,
+      medianDt: +median.toFixed(6),
+      gapCount: gaps.length,
+      gaps: gaps.slice(0, 20), // cap so a pathological file doesn't blow up meta
+    };
+  }
+
   // optional samplefrequency override: replace the timestamp-derived time
   // axis with a plain index/fs grid (e.g. when timestamps are unreliable)
   if (sampleFrequenz) {
@@ -153,6 +180,7 @@ export function parseMesstoolCsv(text, options = {}) {
       rowCount: time.length,
       signalCount: signals.length,
       duration: time.length ? time[time.length - 1] : 0,
+      sampleRateInfo,
     },
   };
 }

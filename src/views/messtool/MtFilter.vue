@@ -16,6 +16,36 @@
       <v-row>
         <v-col cols="12" md="4">
           <v-card variant="outlined" rounded="lg" class="pa-4">
+            <div class="d-flex flex-wrap ga-2 mb-3">
+              <v-menu>
+                <template #activator="{ props }">
+                  <v-btn size="small" variant="outlined" v-bind="props" prepend-icon="mdi-folder-open-outline">
+                    Presets
+                  </v-btn>
+                </template>
+                <v-list min-width="220">
+                  <v-list-item v-if="presets.length === 0" disabled title="Noch keine Presets gespeichert"></v-list-item>
+                  <v-list-item
+                    v-for="p in presets"
+                    :key="p.name"
+                    :title="p.name"
+                    :subtitle="presetSubtitle(p)"
+                    @click="loadPresetByName(p.name)"
+                  >
+                    <template #append>
+                      <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click.stop="removePreset(p.name)"></v-btn>
+                    </template>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+              <v-btn size="small" variant="outlined" prepend-icon="mdi-content-save-outline" @click="saveDialog = true">
+                Speichern
+              </v-btn>
+              <v-btn size="small" variant="outlined" prepend-icon="mdi-file-delimited-outline" :disabled="!sig" @click="exportCsv">
+                CSV
+              </v-btn>
+            </div>
+
             <v-select
               v-model="selectedIdx"
               :items="signalOptions"
@@ -103,6 +133,35 @@
         </v-col>
       </v-row>
     </template>
+
+    <v-dialog v-model="saveDialog" max-width="420">
+      <v-card>
+        <v-card-title>Filter-Preset speichern</v-card-title>
+        <v-divider></v-divider>
+        <v-card-text>
+          <v-text-field
+            v-model="presetName"
+            label="Name"
+            variant="outlined"
+            density="comfortable"
+            autofocus
+            hide-details
+            @keyup.enter="confirmSave"
+          ></v-text-field>
+          <p class="text-caption text-medium-emphasis mt-2">
+            Speichert Charakteristik, Filtertyp, Ordnung und Grenzfrequenz(en).
+          </p>
+          <v-alert v-if="saveError" type="error" variant="tonal" density="compact" class="mt-2">
+            {{ saveError }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="saveDialog = false">Abbrechen</v-btn>
+          <v-btn color="primary" variant="flat" @click="confirmSave">Speichern</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -110,6 +169,8 @@
 import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { applyFilter } from "../../utils/messtoolFilter.js";
+import * as filterPresetsApi from "../../utils/messtoolFilterPresets.js";
+import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
@@ -122,6 +183,71 @@ const order = ref(4);
 const cutoff = ref(1);
 const cutoff2 = ref(3);
 const stopbandDb = ref(40);
+
+const presets = ref(filterPresetsApi.listPresets());
+const saveDialog = ref(false);
+const presetName = ref("");
+const saveError = ref("");
+
+function presetSubtitle(p) {
+  const s = p.settings;
+  return `${s.characteristic} · ${s.btype} · Ord. ${s.order} · ${s.cutoff}Hz`;
+}
+
+function confirmSave() {
+  try {
+    presets.value = filterPresetsApi.savePreset(presetName.value, {
+      characteristic: characteristic.value,
+      btype: btype.value,
+      order: order.value,
+      cutoff: cutoff.value,
+      cutoff2: cutoff2.value,
+      stopbandDb: stopbandDb.value,
+    });
+    saveDialog.value = false;
+    presetName.value = "";
+    saveError.value = "";
+  } catch (err) {
+    saveError.value = err.message || "Konnte Preset nicht speichern.";
+  }
+}
+
+function loadPresetByName(name) {
+  const preset = presets.value.find((p) => p.name === name);
+  if (!preset) return;
+  const s = preset.settings;
+  characteristic.value = s.characteristic;
+  btype.value = s.btype;
+  order.value = s.order;
+  cutoff.value = s.cutoff;
+  cutoff2.value = s.cutoff2;
+  stopbandDb.value = s.stopbandDb;
+}
+
+function removePreset(name) {
+  presets.value = filterPresetsApi.deletePreset(name);
+}
+
+function exportCsv() {
+  if (!sig.value) return;
+  const s = sig.value, t = time.value;
+  const y = s.data.map((v) => (v == null ? 0 : v));
+  let filtered;
+  try {
+    filtered = applyFilter(y, {
+      order: order.value, cutoffHz: cutoff.value, cutoff2Hz: cutoff2.value,
+      sampleRate: sampleRate.value, btype: btype.value,
+      characteristic: characteristic.value, rs: stopbandDb.value,
+    });
+  } catch {
+    filtered = y.slice();
+  }
+  const csv = buildCsv(t, [
+    { name: "Original", unit: s.unit, data: y },
+    { name: "Gefiltert", unit: s.unit, data: filtered },
+  ]);
+  downloadCsv(csv, `${s.name.replace(/[^\w.-]+/g, "_")}_gefiltert.csv`);
+}
 
 const charOptions = [
   { title: "Butterworth", value: "butterworth" },

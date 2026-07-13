@@ -285,6 +285,97 @@
       </v-col>
     </v-row>
 
+    <v-row class="mt-6">
+      <v-col cols="12">
+        <v-card variant="outlined" rounded="lg">
+          <v-card-title class="d-flex align-center">
+            <v-icon class="mr-2" color="primary">mdi-database-arrow-down-outline</v-icon>
+            Messtool-Testdatei generieren
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              Erzeugt eine grosse, realistische LOGDATA-CSV im gleichen Format wie eine echte
+              Stadler-Messdatei (Header/LOGITEMs 1:1 wie <em>Brake_Resisitor_Powermeasure</em>,
+              35 Signale, Fahrzyklen mit Beschleunigen/Cruisen/Bremsen) — zum Testen von Import,
+              Filter, Analyse und Verarbeitung mit grossen Dateien.
+            </p>
+            <v-row dense>
+              <v-col cols="12" sm="3">
+                <v-text-field
+                  v-model.number="brakeGen.rows"
+                  type="number"
+                  label="Anzahl Zeilen"
+                  variant="outlined"
+                  density="comfortable"
+                  hint="z.B. 10000, bis mehrere 100'000"
+                  persistent-hint
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="3">
+                <v-text-field
+                  v-model.number="brakeGen.fs"
+                  type="number"
+                  label="Samplerate [Hz]"
+                  variant="outlined"
+                  density="comfortable"
+                  hint="Original: 8 Hz"
+                  persistent-hint
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="3">
+                <v-text-field
+                  v-model.number="brakeGen.cycles"
+                  type="number"
+                  label="Fahrzyklen (leer = auto)"
+                  variant="outlined"
+                  density="comfortable"
+                  placeholder="auto"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="3">
+                <v-text-field
+                  v-model.number="brakeGen.seed"
+                  type="number"
+                  label="Seed (leer = zufällig)"
+                  variant="outlined"
+                  density="comfortable"
+                  placeholder="zufällig"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+
+            <v-alert
+              v-if="brakeGen.rows > 150000"
+              type="warning"
+              variant="tonal"
+              density="compact"
+              class="text-caption mb-3"
+            >
+              Grosse Zeilenzahl — Generierung/Download kann einige Sekunden dauern und die Datei
+              wird entsprechend gross (~0.5 KB/Zeile).
+            </v-alert>
+
+            <v-btn
+              color="primary"
+              prepend-icon="mdi-file-download-outline"
+              :loading="brakeGen.busy"
+              @click="generateBrakeFile"
+            >
+              Testdatei generieren &amp; herunterladen
+            </v-btn>
+
+            <v-alert v-if="brakeGen.error" type="error" variant="tonal" density="compact" class="mt-3">
+              {{ brakeGen.error }}
+            </v-alert>
+            <v-alert v-if="brakeGen.lastInfo" type="success" variant="tonal" density="compact" class="mt-3">
+              {{ brakeGen.lastInfo }}
+            </v-alert>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
     <!-- Success Snackbar -->
     <v-snackbar v-model="showSnackbar" color="success" :timeout="2000">
       {{ snackbarMessage }}
@@ -293,10 +384,50 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, reactive } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as signalProcessing from "../utils/signalProcessing";
 import Chart from "chart.js/auto";
+import { generateBrakeTestCsv, downloadBrakeTestCsv } from "../utils/messtoolTestGenerator.js";
+
+const brakeGen = reactive({
+  rows: 10000,
+  fs: 8,
+  cycles: null,
+  seed: null,
+  busy: false,
+  error: "",
+  lastInfo: "",
+});
+
+async function generateBrakeFile() {
+  brakeGen.error = "";
+  brakeGen.lastInfo = "";
+  const rows = Math.floor(brakeGen.rows);
+  if (!rows || rows < 2) {
+    brakeGen.error = "Bitte eine gültige Anzahl Zeilen angeben (mind. 2).";
+    return;
+  }
+  brakeGen.busy = true;
+  try {
+    // yield to the UI so the loading spinner actually shows before the
+    // (synchronous, potentially multi-second) generation work runs
+    await new Promise((r) => setTimeout(r, 20));
+    const csv = generateBrakeTestCsv({
+      rows,
+      fs: brakeGen.fs > 0 ? brakeGen.fs : 8,
+      cycles: brakeGen.cycles ? Math.max(1, Math.floor(brakeGen.cycles)) : null,
+      seed: brakeGen.seed != null && brakeGen.seed !== "" ? Math.floor(brakeGen.seed) : null,
+    });
+    const filename = `Testfile_Brake_Resisitor_${rows}rows_${Date.now()}.csv`;
+    downloadBrakeTestCsv(csv, filename);
+    brakeGen.lastInfo = `${filename} erstellt (${(csv.length / 1024 / 1024).toFixed(2)} MB, 35 Signale, ${rows.toLocaleString()} Zeilen).`;
+  } catch (err) {
+    brakeGen.error = err.message || "Konnte Testdatei nicht generieren.";
+  } finally {
+    brakeGen.busy = false;
+  }
+}
 
 const store = useSignalStore();
 

@@ -75,6 +75,15 @@
                   ></v-list-item>
                 </v-list>
               </v-menu>
+              <v-btn
+                size="small"
+                variant="outlined"
+                prepend-icon="mdi-file-delimited-outline"
+                :disabled="!sig"
+                @click="exportCsv"
+              >
+                CSV
+              </v-btn>
             </v-card-title>
             <v-divider></v-divider>
 
@@ -179,6 +188,7 @@ import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
 import * as presetsApi from "../../utils/messtoolPresets.js";
+import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
@@ -214,6 +224,18 @@ function loadPresetByName(name) {
 
 function removePreset(name) {
   presets.value = presetsApi.deletePreset(name);
+}
+
+function exportCsv() {
+  if (!sig.value) return;
+  const s = sig.value, t = time.value;
+  const y = s.data.map((v) => (v == null ? 0 : v));
+  const processed = applyChain(y, t, ops.value);
+  const csv = buildCsv(t, [
+    { name: "Original", unit: s.unit, data: y },
+    { name: "Verarbeitet", unit: s.unit, data: processed },
+  ]);
+  downloadCsv(csv, `${s.name.replace(/[^\w.-]+/g, "_")}_verarbeitet.csv`);
 }
 
 const signalOptions = computed(() => {

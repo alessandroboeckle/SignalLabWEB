@@ -201,6 +201,26 @@
         </v-col>
       </v-row>
 
+      <v-alert
+        v-if="parsed.meta.sampleRateInfo && parsed.meta.sampleRateInfo.gapCount > 0"
+        type="warning"
+        variant="tonal"
+        density="comfortable"
+        class="mb-4"
+      >
+        <div class="font-weight-medium mb-1">
+          Unregelmässige Zeitstempel entdeckt ({{ parsed.meta.sampleRateInfo.gapCount }}
+          {{ parsed.meta.sampleRateInfo.gapCount === 1 ? "Lücke" : "Lücken" }})
+        </div>
+        <div class="text-caption">
+          Erkannte Samplerate ~{{ parsed.meta.sampleRateInfo.detectedFs ?? "?" }} Hz (Median-Δt).
+          Erste Lücke bei Zeile {{ parsed.meta.sampleRateInfo.gaps[0]?.atRow }}
+          (Δt = {{ parsed.meta.sampleRateInfo.gaps[0]?.dt }}s).
+          Falls das die Analyse/Filterung verfälscht, ggf. in "Erweiterte Einstellungen"
+          eine feste Samplefrequenz vorgeben.
+        </div>
+      </v-alert>
+
       <v-row>
         <!-- Signal list -->
         <v-col cols="12" md="5">
