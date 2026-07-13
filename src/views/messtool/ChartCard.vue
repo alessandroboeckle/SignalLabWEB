@@ -201,6 +201,12 @@ function withInteractions(cfg) {
 
   // zoom + pan (matplotlib-style)
   cfg.options.plugins.zoom = {
+    limits: {
+      // Filled in dynamically once the chart is built (needs the actual
+      // rendered scale range) — see applyZoomLimits(). Left empty here so
+      // Chart.js still has the key present before that runs.
+      x: {},
+    },
     zoom: {
       wheel: { enabled: true },
       drag: { enabled: true, backgroundColor: "rgba(37,99,235,0.15)" }, // rectangle select
@@ -215,12 +221,30 @@ function withInteractions(cfg) {
   return cfg;
 }
 
+// Without a minRange, chartjs-plugin-zoom lets the wheel zoom in until the
+// visible x-range shrinks to (numerically) nothing — no data point falls
+// inside it any more and the chart appears to just vanish. Cap how far in
+// you can go to a small fraction of the chart's own full data range, and
+// keep pan/zoom from wandering past the actual data on either side.
+function applyZoomLimits(chart) {
+  const xScale = chart.scales?.x;
+  if (!xScale || typeof xScale.min !== "number" || typeof xScale.max !== "number") return;
+  const span = xScale.max - xScale.min;
+  if (!(span > 0)) return;
+  chart.options.plugins.zoom.limits.x = {
+    min: xScale.min,
+    max: xScale.max,
+    minRange: span * 0.01, // never zoom in past ~1% of the full range
+  };
+}
+
 function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
   const cfg = withInteractions(props.config(peakMode.value));
   cfg.plugins = [cursorPlugin];
   inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
+  applyZoomLimits(inlineChart);
 }
 
 function buildFullscreen() {
@@ -229,6 +253,7 @@ function buildFullscreen() {
   const cfg = withInteractions(props.config(peakMode.value));
   cfg.plugins = [cursorPlugin];
   fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
+  applyZoomLimits(fsChart);
 }
 
 function resetZoom(which) {
