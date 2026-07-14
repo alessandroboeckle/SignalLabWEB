@@ -55,7 +55,7 @@
         <v-list density="comfortable">
           <v-list-item v-for="f in mtStore.compareFiles" :key="f.id">
             <template #prepend>
-              <v-avatar :color="f.color" size="14"></v-avatar>
+              <v-icon color="grey" class="mr-1">mdi-file-outline</v-icon>
             </template>
             <v-row align="center" dense class="ml-1">
               <v-col cols="12" sm="4">
@@ -66,13 +66,25 @@
               </v-col>
               <v-col cols="10" sm="6">
                 <v-autocomplete
-                  v-model="f.selectedIdx"
+                  v-model="f.selectedIndices"
                   :items="signalOptions(f)"
-                  label="Signal"
+                  label="Signale (mehrere möglich)"
                   variant="outlined"
                   density="compact"
+                  multiple
+                  chips
+                  closable-chips
                   hide-details
-                ></v-autocomplete>
+                >
+                  <template #chip="{ item, props: chipProps }">
+                    <v-chip
+                      v-bind="chipProps"
+                      :color="colorForSeries(f.id, item.value)"
+                      variant="flat"
+                      size="small"
+                    ></v-chip>
+                  </template>
+                </v-autocomplete>
               </v-col>
               <v-col cols="2" sm="2" class="text-right">
                 <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="mtStore.removeCompareFile(f.id)"></v-btn>
@@ -227,31 +239,31 @@ function signalOptions(f) {
   return f.parsed.signals.map((s, i) => ({ title: `${s.name} [${s.unit || "-"}]`, value: i }));
 }
 
-function activeSignal(f) {
-  return f.parsed.signals[f.selectedIdx] || f.parsed.signals[0];
+// Looks up the color a given (file, signal-index) pair got assigned in
+// mtStore.compareSeries, so the chips in the multi-select match the
+// chart/stats colors exactly.
+function colorForSeries(fileId, idx) {
+  const found = mtStore.compareSeries.find((s) => s.fileId === fileId && s.signalIdx === idx);
+  return found ? found.color : "grey";
 }
 
-// Overlay chart: linear x-axis with {x,y} points per dataset, so files with
-// different durations/sample counts still line up correctly on time.
+// Overlay chart: linear x-axis with {x,y} points per dataset, so series
+// with different durations/sample counts still line up correctly on time.
+// One dataset per (file, signal) pair from compareSeries — so two signals
+// picked from the same file each get their own line here too.
 const overlayConfig = computed(() => {
-  const files = mtStore.compareFiles.map((f) => ({
-    id: f.id,
-    name: f.name,
-    color: f.color,
-    time: f.parsed.time,
-    sig: activeSignal(f),
-  }));
+  const series = mtStore.compareSeries;
   return (peakMode) => {
-    const datasets = files.map((f) => {
-      const y = f.sig ? f.sig.data.map((v) => (v == null ? null : v)) : [];
-      const d = downsample(y, f.time, peakMode ? "minmax" : "simple", 800);
+    const datasets = series.map((s) => {
+      const y = s.signal.data.map((v) => (v == null ? null : v));
+      const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
       const points = d.rx.map((x, i) => ({ x, y: d.ry[i] }));
-      const label = f.sig ? `${f.name} — ${f.sig.name} [${f.sig.unit || "-"}]` : f.name;
+      const label = `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`;
       return {
         label,
         data: points,
-        borderColor: f.color,
-        backgroundColor: f.color,
+        borderColor: s.color,
+        backgroundColor: s.color,
         borderWidth: 1.5,
         pointRadius: 0,
       };
@@ -273,16 +285,15 @@ const overlayConfig = computed(() => {
 });
 
 const statRows = computed(() =>
-  mtStore.compareFiles.map((f) => {
-    const s = activeSignal(f);
-    const y = s ? s.data.filter((v) => v != null && Number.isFinite(v)) : [];
+  mtStore.compareSeries.map((s) => {
+    const y = s.signal.data.filter((v) => v != null && Number.isFinite(v));
     const mm = A.minMax(y);
     const fmt = (v) => (v == null ? "-" : v.toFixed(3));
     return {
-      id: f.id,
-      name: f.name,
-      color: f.color,
-      signalLabel: s ? `${s.name} [${s.unit || "-"}]` : "-",
+      id: s.key,
+      name: s.fileName,
+      color: s.color,
+      signalLabel: `${s.signal.name} [${s.signal.unit || "-"}]`,
       mean: fmt(A.mean(y)),
       rms: fmt(A.rms(y)),
       std: fmt(A.stddev(y)),

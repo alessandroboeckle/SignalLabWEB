@@ -58,24 +58,24 @@
               <span class="text-subtitle-1">Batch-Export</span>
             </div>
             <p class="text-caption text-medium-emphasis mb-3">
-              Erstellt einen PDF-Report je Datei aus dem <strong>Vergleich</strong>-Bereich
-              (dort jeweils gewähltes Signal) und packt alle in ein ZIP.
+              Erstellt einen PDF-Report je Signal aus dem <strong>Vergleich</strong>-Bereich
+              (auch mehrere je Datei) und packt alle in ein ZIP.
             </p>
 
-            <template v-if="mtStore.compareFiles.length === 0">
+            <template v-if="mtStore.compareSeries.length === 0">
               <v-alert type="info" variant="tonal" density="compact" class="text-caption">
-                Noch keine Dateien im Vergleich. Füge welche auf der Vergleich-Seite hinzu.
+                Noch keine Signale im Vergleich ausgewählt. Füge welche auf der Vergleich-Seite hinzu.
               </v-alert>
             </template>
             <template v-else>
               <v-list density="compact" class="mb-3">
-                <v-list-item v-for="f in mtStore.compareFiles" :key="f.id">
+                <v-list-item v-for="s in mtStore.compareSeries" :key="s.key">
                   <template #prepend>
-                    <v-avatar :color="f.color" size="10"></v-avatar>
+                    <v-avatar :color="s.color" size="10"></v-avatar>
                   </template>
-                  <v-list-item-title class="text-body-2">{{ f.name }}</v-list-item-title>
+                  <v-list-item-title class="text-body-2">{{ s.fileName }}</v-list-item-title>
                   <v-list-item-subtitle class="text-caption">
-                    {{ f.parsed.signals[f.selectedIdx]?.name || "-" }}
+                    {{ s.signal.name }}
                   </v-list-item-subtitle>
                 </v-list-item>
               </v-list>
@@ -87,7 +87,7 @@
                 :loading="buildingBatch"
                 @click="exportBatchZip"
               >
-                {{ mtStore.compareFiles.length }} PDFs als ZIP
+                {{ mtStore.compareSeries.length }} PDFs als ZIP
               </v-btn>
               <v-progress-linear
                 v-if="buildingBatch"
@@ -293,21 +293,29 @@ async function exportPdf() {
 // Batch: one report PDF per file in mtStore.compareFiles (built on the
 // Vergleich page), using each file's own selected signal, all bundled
 // into a single ZIP download.
+// Batch: one report PDF per (file, signal) series selected on the
+// Vergleich page — so picking two signals from the same file there
+// produces two PDFs here too, not just one.
 async function exportBatchZip() {
-  const files = mtStore.compareFiles;
-  if (files.length === 0) return;
+  const series = mtStore.compareSeries;
+  if (series.length === 0) return;
   buildingBatch.value = true;
   batchProgress.value = 0;
   try {
     const zip = new JSZip();
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      const s = f.parsed.signals[f.selectedIdx] || f.parsed.signals[0];
-      if (!s) continue;
-      const doc = await buildReportPdf(s, f.parsed.time, f.name);
-      const safeName = f.name.replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
-      zip.file(`${safeName}_report.pdf`, doc.output("blob"));
-      batchProgress.value = Math.round(((i + 1) / files.length) * 100);
+    const usedNames = new Set();
+    for (let i = 0; i < series.length; i++) {
+      const s = series[i];
+      const doc = await buildReportPdf(s.signal, s.time, s.fileName);
+      const baseName = s.fileName.replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
+      const sigName = s.signal.name.replace(/[^\w.-]+/g, "_");
+      let filename = `${baseName}_${sigName}_report.pdf`;
+      // guard against duplicate signal names within the same file (rare,
+      // but LOGITEM names aren't guaranteed unique) clobbering each other
+      if (usedNames.has(filename)) filename = `${baseName}_${sigName}_${i}_report.pdf`;
+      usedNames.add(filename);
+      zip.file(filename, doc.output("blob"));
+      batchProgress.value = Math.round(((i + 1) / series.length) * 100);
     }
     const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);

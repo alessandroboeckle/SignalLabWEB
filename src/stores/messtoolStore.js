@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import * as idbSession from "../utils/idbSession.js";
 
 // A small fixed palette so colors stay distinct and consistent across
@@ -107,19 +107,22 @@ export const useMesstoolStore = defineStore("messtool", () => {
   watch(selectedSignalIdx, () => persistSession());
 
   // ---- Multi-file comparison (Messtool -> Vergleich) ----
-  // Each entry: { id, name, parsed, color, selectedIdx }
+  // Each entry: { id, name, parsed, selectedIndices }. A file can have
+  // several signals selected at once (e.g. compare two channels from the
+  // same recording) — colors are assigned per displayed *series*
+  // (file+signal pair), not per file, via compareSeries below.
   const compareFiles = ref([]);
 
   function addCompareFile(name, parsedData) {
-    // avoid adding the exact same name twice
+    // avoid adding the exact same file twice — to compare more signals
+    // from a file that's already in the list, just select more signals
+    // on that existing entry instead
     if (compareFiles.value.some((f) => f.name === name)) return null;
-    const color = COMPARE_PALETTE[compareFiles.value.length % COMPARE_PALETTE.length];
     const entry = {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name,
       parsed: parsedData,
-      color,
-      selectedIdx: 0,
+      selectedIndices: [0],
     };
     compareFiles.value.push(entry);
     return entry;
@@ -133,6 +136,33 @@ export const useMesstoolStore = defineStore("messtool", () => {
     compareFiles.value = [];
   }
 
+  // Flattened (file, signal) pairs actually shown in the comparison chart/
+  // stats/batch-export, each with its own color assigned in display order
+  // — so two signals from the same file get two distinct, stable colors
+  // just like two signals from two different files would.
+  const compareSeries = computed(() => {
+    const out = [];
+    let colorIdx = 0;
+    for (const f of compareFiles.value) {
+      const indices = f.selectedIndices && f.selectedIndices.length ? f.selectedIndices : [];
+      for (const idx of indices) {
+        const signal = f.parsed.signals[idx];
+        if (!signal) continue;
+        out.push({
+          key: `${f.id}:${idx}`,
+          fileId: f.id,
+          fileName: f.name,
+          time: f.parsed.time,
+          signalIdx: idx,
+          signal,
+          color: COMPARE_PALETTE[colorIdx % COMPARE_PALETTE.length],
+        });
+        colorIdx++;
+      }
+    }
+    return out;
+  });
+
   return {
     parsed,
     fileName,
@@ -144,6 +174,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
     setData,
     clear,
     compareFiles,
+    compareSeries,
     addCompareFile,
     removeCompareFile,
     clearCompare,
