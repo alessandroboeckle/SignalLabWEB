@@ -57,7 +57,7 @@
         :permanent="!mobile"
         :temporary="mobile"
         class="side-nav"
-        width="220"
+        width="240"
       >
         <v-list nav density="comfortable" class="nav-list">
           <!-- Dashboard (always visible top-level) -->
@@ -396,8 +396,42 @@ watch(
   padding: 8px;
 }
 .nav-item {
-  margin-bottom: 4px;
-  transition: all 0.2s ease;
+  margin-bottom: 2px;
+  min-height: 42px;
+  transition: background-color 0.15s ease;
+}
+.nav-item :deep(.v-list-item-title) {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav-item :deep(.v-icon) {
+  font-size: 20px;
+}
+
+/* Vuetify reserves a fairly wide indent for nested v-list-group items by
+   default (meant for deep, generic nav trees) — way more than a single
+   level of Import/Filter/Analyse/... needs in a ~240px-wide drawer, and
+   it was eating into the space labels had to render in. Pull it back to
+   a small, consistent step instead. */
+.nav-sub {
+  padding-inline-start: 20px !important;
+  min-height: 38px;
+}
+.nav-sub :deep(.v-list-item-title) {
+  font-size: 13.5px;
+  font-weight: 400;
+}
+.nav-sub :deep(.v-icon) {
+  font-size: 18px;
+}
+
+/* Group activator (e.g. "Messtool") row itself — same left edge as the
+   top-level items, just the expand chevron sits at the far right. */
+:deep(.v-list-group__items) {
+  --indent-padding: 0px;
 }
 
 .tab-content {
