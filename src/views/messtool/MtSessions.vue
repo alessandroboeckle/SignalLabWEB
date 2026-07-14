@@ -70,7 +70,7 @@
           </template>
 
           <v-list-item-title class="font-weight-medium">{{ s.name }}</v-list-item-title>
-          <v-list-item-subtitle class="text-caption">
+          <v-list-item-subtitle class="text-caption session-details">
             {{ s.messfile_name || "Datei nicht gefunden" }} ·
             {{ (s.verarbeitung_ops || []).length }} Schritt(e) ·
             {{ new Date(s.updated_at).toLocaleString("de-DE") }}
@@ -278,3 +278,14 @@ async function doDelete() {
 
 onMounted(loadSessions);
 </script>
+
+<style scoped>
+.session-details {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+:deep(.v-list-item:hover) .session-details,
+:deep(.v-list-item:focus-within) .session-details {
+  opacity: 1;
+}
+</style>
