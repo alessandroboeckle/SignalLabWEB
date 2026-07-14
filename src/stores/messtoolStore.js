@@ -142,10 +142,13 @@ export const useMesstoolStore = defineStore("messtool", () => {
   watch(selectedSignalIdx, () => persistSession());
 
   // ---- Multi-file comparison (Messtool -> Vergleich) ----
-  // Each entry: { id, name, parsed, selectedIndices }. A file can have
-  // several signals selected at once (e.g. compare two channels from the
-  // same recording) — colors are assigned per displayed *series*
-  // (file+signal pair), not per file, via compareSeries below.
+  // Each entry: { id, name, parsed, selectedIndices, offsetSec }. A file
+  // can have several signals selected at once (e.g. compare two channels
+  // from the same recording) — colors are assigned per displayed *series*
+  // (file+signal pair), not per file, via compareSeries below. offsetSec
+  // shifts that whole file's time axis so an event (e.g. a braking event)
+  // can be lined up with the same event in another file, even if the two
+  // recordings didn't start at the same real-world moment.
   const compareFiles = ref([]);
 
   function addCompareFile(name, parsedData) {
@@ -158,6 +161,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
       name,
       parsed: parsedData,
       selectedIndices: [0],
+      offsetSec: 0,
     };
     compareFiles.value.push(entry);
     return entry;
@@ -188,6 +192,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
           fileId: f.id,
           fileName: f.name,
           time: f.parsed.time,
+          offsetSec: f.offsetSec || 0,
           signalIdx: idx,
           signal,
           color: COMPARE_PALETTE[colorIdx % COMPARE_PALETTE.length],

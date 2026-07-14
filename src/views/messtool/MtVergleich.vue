@@ -58,13 +58,13 @@
               <v-icon color="grey" class="mr-1">mdi-file-outline</v-icon>
             </template>
             <v-row align="center" dense class="ml-1">
-              <v-col cols="12" sm="4">
+              <v-col cols="12" sm="3">
                 <div class="text-body-2 font-weight-medium">{{ f.name }}</div>
                 <div class="text-caption text-medium-emphasis">
                   {{ f.parsed.signals.length }} Signale · {{ f.parsed.time.length }} Punkte
                 </div>
               </v-col>
-              <v-col cols="10" sm="6">
+              <v-col cols="12" sm="5">
                 <v-autocomplete
                   v-model="f.selectedIndices"
                   :items="signalOptions(f)"
@@ -86,7 +86,30 @@
                   </template>
                 </v-autocomplete>
               </v-col>
-              <v-col cols="2" sm="2" class="text-right">
+              <v-col cols="8" sm="3">
+                <v-text-field
+                  v-model.number="f.offsetSec"
+                  type="number"
+                  step="0.1"
+                  label="Zeit-Offset [s]"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  prepend-inner-icon="mdi-arrow-left-right"
+                >
+                  <template #append-inner>
+                    <v-btn
+                      v-if="f.offsetSec"
+                      size="x-small" variant="text"
+                      @click="f.offsetSec = 0"
+                    >
+                      <v-icon size="16">mdi-backup-restore</v-icon>
+                      <v-tooltip activator="parent" location="bottom">Offset zurücksetzen</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-text-field>
+              </v-col>
+              <v-col cols="4" sm="1" class="text-right">
                 <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="mtStore.removeCompareFile(f.id)"></v-btn>
               </v-col>
             </v-row>
@@ -257,8 +280,10 @@ const overlayConfig = computed(() => {
     const datasets = series.map((s) => {
       const y = s.signal.data.map((v) => (v == null ? null : v));
       const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
-      const points = d.rx.map((x, i) => ({ x, y: d.ry[i] }));
-      const label = `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`;
+      const off = s.offsetSec || 0;
+      const points = d.rx.map((x, i) => ({ x: x + off, y: d.ry[i] }));
+      const offsetSuffix = off ? ` (${off > 0 ? "+" : ""}${off}s)` : "";
+      const label = `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]${offsetSuffix}`;
       return {
         label,
         data: points,
