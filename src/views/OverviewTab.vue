@@ -133,7 +133,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from "vue";
+import { computed, onMounted, watch, nextTick } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as storage from "../utils/storage.js";
 import Chart from "chart.js/auto";
@@ -239,7 +239,8 @@ onMounted(() => {
 
 watch(
   () => store.currentSignal.timeData.length,
-  () => {
+  async () => {
+    await nextTick(); // canvas only exists once v-if="...length > 0" has rendered
     drawChart();
   },
 );
