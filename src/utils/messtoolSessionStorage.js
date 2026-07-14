@@ -51,6 +51,9 @@ export async function updateSession(id, payload) {
   const patch = {};
   if (payload.name !== undefined) patch.name = payload.name;
   if (payload.isShared !== undefined) patch.is_shared = !!payload.isShared;
+  if (payload.messfileId !== undefined) patch.messfile_id = payload.messfileId;
+  if (payload.messfileStoragePath !== undefined) patch.messfile_storage_path = payload.messfileStoragePath;
+  if (payload.messfileName !== undefined) patch.messfile_name = payload.messfileName;
   if (payload.selectedSignalIdx !== undefined) patch.selected_signal_idx = payload.selectedSignalIdx;
   if (payload.verarbeitungOps !== undefined) patch.verarbeitung_ops = payload.verarbeitungOps;
   if (payload.filterSettings !== undefined) patch.filter_settings = payload.filterSettings;

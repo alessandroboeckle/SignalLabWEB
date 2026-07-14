@@ -88,11 +88,37 @@
             >
               Laden
             </v-btn>
-            <v-btn
-              v-if="s.created_by === auth.user?.id"
-              size="small" variant="text" color="error" icon="mdi-delete"
-              @click="confirmDelete(s)"
-            ></v-btn>
+            <v-menu v-if="s.created_by === auth.user?.id">
+              <template #activator="{ props }">
+                <v-btn size="small" variant="text" icon="mdi-dots-vertical" v-bind="props"></v-btn>
+              </template>
+              <v-list density="compact" min-width="240">
+                <v-list-item
+                  prepend-icon="mdi-content-save-edit-outline"
+                  title="Mit aktuellem Stand aktualisieren"
+                  :subtitle="!mtStore.parsed ? 'Keine Datei geladen' : undefined"
+                  :disabled="!mtStore.parsed || updatingId === s.id"
+                  @click="updateWithCurrent(s)"
+                ></v-list-item>
+                <v-list-item
+                  prepend-icon="mdi-pencil-outline"
+                  title="Umbenennen"
+                  @click="openRenameDialog(s)"
+                ></v-list-item>
+                <v-list-item
+                  :prepend-icon="s.is_shared ? 'mdi-lock-outline' : 'mdi-account-group'"
+                  :title="s.is_shared ? 'Auf privat setzen' : 'Teilen'"
+                  @click="toggleShared(s)"
+                ></v-list-item>
+                <v-divider></v-divider>
+                <v-list-item
+                  prepend-icon="mdi-delete"
+                  title="Löschen"
+                  class="text-error"
+                  @click="confirmDelete(s)"
+                ></v-list-item>
+              </v-list>
+            </v-menu>
           </template>
         </v-list-item>
       </v-list>
@@ -147,6 +173,32 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <!-- Rename -->
+    <v-dialog v-model="renameDialog" max-width="400">
+      <v-card>
+        <v-card-title>Session umbenennen</v-card-title>
+        <v-divider></v-divider>
+        <v-card-text>
+          <v-text-field
+            v-model="renameValue"
+            label="Name"
+            variant="outlined"
+            density="comfortable"
+            autofocus
+            hide-details
+            @keyup.enter="confirmRename"
+          ></v-text-field>
+          <v-alert v-if="renameError" type="error" variant="tonal" density="compact" class="mt-2">
+            {{ renameError }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="renameDialog = false">Abbrechen</v-btn>
+          <v-btn color="primary" variant="flat" :loading="renaming" @click="confirmRename">Speichern</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -177,6 +229,14 @@ const saveError = ref("");
 const deleteDialog = ref(false);
 const sessionToDelete = ref(null);
 const deleting = ref(false);
+
+const renameDialog = ref(false);
+const renameValue = ref("");
+const renameError = ref("");
+const renaming = ref(false);
+const sessionToRename = ref(null);
+
+const updatingId = ref(null);
 
 const currentSignalName = computed(() => {
   const sig = mtStore.parsed?.signals?.[mtStore.selectedSignalIdx];
@@ -256,6 +316,60 @@ async function loadSession(s) {
     errorMsg.value = `"${s.name}" konnte nicht geladen werden: ` + (e.message || e);
   }
   loadingId.value = null;
+}
+
+async function updateWithCurrent(s) {
+  if (!mtStore.parsed) return;
+  updatingId.value = s.id;
+  errorMsg.value = "";
+  try {
+    await sessionsApi.updateSession(s.id, {
+      messfileId: mtStore.messfileId,
+      messfileStoragePath: mtStore.messfileStoragePath,
+      messfileName: mtStore.fileName,
+      selectedSignalIdx: mtStore.selectedSignalIdx,
+      verarbeitungOps: mtStore.verarbeitungSnapshot,
+      filterSettings: mtStore.filterSettings,
+    });
+    await loadSessions();
+  } catch (e) {
+    errorMsg.value = `"${s.name}" konnte nicht aktualisiert werden: ` + (e.message || e);
+  }
+  updatingId.value = null;
+}
+
+function openRenameDialog(s) {
+  sessionToRename.value = s;
+  renameValue.value = s.name;
+  renameError.value = "";
+  renameDialog.value = true;
+}
+
+async function confirmRename() {
+  if (!renameValue.value.trim()) {
+    renameError.value = "Bitte einen Namen angeben.";
+    return;
+  }
+  renaming.value = true;
+  renameError.value = "";
+  try {
+    await sessionsApi.updateSession(sessionToRename.value.id, { name: renameValue.value.trim() });
+    renameDialog.value = false;
+    await loadSessions();
+  } catch (e) {
+    renameError.value = "Konnte nicht umbenennen: " + (e.message || e);
+  }
+  renaming.value = false;
+}
+
+async function toggleShared(s) {
+  errorMsg.value = "";
+  try {
+    await sessionsApi.updateSession(s.id, { isShared: !s.is_shared });
+    await loadSessions();
+  } catch (e) {
+    errorMsg.value = `"${s.name}" konnte nicht umgestellt werden: ` + (e.message || e);
+  }
 }
 
 function confirmDelete(s) {
