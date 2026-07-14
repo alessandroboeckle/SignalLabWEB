@@ -46,36 +46,6 @@
               </v-btn>
               <v-menu>
                 <template #activator="{ props }">
-                  <v-btn size="small" variant="outlined" v-bind="props" prepend-icon="mdi-folder-open-outline">
-                    Presets
-                  </v-btn>
-                </template>
-                <v-list min-width="220">
-                  <v-list-item v-if="presets.length === 0" disabled title="Noch keine Presets gespeichert"></v-list-item>
-                  <v-list-item
-                    v-for="p in presets"
-                    :key="p.name"
-                    :title="p.name"
-                    :subtitle="`${p.ops.length} Schritt(e)`"
-                    @click="loadPresetByName(p.name)"
-                  >
-                    <template #append>
-                      <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click.stop="removePreset(p.name)"></v-btn>
-                    </template>
-                  </v-list-item>
-                </v-list>
-              </v-menu>
-              <v-btn
-                size="small"
-                variant="outlined"
-                prepend-icon="mdi-content-save-outline"
-                :disabled="ops.length === 0"
-                @click="saveDialog = true"
-              >
-                Speichern
-              </v-btn>
-              <v-menu>
-                <template #activator="{ props }">
                   <v-btn size="small" variant="tonal" color="primary" v-bind="props" prepend-icon="mdi-plus">
                     Hinzufügen
                   </v-btn>
@@ -100,6 +70,18 @@
               </v-btn>
             </v-card-title>
             <v-divider></v-divider>
+
+            <v-alert
+              type="info"
+              variant="tonal"
+              density="compact"
+              tile
+              class="text-caption"
+            >
+              Diese Kette gehört zur aktuellen Datei und bleibt beim Seitenwechsel erhalten.
+              Auf der Seite <strong>Sessions</strong> kannst du sie zusammen mit der Datei
+              benannt speichern (auch geteilt mit Kollegen).
+            </v-alert>
 
             <div v-if="ops.length === 0" class="pa-4 text-center text-medium-emphasis text-caption">
               Noch keine Operation. Über „Hinzufügen" wählen.
@@ -164,36 +146,6 @@
         </v-col>
       </v-row>
     </template>
-
-    <!-- Save preset dialog -->
-    <v-dialog v-model="saveDialog" max-width="420">
-      <v-card>
-        <v-card-title>Preset speichern</v-card-title>
-        <v-divider></v-divider>
-        <v-card-text>
-          <v-text-field
-            v-model="presetName"
-            label="Name"
-            variant="outlined"
-            density="comfortable"
-            autofocus
-            hide-details
-            @keyup.enter="confirmSave"
-          ></v-text-field>
-          <p class="text-caption text-medium-emphasis mt-2">
-            Speichert die aktuelle Kette ({{ ops.length }} Schritt(e)) mit ihren Parametern.
-          </p>
-          <v-alert v-if="saveError" type="error" variant="tonal" density="compact" class="mt-2">
-            {{ saveError }}
-          </v-alert>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn variant="text" @click="saveDialog = false">Abbrechen</v-btn>
-          <v-btn color="primary" variant="flat" @click="confirmSave">Speichern</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </v-container>
 </template>
 
@@ -201,13 +153,25 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
-import * as presetsApi from "../../utils/messtoolPresets.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
 const registry = OP_REGISTRY;
+
+// Reconstruct live ProcessingOp instances from a plain {id,params}[]
+// snapshot (from undo/redo history, or mtStore.verarbeitungSnapshot).
+// Unknown op ids are skipped rather than throwing, so a snapshot from an
+// older/newer app version still loads what it can.
+function instantiateOps(snapshot) {
+  return snapshot
+    .map((s) => {
+      const entry = registry.find((r) => r.id === s.id);
+      return entry ? entry.make(s.params) : null;
+    })
+    .filter(Boolean);
+}
 
 // Shared across Analyse/Filter/Verarbeitung/Export so switching pages
 // keeps showing the same signal instead of resetting to the first one.
@@ -240,6 +204,7 @@ function commitHistory() {
   history.value.splice(historyIndex.value + 1); // drop any redo branch
   history.value.push(snap);
   historyIndex.value = history.value.length - 1;
+  mtStore.verarbeitungSnapshot = snap;
 }
 
 function commitHistoryDebounced() {
@@ -249,7 +214,7 @@ function commitHistoryDebounced() {
 
 function restoreSnapshot(snap) {
   suppressHistory.value = true;
-  ops.value = presetsApi.instantiatePreset({ ops: snap }, registry);
+  ops.value = instantiateOps(snap);
   recompute();
   suppressHistory.value = false;
 }
@@ -279,6 +244,11 @@ function onKeydown(e) {
 }
 
 onMounted(() => {
+  // Pick up whatever chain is already shared (kept alive across page
+  // switches, or just loaded from a Session) instead of always starting empty.
+  if (mtStore.verarbeitungSnapshot.length) {
+    ops.value = instantiateOps(mtStore.verarbeitungSnapshot);
+  }
   history.value = [snapshotOps()];
   historyIndex.value = 0;
   window.addEventListener("keydown", onKeydown);
@@ -287,34 +257,6 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
   clearTimeout(historyTimer);
 });
-
-const presets = ref(presetsApi.listPresets());
-const saveDialog = ref(false);
-const presetName = ref("");
-const saveError = ref("");
-
-function confirmSave() {
-  try {
-    presets.value = presetsApi.savePreset(presetName.value, ops.value);
-    saveDialog.value = false;
-    presetName.value = "";
-    saveError.value = "";
-  } catch (err) {
-    saveError.value = err.message || "Konnte Preset nicht speichern.";
-  }
-}
-
-function loadPresetByName(name) {
-  const preset = presets.value.find((p) => p.name === name);
-  if (!preset) return;
-  ops.value = presetsApi.instantiatePreset(preset, registry);
-  recompute();
-  commitHistory();
-}
-
-function removePreset(name) {
-  presets.value = presetsApi.deletePreset(name);
-}
 
 function exportCsv() {
   if (!sig.value) return;

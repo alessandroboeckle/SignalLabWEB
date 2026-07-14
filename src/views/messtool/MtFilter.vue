@@ -17,34 +17,16 @@
         <v-col cols="12" md="4">
           <v-card variant="outlined" rounded="lg" class="pa-4">
             <div class="d-flex flex-wrap ga-2 mb-3">
-              <v-menu>
-                <template #activator="{ props }">
-                  <v-btn size="small" variant="outlined" v-bind="props" prepend-icon="mdi-folder-open-outline">
-                    Presets
-                  </v-btn>
-                </template>
-                <v-list min-width="220">
-                  <v-list-item v-if="presets.length === 0" disabled title="Noch keine Presets gespeichert"></v-list-item>
-                  <v-list-item
-                    v-for="p in presets"
-                    :key="p.name"
-                    :title="p.name"
-                    :subtitle="presetSubtitle(p)"
-                    @click="loadPresetByName(p.name)"
-                  >
-                    <template #append>
-                      <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click.stop="removePreset(p.name)"></v-btn>
-                    </template>
-                  </v-list-item>
-                </v-list>
-              </v-menu>
-              <v-btn size="small" variant="outlined" prepend-icon="mdi-content-save-outline" @click="saveDialog = true">
-                Speichern
-              </v-btn>
               <v-btn size="small" variant="outlined" prepend-icon="mdi-file-delimited-outline" :disabled="!sig" @click="exportCsv">
                 CSV
               </v-btn>
             </div>
+
+            <v-alert type="info" variant="tonal" density="compact" class="text-caption mb-3">
+              Diese Einstellungen gehören zur aktuellen Datei und bleiben beim Seitenwechsel
+              erhalten. Auf der Seite <strong>Sessions</strong> kannst du sie zusammen mit der
+              Datei benannt speichern (auch geteilt mit Kollegen).
+            </v-alert>
 
             <v-autocomplete
               v-model="selectedIdx"
@@ -133,43 +115,13 @@
         </v-col>
       </v-row>
     </template>
-
-    <v-dialog v-model="saveDialog" max-width="420">
-      <v-card>
-        <v-card-title>Filter-Preset speichern</v-card-title>
-        <v-divider></v-divider>
-        <v-card-text>
-          <v-text-field
-            v-model="presetName"
-            label="Name"
-            variant="outlined"
-            density="comfortable"
-            autofocus
-            hide-details
-            @keyup.enter="confirmSave"
-          ></v-text-field>
-          <p class="text-caption text-medium-emphasis mt-2">
-            Speichert Charakteristik, Filtertyp, Ordnung und Grenzfrequenz(en).
-          </p>
-          <v-alert v-if="saveError" type="error" variant="tonal" density="compact" class="mt-2">
-            {{ saveError }}
-          </v-alert>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn variant="text" @click="saveDialog = false">Abbrechen</v-btn>
-          <v-btn color="primary" variant="flat" @click="confirmSave">Speichern</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </v-container>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { applyFilter } from "../../utils/messtoolFilter.js";
-import * as filterPresetsApi from "../../utils/messtoolFilterPresets.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
@@ -182,56 +134,38 @@ const selectedIdx = computed({
   get: () => mtStore.selectedSignalIdx,
   set: (v) => { mtStore.selectedSignalIdx = v; },
 });
-const characteristic = ref("butterworth");
-const btype = ref("low");
-const order = ref(4);
-const cutoff = ref(1);
-const cutoff2 = ref(3);
-const stopbandDb = ref(40);
 
-const presets = ref(filterPresetsApi.listPresets());
-const saveDialog = ref(false);
-const presetName = ref("");
-const saveError = ref("");
+// Filter settings live locally (v-model needs plain refs for the sliders/
+// selects) but are seeded from — and kept in sync with — the shared store,
+// so they survive page switches and get picked up by Sessions.
+const fs0 = mtStore.filterSettings;
+const characteristic = ref(fs0.characteristic);
+const btype = ref(fs0.btype);
+const order = ref(fs0.order);
+const cutoff = ref(fs0.cutoff);
+const cutoff2 = ref(fs0.cutoff2);
+const stopbandDb = ref(fs0.stopbandDb);
 
-function presetSubtitle(p) {
-  const s = p.settings;
-  return `${s.characteristic} · ${s.btype} · Ord. ${s.order} · ${s.cutoff}Hz`;
-}
-
-function confirmSave() {
-  try {
-    presets.value = filterPresetsApi.savePreset(presetName.value, {
-      characteristic: characteristic.value,
-      btype: btype.value,
-      order: order.value,
-      cutoff: cutoff.value,
-      cutoff2: cutoff2.value,
-      stopbandDb: stopbandDb.value,
-    });
-    saveDialog.value = false;
-    presetName.value = "";
-    saveError.value = "";
-  } catch (err) {
-    saveError.value = err.message || "Konnte Preset nicht speichern.";
-  }
-}
-
-function loadPresetByName(name) {
-  const preset = presets.value.find((p) => p.name === name);
-  if (!preset) return;
-  const s = preset.settings;
+let applyingExternal = false;
+watch([characteristic, btype, order, cutoff, cutoff2, stopbandDb], () => {
+  if (applyingExternal) return;
+  mtStore.filterSettings = {
+    characteristic: characteristic.value, btype: btype.value, order: order.value,
+    cutoff: cutoff.value, cutoff2: cutoff2.value, stopbandDb: stopbandDb.value,
+  };
+});
+// Re-seed if something else (a Session load) replaces the shared settings
+// while this page happens to already be open.
+watch(() => mtStore.filterSettings, (s) => {
+  applyingExternal = true;
   characteristic.value = s.characteristic;
   btype.value = s.btype;
   order.value = s.order;
   cutoff.value = s.cutoff;
   cutoff2.value = s.cutoff2;
   stopbandDb.value = s.stopbandDb;
-}
-
-function removePreset(name) {
-  presets.value = filterPresetsApi.deletePreset(name);
-}
+  applyingExternal = false;
+});
 
 function exportCsv() {
   if (!sig.value) return;

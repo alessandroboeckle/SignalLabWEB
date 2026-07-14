@@ -21,6 +21,32 @@ export const useMesstoolStore = defineStore("messtool", () => {
   // Verarbeitung/Export so switching pages doesn't reset back to signal 0.
   const selectedSignalIdx = ref(0);
 
+  // Which cloud messfiles row (if any) the currently loaded file
+  // corresponds to. Null for a freshly-uploaded local file that hasn't
+  // been saved to the cloud yet — Sessions need this to know which file
+  // to re-download later, so saving a session requires it to be set.
+  const messfileId = ref(null);
+  const messfileStoragePath = ref(null);
+
+  function setCloudRef(id, storagePath) {
+    messfileId.value = id || null;
+    messfileStoragePath.value = storagePath || null;
+  }
+
+  // Verarbeitung chain + Filter settings, shared so they survive
+  // switching pages and can be captured/restored wholesale by a Session.
+  // Verarbeitung keeps its live ProcessingOp instances locally (for
+  // .apply()) and mirrors a plain {id,params} snapshot here.
+  const verarbeitungSnapshot = ref([]); // [{id, params}, ...]
+  const filterSettings = ref({
+    characteristic: "butterworth",
+    btype: "low",
+    order: 4,
+    cutoff: 1,
+    cutoff2: 3,
+    stopbandDb: 40,
+  });
+
   // --- session persistence (survive an accidental reload/tab close) -----
   //
   // Backed by IndexedDB rather than localStorage: localStorage tops out
@@ -93,6 +119,13 @@ export const useMesstoolStore = defineStore("messtool", () => {
     parsed.value = result;
     fileName.value = name || "";
     selectedSignalIdx.value = 0; // new file -> back to the first signal
+    messfileId.value = null; // caller sets this via setCloudRef() if known
+    messfileStoragePath.value = null;
+    verarbeitungSnapshot.value = [];
+    filterSettings.value = {
+      characteristic: "butterworth", btype: "low", order: 4,
+      cutoff: 1, cutoff2: 3, stopbandDb: 40,
+    };
     sessionRestored.value = false; // this is a fresh explicit import now
     persistSession();
   }
@@ -101,6 +134,8 @@ export const useMesstoolStore = defineStore("messtool", () => {
     parsed.value = null;
     fileName.value = "";
     selectedSignalIdx.value = 0;
+    messfileId.value = null;
+    messfileStoragePath.value = null;
     persistSession();
   }
 
@@ -168,6 +203,11 @@ export const useMesstoolStore = defineStore("messtool", () => {
     fileName,
     fftWindowDefault,
     selectedSignalIdx,
+    messfileId,
+    messfileStoragePath,
+    setCloudRef,
+    verarbeitungSnapshot,
+    filterSettings,
     sessionRestored,
     sessionTooLargeToPersist,
     dismissRestoredNotice,

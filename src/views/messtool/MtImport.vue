@@ -440,7 +440,8 @@ async function saveToCloud() {
   uploading.value = true;
   errorMsg.value = "";
   try {
-    await mtStorage.uploadMessfile(lastFile.value, parsed.value.meta);
+    const row = await mtStorage.uploadMessfile(lastFile.value, parsed.value.meta);
+    mtStore.setCloudRef(row.id, row.storage_path);
     await loadList();
   } catch (e) {
     errorMsg.value = "Upload fehlgeschlagen: " + (e.message || e);
@@ -461,6 +462,7 @@ async function openCloudFile(f) {
     });
     parsed.value = result;
     mtStore.setData(result, f.name);
+    mtStore.setCloudRef(f.id, f.storage_path);
     mtStore.fftWindowDefault = advancedMode.value ? windowTypeImport.value : null;
     fileName.value = f.name;
     lastFile.value = null; // came from cloud, no re-upload

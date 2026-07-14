@@ -178,6 +178,9 @@
           <v-window-item value="mt-export">
             <MtExport />
           </v-window-item>
+          <v-window-item value="mt-sessions">
+            <MtSessions @navigate="activeTab = $event" />
+          </v-window-item>
         </v-window>
       </v-main>
 
@@ -235,6 +238,7 @@ import MtVerarbeitung from "./views/messtool/MtVerarbeitung.vue";
 import MtFilter from "./views/messtool/MtFilter.vue";
 import MtExport from "./views/messtool/MtExport.vue";
 import MtVergleich from "./views/messtool/MtVergleich.vue";
+import MtSessions from "./views/messtool/MtSessions.vue";
 
 const theme = useTheme();
 const store = useSignalStore();
@@ -285,6 +289,7 @@ const messtoolItems = [
   { value: "mt-verarbeitung", label: "Verarbeitung", icon: "mdi-cog-transfer" },
   { value: "mt-vergleich", label: "Vergleich", icon: "mdi-chart-multiple" },
   { value: "mt-export", label: "Export", icon: "mdi-file-export" },
+  { value: "mt-sessions", label: "Sessions", icon: "mdi-content-save-cog-outline" },
 ];
 
 const isDark = computed({
