@@ -238,6 +238,25 @@
       </v-row>
 
       <v-alert
+        v-if="parsed.meta.qualityWarnings && parsed.meta.qualityWarnings.suspicious"
+        type="warning"
+        variant="tonal"
+        density="comfortable"
+        class="mb-4"
+      >
+        <div class="font-weight-medium mb-1">
+          Auffällig viele Signale ohne Daten
+          ({{ parsed.meta.qualityWarnings.allNullSignals.length }} leer,
+          {{ parsed.meta.qualityWarnings.constantSignals.length }} konstant,
+          von {{ parsed.meta.signalCount }} Signalen)
+        </div>
+        <div class="text-caption">
+          Das kann bei einzelnen, wirklich unbenutzten Kanälen normal sein — bei diesem Anteil
+          lohnt sich aber ein Blick, ob der Export vom Desktop-Tool vollständig war.
+        </div>
+      </v-alert>
+
+      <v-alert
         v-if="parsed.meta.sampleRateInfo && parsed.meta.sampleRateInfo.gapCount > 0"
         type="warning"
         variant="tonal"

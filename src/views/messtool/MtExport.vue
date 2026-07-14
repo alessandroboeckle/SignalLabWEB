@@ -172,17 +172,46 @@ const exportConfig = computed(() => {
 
 // Render a standalone offscreen chart to get a clean PNG (not the interactive one).
 // Takes explicit (s, t) so it can be reused for the batch export over other files.
-async function renderOffscreenChart(s, t, width = 1000, height = 500) {
+async function renderOffscreenChart(s, t, width = 1000, height = 500, { showMarkers = false } = {}) {
   const { default: Chart } = await import("chart.js/auto");
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const { rx, ry } = downsample(s.data, t, "minmax", 1000);
 
+  // Raw numeric labels (not pre-formatted strings) so the marker plugin's
+  // getPixelForValue(timeSec) resolves reliably against them.
+  const exportMarkerPlugin = {
+    id: "exportMarkers",
+    afterDraw(chart) {
+      if (!showMarkers || !mtStore.markers.length) return;
+      const { ctx, chartArea, scales } = chart;
+      const xScale = scales.x;
+      ctx.save();
+      for (const m of mtStore.markers) {
+        const px = xScale.getPixelForValue(m.timeSec);
+        if (Number.isNaN(px) || px < chartArea.left || px > chartArea.right) continue;
+        ctx.strokeStyle = "#D97706";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(px, chartArea.top);
+        ctx.lineTo(px, chartArea.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#D97706";
+        ctx.font = "11px sans-serif";
+        const label = m.note.length > 22 ? m.note.slice(0, 21) + "…" : m.note;
+        ctx.fillText(label, px + 3, chartArea.bottom - 6);
+      }
+      ctx.restore();
+    },
+  };
+
   const chart = new Chart(canvas.getContext("2d"), {
     type: "line",
     data: {
-      labels: rx.map((v) => v.toFixed(2)),
+      labels: rx,
       datasets: [{
         label: `${s.name} [${s.unit || "-"}]`,
         data: ry,
@@ -194,11 +223,15 @@ async function renderOffscreenChart(s, t, width = 1000, height = 500) {
     options: {
       responsive: false, animation: false,
       scales: {
-        x: { title: { display: true, text: "Zeit [s]" } },
+        x: {
+          title: { display: true, text: "Zeit [s]" },
+          ticks: { callback: (val, idx) => rx[idx]?.toFixed(2) },
+        },
         y: { title: { display: true, text: s.unit || "" } },
       },
       plugins: { legend: { display: true } },
     },
+    plugins: [exportMarkerPlugin],
   });
   await new Promise((r) => setTimeout(r, 50)); // let it render
   const dataUrl = canvas.toDataURL("image/png");
@@ -217,13 +250,16 @@ function downloadDataUrl(dataUrl, filename) {
 
 async function exportPng() {
   if (!sig.value) return;
-  const dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600);
+  const dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
   downloadDataUrl(dataUrl, `${sig.value.name.replace(/[^\w.-]+/g, "_")}.png`);
 }
 
 // Builds a single-page report PDF for one signal and returns the jsPDF doc
 // (caller decides whether to .save() it directly or bundle it into a zip).
-async function buildReportPdf(s, t, fileLabel) {
+// showMarkers should only be true when `s`/`t` genuinely belong to the
+// currently active file (mtStore.markers is scoped to that file) — batch-
+// exporting a different comparison file must leave it off.
+async function buildReportPdf(s, t, fileLabel, { showMarkers = false } = {}) {
   const y = s.data.filter((v) => v != null && Number.isFinite(v));
   const mm = A.minMax(y);
   const stats = {
@@ -231,7 +267,7 @@ async function buildReportPdf(s, t, fileLabel) {
     variance: A.variance(y), min: mm.min, max: mm.max,
   };
 
-  const imgData = await renderOffscreenChart(s, t, 1000, 500);
+  const imgData = await renderOffscreenChart(s, t, 1000, 500, { showMarkers });
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -283,7 +319,7 @@ async function exportPdf() {
   if (!sig.value) return;
   buildingPdf.value = true;
   try {
-    const doc = await buildReportPdf(sig.value, time.value, mtStore.fileName);
+    const doc = await buildReportPdf(sig.value, time.value, mtStore.fileName, { showMarkers: true });
     doc.save(`${sig.value.name.replace(/[^\w.-]+/g, "_")}_report.pdf`);
   } finally {
     buildingPdf.value = false;

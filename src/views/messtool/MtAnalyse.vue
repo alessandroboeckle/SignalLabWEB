@@ -45,6 +45,33 @@
         </v-col>
       </v-row>
 
+      <v-expansion-panels class="mb-4" variant="accordion">
+        <v-expansion-panel>
+          <v-expansion-panel-title>
+            <v-icon class="mr-2" size="20">mdi-table-eye</v-icon>
+            Signal-Übersicht — alle {{ mtStore.parsed.signals.length }} Signale auf einen Blick
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <v-data-table
+              :headers="overviewHeaders"
+              :items="allSignalStats"
+              density="compact"
+              items-per-page="10"
+              @click:row="onOverviewRowClick"
+            >
+              <template #item.name="{ item }">
+                <span :class="{ 'font-weight-bold text-primary': item.idx === selectedIdx }">
+                  {{ item.name }}
+                </span>
+              </template>
+            </v-data-table>
+            <p class="text-caption text-medium-emphasis mt-2">
+              Auf eine Zeile klicken, um dieses Signal oben auszuwählen.
+            </p>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+
       <v-row>
         <v-col cols="12" md="6">
           <ChartCard title="Signal & Ableitung" :config="derivConfig" :height="260" />
@@ -68,6 +95,42 @@ import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
+
+const overviewHeaders = [
+  { title: "Signal", key: "name" },
+  { title: "Einheit", key: "unit" },
+  { title: "Mittel", key: "mean", align: "end" },
+  { title: "RMS", key: "rms", align: "end" },
+  { title: "Std", key: "std", align: "end" },
+  { title: "Min", key: "min", align: "end" },
+  { title: "Max", key: "max", align: "end" },
+];
+
+// Computed once per loaded file (Vue memoizes this — it only re-runs when
+// mtStore.parsed changes, not on every render), so opening the panel is
+// instant even though it covers every signal in the file.
+const allSignalStats = computed(() => {
+  if (!mtStore.parsed) return [];
+  return mtStore.parsed.signals.map((s, idx) => {
+    const y = s.data.filter((v) => v != null && Number.isFinite(v));
+    const mm = A.minMax(y);
+    const fmt = (v) => (v == null ? "-" : v.toFixed(3));
+    return {
+      idx,
+      name: s.name,
+      unit: s.unit || "-",
+      mean: fmt(A.mean(y)),
+      rms: fmt(A.rms(y)),
+      std: fmt(A.stddev(y)),
+      min: fmt(mm.min),
+      max: fmt(mm.max),
+    };
+  });
+});
+
+function onOverviewRowClick(_event, { item }) {
+  selectedIdx.value = item.idx;
+}
 
 // Shared across Analyse/Filter/Verarbeitung/Export so switching pages
 // keeps showing the same signal instead of resetting to the first one.

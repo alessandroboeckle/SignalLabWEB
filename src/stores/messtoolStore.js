@@ -47,6 +47,26 @@ export const useMesstoolStore = defineStore("messtool", () => {
     stopbandDb: 40,
   });
 
+  // Time-point annotations on the current file (e.g. "Bremsereignis hier"),
+  // shared across every ChartCard on every Messtool page so a marker set
+  // while looking at Filter also shows up in Analyse/Verarbeitung/etc.
+  const markers = ref([]); // [{id, timeSec, note}]
+
+  function addMarker(timeSec, note) {
+    markers.value.push({
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      timeSec,
+      note,
+    });
+    markers.value.sort((a, b) => a.timeSec - b.timeSec);
+    persistSession();
+  }
+
+  function removeMarker(id) {
+    markers.value = markers.value.filter((m) => m.id !== id);
+    persistSession();
+  }
+
   // --- session persistence (survive an accidental reload/tab close) -----
   //
   // Backed by IndexedDB rather than localStorage: localStorage tops out
@@ -82,6 +102,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
         fileName: fileName.value,
         selectedSignalIdx: selectedSignalIdx.value,
         fftWindowDefault: fftWindowDefault.value,
+        markers: markers.value,
       });
     } catch {
       // storage full/unavailable/disabled — fail silently, see above
@@ -103,6 +124,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
       fileName.value = data.fileName || "";
       selectedSignalIdx.value = data.selectedSignalIdx || 0;
       fftWindowDefault.value = data.fftWindowDefault || null;
+      markers.value = data.markers || [];
       sessionRestored.value = true;
     } catch {
       // nothing to restore, or storage unavailable — start with a clean slate
@@ -126,6 +148,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
       characteristic: "butterworth", btype: "low", order: 4,
       cutoff: 1, cutoff2: 3, stopbandDb: 40,
     };
+    markers.value = [];
     sessionRestored.value = false; // this is a fresh explicit import now
     persistSession();
   }
@@ -136,6 +159,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
     selectedSignalIdx.value = 0;
     messfileId.value = null;
     messfileStoragePath.value = null;
+    markers.value = [];
     persistSession();
   }
 
@@ -213,6 +237,9 @@ export const useMesstoolStore = defineStore("messtool", () => {
     setCloudRef,
     verarbeitungSnapshot,
     filterSettings,
+    markers,
+    addMarker,
+    removeMarker,
     sessionRestored,
     sessionTooLargeToPersist,
     dismissRestoredNotice,

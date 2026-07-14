@@ -17,6 +17,18 @@
       </v-btn>
       <v-btn
         size="small"
+        :variant="markerMode ? 'flat' : 'outlined'"
+        :color="markerMode ? 'warning' : 'default'"
+        prepend-icon="mdi-map-marker-plus-outline"
+        @click="toggleMarkerMode"
+      >
+        Marker {{ markerMode ? "AN" : "AUS" }}
+        <v-tooltip activator="parent" location="bottom">
+          Stelle anklicken, um eine Notiz zu setzen — gilt für alle Charts dieser Datei
+        </v-tooltip>
+      </v-btn>
+      <v-btn
+        size="small"
         :variant="peakMode ? 'flat' : 'outlined'"
         :color="peakMode ? 'primary' : 'default'"
         prepend-icon="mdi-pulse"
@@ -41,6 +53,22 @@
       <div class="hint text-caption text-medium-emphasis mb-1">
         Mausrad = Zoom · Rechteck ziehen = Bereich · Ziehen mit gedrückter Umschalt = verschieben
         <span v-if="cursorMode"> · Cursor-Modus: 2 Punkte anklicken</span>
+        <span v-if="markerMode"> · Marker-Modus: Stelle anklicken für Notiz</span>
+      </div>
+
+      <div v-if="mtStore.markers.length" class="d-flex flex-wrap ga-1 mb-2">
+        <v-chip
+          v-for="m in mtStore.markers"
+          :key="m.id"
+          size="small"
+          color="warning"
+          variant="tonal"
+          closable
+          @click:close="mtStore.removeMarker(m.id)"
+        >
+          <v-icon start size="14">mdi-map-marker</v-icon>
+          t={{ m.timeSec.toFixed(2) }}s — {{ m.note }}
+        </v-chip>
       </div>
 
       <v-alert
@@ -91,10 +119,12 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue"
 import { useTheme } from "vuetify";
 import Chart from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
+import { useMesstoolStore } from "../../stores/messtoolStore.js";
 
 Chart.register(zoomPlugin);
 
 const theme = useTheme();
+const mtStore = useMesstoolStore();
 
 const props = defineProps({
   title: { type: String, default: "" },
@@ -107,6 +137,7 @@ const fsCanvas = ref(null);
 const fullscreen = ref(false);
 const peakMode = ref(false);
 const cursorMode = ref(false);
+const markerMode = ref(false);
 const cursors = ref([]); // up to 2 points: {x, y, label}
 let inlineChart = null;
 let fsChart = null;
@@ -123,22 +154,54 @@ const cursorInfo = computed(() => {
 
 function toggleCursorMode() {
   cursorMode.value = !cursorMode.value;
+  if (cursorMode.value) markerMode.value = false;
   cursors.value = [];
   buildInline();
   if (fullscreen.value) buildFullscreen();
 }
 
+function toggleMarkerMode() {
+  markerMode.value = !markerMode.value;
+  if (markerMode.value) cursorMode.value = false;
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+}
+
+// Works for both scale types ChartCard is used with: category scale with
+// numeric-string labels (Analyse/Filter/Verarbeitung/Export), and a linear
+// scale with raw {x,y} points and parsing:false (Vergleich).
+function xValueAtEvent(chart, evt) {
+  const points = chart.getElementsAtEventForMode(evt, "nearest", { intersect: false }, true);
+  if (!points.length) return null;
+  const p = points[0];
+  const ds = chart.data.datasets[p.datasetIndex];
+  const rawX = chart.data.labels ? chart.data.labels[p.index] : ds.data[p.index]?.x;
+  return typeof rawX === "number" ? rawX : parseFloat(rawX);
+}
+
 function onCanvasClick(evt, which) {
-  if (!cursorMode.value) return;
   const chart = which === "inline" ? inlineChart : fsChart;
   if (!chart) return;
 
+  if (markerMode.value) {
+    const x = xValueAtEvent(chart, evt);
+    if (x == null || Number.isNaN(x)) return;
+    const note = window.prompt(`Notiz für Marker bei t = ${x.toFixed(2)}s:`);
+    if (note && note.trim()) {
+      mtStore.addMarker(x, note.trim());
+      buildInline();
+      if (fullscreen.value) buildFullscreen();
+    }
+    return;
+  }
+
+  if (!cursorMode.value) return;
   const points = chart.getElementsAtEventForMode(evt, "nearest", { intersect: false }, true);
   if (!points.length) return;
   const p = points[0];
   const ds = chart.data.datasets[p.datasetIndex];
-  const rawX = chart.data.labels[p.index];
-  const rawY = ds.data[p.index];
+  const rawX = chart.data.labels ? chart.data.labels[p.index] : ds.data[p.index]?.x;
+  const rawY = chart.data.labels ? ds.data[p.index] : ds.data[p.index]?.y;
   const x = typeof rawX === "number" ? rawX : parseFloat(rawX);
   const y = typeof rawY === "number" ? rawY : parseFloat(rawY);
 
@@ -172,6 +235,36 @@ const cursorPlugin = {
       ctx.font = "11px sans-serif";
       ctx.fillText(`P${i + 1}`, px + 3, chartArea.top + 12);
     });
+    ctx.restore();
+  },
+};
+
+// Draws every saved marker for the current file as a vertical line + short
+// label — always shown (not just while marker mode is on), so annotations
+// made on one Messtool page are visible on every other chart too.
+const markerPlugin = {
+  id: "fileMarkers",
+  afterDraw(chart) {
+    if (!mtStore.markers.length) return;
+    const { ctx, chartArea, scales } = chart;
+    const xScale = scales.x;
+    ctx.save();
+    for (const m of mtStore.markers) {
+      const px = xScale.getPixelForValue(m.timeSec);
+      if (Number.isNaN(px) || px < chartArea.left || px > chartArea.right) continue;
+      ctx.strokeStyle = "#D97706";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(px, chartArea.top);
+      ctx.lineTo(px, chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#D97706";
+      ctx.font = "10px sans-serif";
+      const label = m.note.length > 18 ? m.note.slice(0, 17) + "…" : m.note;
+      ctx.fillText(label, px + 3, chartArea.bottom - 4);
+    }
     ctx.restore();
   },
 };
@@ -274,7 +367,7 @@ function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
   const cfg = withInteractions(props.config(peakMode.value));
-  cfg.plugins = [cursorPlugin];
+  cfg.plugins = [cursorPlugin, markerPlugin];
   inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
   applyZoomLimits(inlineChart);
 }
@@ -283,7 +376,7 @@ function buildFullscreen() {
   if (fsChart) { fsChart.destroy(); fsChart = null; }
   if (!fsCanvas.value) return;
   const cfg = withInteractions(props.config(peakMode.value));
-  cfg.plugins = [cursorPlugin];
+  cfg.plugins = [cursorPlugin, markerPlugin];
   fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
   applyZoomLimits(fsChart);
 }

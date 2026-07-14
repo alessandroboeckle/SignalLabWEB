@@ -194,6 +194,38 @@ export async function parseMesstoolCsv(text, options = {}) {
     data: signalData[idx],
   }));
 
+  // Quality check: flag signals that carry no real information (nothing
+  // but null, or a single constant value throughout) — a suspiciously
+  // high share of these across the file can indicate a bad export from
+  // the desktop tool (wrong channel mapping, truncated recording, etc.)
+  // rather than genuinely inactive channels.
+  const allNullSignals = [];
+  const constantSignals = [];
+  for (const s of signals) {
+    let sawValue = false;
+    let allSame = true;
+    let firstVal = null;
+    for (const v of s.data) {
+      if (v == null) continue;
+      sawValue = true;
+      if (firstVal === null) firstVal = v;
+      else if (v !== firstVal) { allSame = false; break; }
+    }
+    if (!sawValue) allNullSignals.push(s.name);
+    else if (allSame) constantSignals.push(s.name);
+  }
+  const flaggedCount = allNullSignals.length + constantSignals.length;
+  const qualityWarnings = signals.length
+    ? {
+        allNullSignals,
+        constantSignals,
+        // only worth surfacing if it's a large chunk of the file, not
+        // just the odd genuinely-unused channel (e.g. Bogie B in the
+        // brake-resistor recordings, which is normal)
+        suspicious: flaggedCount / signals.length > 0.4,
+      }
+    : null;
+
   return {
     signals,
     time,
@@ -202,6 +234,7 @@ export async function parseMesstoolCsv(text, options = {}) {
       signalCount: signals.length,
       duration: time.length ? time[time.length - 1] : 0,
       sampleRateInfo,
+      qualityWarnings,
     },
   };
 }
