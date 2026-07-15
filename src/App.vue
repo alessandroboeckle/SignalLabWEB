@@ -161,7 +161,7 @@
 
           <!-- Messtool sub-pages (placeholders for now) -->
           <v-window-item value="mt-import">
-            <MtImport />
+            <MtImport @navigate="activeTab = $event" />
           </v-window-item>
           <v-window-item value="mt-filter">
             <MtFilter />

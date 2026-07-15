@@ -79,6 +79,17 @@
       <div v-if="!batchUpload.active && batchUpload.failed.length" class="text-caption mt-2">
         Fehlgeschlagen: {{ batchUpload.failed.join(", ") }}
       </div>
+      <v-btn
+        v-if="!batchUpload.active && batchUpload.uploadedFiles.length"
+        size="small"
+        color="primary"
+        variant="flat"
+        prepend-icon="mdi-chart-multiple"
+        class="mt-2"
+        @click="compareBatchFiles"
+      >
+        Diese Dateien vergleichen
+      </v-btn>
     </v-card>
 
     <!-- Advanced import settings -->
@@ -191,6 +202,25 @@
       {{ errorMsg }}
     </v-alert>
 
+    <!-- Vergleich shortcut -->
+    <v-alert
+      v-if="mtStore.compareFiles.length > 0"
+      type="info"
+      variant="tonal"
+      density="comfortable"
+      class="mb-4"
+    >
+      <div class="d-flex align-center flex-wrap ga-2">
+        <span>
+          {{ mtStore.compareFiles.length }} Datei(en) für den Vergleich vorgemerkt.
+        </span>
+        <v-spacer></v-spacer>
+        <v-btn size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple" @click="emit('navigate', 'mt-vergleich')">
+          Zum Vergleich
+        </v-btn>
+      </div>
+    </v-alert>
+
     <!-- Cloud files (shared) -->
     <v-card variant="outlined" rounded="lg" class="mb-6">
       <v-card-title class="d-flex align-center">
@@ -214,6 +244,14 @@
             {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
           </v-list-item-subtitle>
           <template #append>
+            <v-btn
+              size="small" variant="text" icon="mdi-chart-multiple-outline"
+              :loading="compareAddingId === f.id"
+              @click="addCloudFileToCompare(f)"
+            >
+              <v-icon>mdi-chart-multiple-outline</v-icon>
+              <v-tooltip activator="parent" location="bottom">Zu Vergleich hinzufügen</v-tooltip>
+            </v-btn>
             <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
               Öffnen
             </v-btn>
@@ -228,6 +266,15 @@
       <div class="d-flex align-center mb-4">
         <h3 class="text-h6">Geladen: {{ fileName }}</h3>
         <v-spacer></v-spacer>
+        <v-btn
+          variant="outlined"
+          prepend-icon="mdi-chart-multiple-outline"
+          class="mr-2"
+          :disabled="mtStore.compareFiles.some((f) => f.name === fileName)"
+          @click="addCurrentToCompare"
+        >
+          {{ mtStore.compareFiles.some((f) => f.name === fileName) ? "Im Vergleich" : "Zu Vergleich hinzufügen" }}
+        </v-btn>
         <v-btn
           v-if="lastFile"
           color="primary"
@@ -350,13 +397,15 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
+const emit = defineEmits(["navigate"]);
+
 const mtStore = useMesstoolStore();
 
 const fileInput = ref(null);
 const isDragging = ref(false);
 const parsing = ref(false);
 const importProgress = ref(0);
-const batchUpload = reactive({ active: false, total: 0, done: 0, failed: [] });
+const batchUpload = reactive({ active: false, total: 0, done: 0, failed: [], uploadedFiles: [] });
 const errorMsg = ref("");
 const parsed = ref(null);
 const fileName = ref("");
@@ -457,12 +506,14 @@ async function uploadExtraFiles(files) {
   batchUpload.total = files.length;
   batchUpload.done = 0;
   batchUpload.failed = [];
+  batchUpload.uploadedFiles = [];
   for (const file of files) {
     try {
       const buffer = await file.arrayBuffer();
       const text = decodeLatin1(buffer);
       const result = await parseMesstoolCsv(text, {});
       await mtStorage.uploadMessfile(file, result.meta);
+      batchUpload.uploadedFiles.push({ name: file.name, parsed: result });
     } catch {
       batchUpload.failed.push(file.name);
     }
@@ -470,6 +521,42 @@ async function uploadExtraFiles(files) {
   }
   batchUpload.active = false;
   await loadList();
+}
+
+function addCurrentToCompare() {
+  if (!parsed.value) return;
+  mtStore.addCompareFile(fileName.value, parsed.value);
+}
+
+const compareAddingId = ref(null);
+async function addCloudFileToCompare(f) {
+  if (mtStore.compareFiles.some((c) => c.name === f.name)) {
+    emit("navigate", "mt-vergleich");
+    return;
+  }
+  compareAddingId.value = f.id;
+  errorMsg.value = "";
+  try {
+    const buffer = await mtStorage.downloadMessfile(f.storage_path);
+    const text = decodeLatin1(buffer);
+    const result = await parseMesstoolCsv(text, {});
+    mtStore.addCompareFile(f.name, result);
+  } catch (e) {
+    errorMsg.value = `"${f.name}" konnte nicht zum Vergleich hinzugefügt werden: ` + (e.message || e);
+  }
+  compareAddingId.value = null;
+}
+
+function compareBatchFiles() {
+  if (parsed.value && !mtStore.compareFiles.some((f) => f.name === fileName.value)) {
+    mtStore.addCompareFile(fileName.value, parsed.value);
+  }
+  for (const f of batchUpload.uploadedFiles) {
+    if (!mtStore.compareFiles.some((c) => c.name === f.name)) {
+      mtStore.addCompareFile(f.name, f.parsed);
+    }
+  }
+  emit("navigate", "mt-vergleich");
 }
 
 async function handleFile(file) {
