@@ -202,85 +202,9 @@
       {{ errorMsg }}
     </v-alert>
 
-    <!-- Vergleich shortcut -->
-    <v-alert
-      v-if="mtStore.compareFiles.length > 0"
-      type="info"
-      variant="tonal"
-      density="comfortable"
-      class="mb-4"
-    >
-      <div class="d-flex align-center flex-wrap ga-2">
-        <span>
-          {{ mtStore.compareFiles.length }} Datei(en) für den Vergleich vorgemerkt.
-        </span>
-        <v-spacer></v-spacer>
-        <v-btn size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple" @click="emit('navigate', 'mt-vergleich')">
-          Zum Vergleich
-        </v-btn>
-      </div>
-    </v-alert>
-
-    <!-- Cloud files (shared) -->
-    <v-card variant="outlined" rounded="lg" class="mb-6">
-      <v-card-title class="d-flex align-center flex-wrap ga-2">
-        <v-icon class="mr-2">mdi-cloud</v-icon>
-        Gespeicherte Messdateien
-        <v-spacer></v-spacer>
-        <template v-if="selectedCloudIds.length > 0">
-          <span class="text-caption text-medium-emphasis mr-2">{{ selectedCloudIds.length }} ausgewählt</span>
-          <v-btn
-            size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple"
-            :loading="bulkAddingCompare"
-            class="mr-2"
-            @click="addSelectedToCompare"
-          >
-            Zu Vergleich hinzufügen
-          </v-btn>
-          <v-btn size="small" variant="text" @click="selectedCloudIds = []">Auswahl aufheben</v-btn>
-        </template>
-        <v-btn size="small" variant="text" icon="mdi-refresh" :loading="loadingList" @click="loadList"></v-btn>
-      </v-card-title>
-      <v-divider></v-divider>
-      <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
-        Noch keine Dateien in der Cloud.
-      </div>
-      <v-list v-else density="compact">
-        <v-list-item v-for="f in cloudFiles" :key="f.id">
-          <template #prepend>
-            <v-checkbox-btn
-              :model-value="selectedCloudIds.includes(f.id)"
-              class="mr-1"
-              @update:model-value="toggleCloudSelection(f.id)"
-            ></v-checkbox-btn>
-            <v-icon color="primary">mdi-file-chart</v-icon>
-          </template>
-          <v-list-item-title class="font-weight-medium">{{ f.name }}</v-list-item-title>
-          <v-list-item-subtitle>
-            {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
-            {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
-          </v-list-item-subtitle>
-          <template #append>
-            <v-btn
-              size="small" variant="text" icon="mdi-chart-multiple-outline"
-              :loading="compareAddingId === f.id"
-              @click="addCloudFileToCompare(f)"
-            >
-              <v-icon>mdi-chart-multiple-outline</v-icon>
-              <v-tooltip activator="parent" location="bottom">Zu Vergleich hinzufügen</v-tooltip>
-            </v-btn>
-            <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
-              Öffnen
-            </v-btn>
-            <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="removeCloudFile(f)"></v-btn>
-          </template>
-        </v-list-item>
-      </v-list>
-    </v-card>
-
     <!-- Result -->
     <template v-if="parsed">
-      <div class="d-flex align-center mb-4">
+      <div class="d-flex align-center mb-2 flex-wrap ga-2">
         <h3 class="text-h6">Geladen: {{ fileName }}</h3>
         <v-spacer></v-spacer>
         <v-btn
@@ -303,22 +227,37 @@
         </v-btn>
       </div>
 
+      <div v-if="batchUpload.uploadedFiles.length > 0" class="d-flex align-center mb-3">
+        <v-switch
+          v-model="combinedStats"
+          color="primary"
+          density="compact"
+          hide-details
+          class="flex-grow-0"
+        ></v-switch>
+        <span class="text-caption text-medium-emphasis">
+          Messpunkte/Dauer für alle {{ batchUpload.uploadedFiles.length + 1 }} gerade geladenen
+          Dateien zusammenzählen (statt nur {{ fileName }})
+        </span>
+      </div>
+
       <v-row class="mb-4">
         <v-col cols="6" sm="3">
           <v-card variant="tonal" color="primary" class="pa-3 text-center">
             <div class="text-h5 font-weight-bold">{{ parsed.meta.signalCount }}</div>
             <div class="text-caption">Signale</div>
           </v-card>
-        </v-col>        <v-col cols="6" sm="3">
+        </v-col>
+        <v-col cols="6" sm="3">
           <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h5 font-weight-bold">{{ parsed.meta.rowCount.toLocaleString() }}</div>
-            <div class="text-caption">Messpunkte</div>
+            <div class="text-h5 font-weight-bold">{{ combinedRowCount.toLocaleString() }}</div>
+            <div class="text-caption">Messpunkte{{ combinedStats ? " (kombiniert)" : "" }}</div>
           </v-card>
         </v-col>
         <v-col cols="6" sm="3">
           <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h5 font-weight-bold">{{ formatDuration(parsed.meta.duration) }}</div>
-            <div class="text-caption">Dauer</div>
+            <div class="text-h5 font-weight-bold">{{ formatDuration(combinedDuration) }}</div>
+            <div class="text-caption">Dauer{{ combinedStats ? " (kombiniert)" : "" }}</div>
           </v-card>
         </v-col>
         <v-col cols="6" sm="3">
@@ -403,6 +342,83 @@
         </v-col>
       </v-row>
     </template>
+
+    <!-- Vergleich shortcut -->
+    <v-alert
+      v-if="mtStore.compareFiles.length > 0"
+      type="info"
+      variant="tonal"
+      density="comfortable"
+      class="mb-4"
+    >
+      <div class="d-flex align-center flex-wrap ga-2">
+        <span>
+          {{ mtStore.compareFiles.length }} Datei(en) für den Vergleich vorgemerkt.
+        </span>
+        <v-spacer></v-spacer>
+        <v-btn size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple" @click="emit('navigate', 'mt-vergleich')">
+          Zum Vergleich
+        </v-btn>
+      </div>
+    </v-alert>
+
+    <!-- Cloud files (shared) -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center flex-wrap ga-2">
+        <v-icon class="mr-2">mdi-cloud</v-icon>
+        Gespeicherte Messdateien
+        <v-spacer></v-spacer>
+        <template v-if="selectedCloudIds.length > 0">
+          <span class="text-caption text-medium-emphasis mr-2">{{ selectedCloudIds.length }} ausgewählt</span>
+          <v-btn
+            size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple"
+            :loading="bulkAddingCompare"
+            class="mr-2"
+            @click="addSelectedToCompare"
+          >
+            Zu Vergleich hinzufügen
+          </v-btn>
+          <v-btn size="small" variant="text" @click="selectedCloudIds = []">Auswahl aufheben</v-btn>
+        </template>
+        <v-btn size="small" variant="text" icon="mdi-refresh" :loading="loadingList" @click="loadList"></v-btn>
+      </v-card-title>
+      <v-divider></v-divider>
+      <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
+        Noch keine Dateien in der Cloud.
+      </div>
+      <v-list v-else density="compact">
+        <v-list-item v-for="f in cloudFiles" :key="f.id">
+          <template #prepend>
+            <v-checkbox-btn
+              :model-value="selectedCloudIds.includes(f.id)"
+              class="mr-1"
+              @update:model-value="toggleCloudSelection(f.id)"
+            ></v-checkbox-btn>
+            <v-icon color="primary">mdi-file-chart</v-icon>
+          </template>
+          <v-list-item-title class="font-weight-medium">{{ f.name }}</v-list-item-title>
+          <v-list-item-subtitle>
+            {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
+            {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
+          </v-list-item-subtitle>
+          <template #append>
+            <v-btn
+              size="small" variant="text" icon="mdi-chart-multiple-outline"
+              :loading="compareAddingId === f.id"
+              @click="addCloudFileToCompare(f)"
+            >
+              <v-icon>mdi-chart-multiple-outline</v-icon>
+              <v-tooltip activator="parent" location="bottom">Zu Vergleich hinzufügen</v-tooltip>
+            </v-btn>
+            <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
+              Öffnen
+            </v-btn>
+            <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="removeCloudFile(f)"></v-btn>
+          </template>
+        </v-list-item>
+      </v-list>
+    </v-card>
+
   </v-container>
 </template>
 
@@ -545,7 +561,25 @@ function addCurrentToCompare() {
   mtStore.addCompareFile(fileName.value, parsed.value);
 }
 
-const compareAddingId = ref(null);
+const combinedStats = ref(false);
+
+const combinedRowCount = computed(() => {
+  if (!parsed.value) return 0;
+  if (!combinedStats.value) return parsed.value.meta.rowCount;
+  return (
+    parsed.value.meta.rowCount +
+    batchUpload.uploadedFiles.reduce((sum, f) => sum + f.parsed.meta.rowCount, 0)
+  );
+});
+
+const combinedDuration = computed(() => {
+  if (!parsed.value) return 0;
+  if (!combinedStats.value) return parsed.value.meta.duration;
+  return (
+    parsed.value.meta.duration +
+    batchUpload.uploadedFiles.reduce((sum, f) => sum + f.parsed.meta.duration, 0)
+  );
+});
 const selectedCloudIds = ref([]);
 const bulkAddingCompare = ref(false);
 
