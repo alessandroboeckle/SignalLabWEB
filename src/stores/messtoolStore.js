@@ -180,11 +180,33 @@ export const useMesstoolStore = defineStore("messtool", () => {
     // from a file that's already in the list, just select more signals
     // on that existing entry instead
     if (compareFiles.value.some((f) => f.name === name)) return null;
+
+    // "Smart" default: if other files are already in the list, try to
+    // auto-select the same signal(s) by name in this new file too — so
+    // comparing the same channel across several recordings doesn't need
+    // manually re-picking it in every single file you add. Falls back to
+    // the first signal if nothing matches (e.g. the very first file, or
+    // genuinely different channel sets).
+    let selectedIndices = [0];
+    if (compareFiles.value.length > 0) {
+      const wantedNames = new Set();
+      for (const f of compareFiles.value) {
+        for (const idx of f.selectedIndices) {
+          const sig = f.parsed.signals[idx];
+          if (sig) wantedNames.add(sig.name);
+        }
+      }
+      const matches = parsedData.signals
+        .map((s, i) => (wantedNames.has(s.name) ? i : -1))
+        .filter((i) => i !== -1);
+      if (matches.length) selectedIndices = matches;
+    }
+
     const entry = {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name,
       parsed: parsedData,
-      selectedIndices: [0],
+      selectedIndices,
       offsetSec: 0,
     };
     compareFiles.value.push(entry);
