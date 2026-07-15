@@ -316,18 +316,33 @@
               Signale
             </v-card-title>
             <v-divider></v-divider>
+            <v-text-field
+              v-model="signalSearch"
+              placeholder="Signal suchen …"
+              variant="plain"
+              density="compact"
+              hide-details
+              prepend-inner-icon="mdi-magnify"
+              clearable
+              class="px-3 pt-2"
+            ></v-text-field>
+            <v-divider></v-divider>
             <v-list density="compact" class="signal-list">
               <v-list-item
-                v-for="(sig, idx) in parsed.signals"
-                :key="idx"
-                :active="selectedIdx === idx"
-                @click="selectedIdx = idx"
+                v-for="item in filteredSignals"
+                :key="item.idx"
+                :active="selectedIdx === item.idx"
+                @click="selectedIdx = item.idx"
               >
-                <v-list-item-title>{{ sig.name }}</v-list-item-title>
+                <v-list-item-title :class="{ 'text-medium-emphasis': item.flagged }">
+                  <v-icon v-if="item.flagged" size="14" color="warning" class="mr-1">mdi-alert-circle-outline</v-icon>
+                  {{ item.sig.name }}
+                </v-list-item-title>
                 <template #append>
-                  <v-chip size="x-small" variant="tonal">{{ sig.unit || "-" }}</v-chip>
+                  <v-chip size="x-small" variant="tonal">{{ item.sig.unit || "-" }}</v-chip>
                 </template>
               </v-list-item>
+              <v-list-item v-if="filteredSignals.length === 0" disabled title="Kein Signal gefunden"></v-list-item>
             </v-list>
           </v-card>
         </v-col>
@@ -337,8 +352,34 @@
           <ChartCard
             :title="`Vorschau: ${selectedSignal?.name || ''}`"
             :config="previewConfig"
-            :height="300"
+            :height="340"
           />
+          <v-row v-if="selectedSignal" dense class="mt-1">
+            <v-col cols="6" sm="3">
+              <v-card variant="outlined" class="pa-2 text-center">
+                <div class="text-body-2 font-weight-bold">{{ previewStats.mean }}</div>
+                <div class="text-caption text-medium-emphasis">Mittel</div>
+              </v-card>
+            </v-col>
+            <v-col cols="6" sm="3">
+              <v-card variant="outlined" class="pa-2 text-center">
+                <div class="text-body-2 font-weight-bold">{{ previewStats.rms }}</div>
+                <div class="text-caption text-medium-emphasis">RMS</div>
+              </v-card>
+            </v-col>
+            <v-col cols="6" sm="3">
+              <v-card variant="outlined" class="pa-2 text-center">
+                <div class="text-body-2 font-weight-bold">{{ previewStats.min }}</div>
+                <div class="text-caption text-medium-emphasis">Min</div>
+              </v-card>
+            </v-col>
+            <v-col cols="6" sm="3">
+              <v-card variant="outlined" class="pa-2 text-center">
+                <div class="text-body-2 font-weight-bold">{{ previewStats.max }}</div>
+                <div class="text-caption text-medium-emphasis">Max</div>
+              </v-card>
+            </v-col>
+          </v-row>
         </v-col>
       </v-row>
     </template>
@@ -426,6 +467,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
+import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
@@ -479,6 +521,28 @@ const busyId = ref(null);
 const selectedSignal = computed(() =>
   parsed.value ? parsed.value.signals[selectedIdx.value] : null,
 );
+
+const signalSearch = ref("");
+const filteredSignals = computed(() => {
+  if (!parsed.value) return [];
+  const q = (signalSearch.value || "").trim().toLowerCase();
+  const flagged = new Set([
+    ...(parsed.value.meta.qualityWarnings?.allNullSignals || []),
+    ...(parsed.value.meta.qualityWarnings?.constantSignals || []),
+  ]);
+  return parsed.value.signals
+    .map((sig, idx) => ({ sig, idx, flagged: flagged.has(sig.name) }))
+    .filter((item) => !q || item.sig.name.toLowerCase().includes(q));
+});
+
+const previewStats = computed(() => {
+  const s = selectedSignal.value;
+  if (!s) return { mean: "-", rms: "-", min: "-", max: "-" };
+  const y = s.data.filter((v) => v != null && Number.isFinite(v));
+  const mm = A.minMax(y);
+  const fmt = (v) => (v == null ? "-" : v.toFixed(3));
+  return { mean: fmt(A.mean(y)), rms: fmt(A.rms(y)), min: fmt(mm.min), max: fmt(mm.max) };
+});
 
 // config for the preview ChartCard (fresh function when signal changes)
 const previewConfig = computed(() => {
