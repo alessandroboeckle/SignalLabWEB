@@ -42,15 +42,43 @@
       @click="fileInput?.click()"
     >
       <v-icon size="56" color="primary" class="mb-3">mdi-cloud-upload-outline</v-icon>
-      <h3 class="text-h6 mb-1">Datei hierher ziehen oder klicken</h3>
-      <p class="text-medium-emphasis text-caption">CSV im LOGDATA-Messformat</p>
+      <h3 class="text-h6 mb-1">Datei(en) hierher ziehen oder klicken</h3>
+      <p class="text-medium-emphasis text-caption">
+        CSV im LOGDATA-Messformat · mehrere auf einmal möglich — die erste wird geöffnet,
+        weitere werden direkt in die Cloud hochgeladen
+      </p>
       <input
         ref="fileInput"
         type="file"
         accept=".csv"
+        multiple
         class="d-none"
         @change="onFileSelect"
       />
+    </v-card>
+
+    <!-- Batch upload of the extra files (beyond the first) -->
+    <v-card v-if="batchUpload.active || batchUpload.done > 0" variant="tonal" color="primary" class="pa-4 mb-4">
+      <div class="d-flex align-center mb-2">
+        <v-progress-circular v-if="batchUpload.active" indeterminate size="20" class="mr-3"></v-progress-circular>
+        <v-icon v-else class="mr-3">mdi-cloud-check-outline</v-icon>
+        <span>
+          <template v-if="batchUpload.active">
+            Lade weitere Dateien in die Cloud hoch … ({{ batchUpload.done }}/{{ batchUpload.total }})
+          </template>
+          <template v-else>
+            {{ batchUpload.done }}/{{ batchUpload.total }} weitere Datei(en) in die Cloud hochgeladen
+          </template>
+        </span>
+      </div>
+      <v-progress-linear
+        v-if="batchUpload.total"
+        :model-value="(batchUpload.done / batchUpload.total) * 100"
+        height="6" rounded color="primary"
+      ></v-progress-linear>
+      <div v-if="!batchUpload.active && batchUpload.failed.length" class="text-caption mt-2">
+        Fehlgeschlagen: {{ batchUpload.failed.join(", ") }}
+      </div>
     </v-card>
 
     <!-- Advanced import settings -->
@@ -315,7 +343,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
@@ -328,6 +356,7 @@ const fileInput = ref(null);
 const isDragging = ref(false);
 const parsing = ref(false);
 const importProgress = ref(0);
+const batchUpload = reactive({ active: false, total: 0, done: 0, failed: [] });
 const errorMsg = ref("");
 const parsed = ref(null);
 const fileName = ref("");
@@ -402,14 +431,45 @@ const previewConfig = computed(() => {
 });
 
 function onFileSelect(e) {
-  const file = e.target.files?.[0];
-  if (file) handleFile(file);
+  const files = Array.from(e.target.files || []);
+  e.target.value = ""; // allow re-selecting the same file(s) later
+  if (files.length) handleFiles(files);
 }
 
 function onDrop(e) {
   isDragging.value = false;
-  const file = e.dataTransfer.files?.[0];
-  if (file) handleFile(file);
+  const files = Array.from(e.dataTransfer.files || []);
+  if (files.length) handleFiles(files);
+}
+
+// First file becomes the active file (existing single-file behavior).
+// Any further files can't also be "active" — the whole app works off one
+// loaded file at a time — so they're uploaded straight to the cloud
+// instead, ready to be opened individually or pulled into Vergleich later.
+function handleFiles(files) {
+  const [first, ...rest] = files;
+  handleFile(first);
+  if (rest.length) uploadExtraFiles(rest);
+}
+
+async function uploadExtraFiles(files) {
+  batchUpload.active = true;
+  batchUpload.total = files.length;
+  batchUpload.done = 0;
+  batchUpload.failed = [];
+  for (const file of files) {
+    try {
+      const buffer = await file.arrayBuffer();
+      const text = decodeLatin1(buffer);
+      const result = await parseMesstoolCsv(text, {});
+      await mtStorage.uploadMessfile(file, result.meta);
+    } catch {
+      batchUpload.failed.push(file.name);
+    }
+    batchUpload.done++;
+  }
+  batchUpload.active = false;
+  await loadList();
 }
 
 async function handleFile(file) {
