@@ -223,10 +223,22 @@
 
     <!-- Cloud files (shared) -->
     <v-card variant="outlined" rounded="lg" class="mb-6">
-      <v-card-title class="d-flex align-center">
+      <v-card-title class="d-flex align-center flex-wrap ga-2">
         <v-icon class="mr-2">mdi-cloud</v-icon>
         Gespeicherte Messdateien
         <v-spacer></v-spacer>
+        <template v-if="selectedCloudIds.length > 0">
+          <span class="text-caption text-medium-emphasis mr-2">{{ selectedCloudIds.length }} ausgewählt</span>
+          <v-btn
+            size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple"
+            :loading="bulkAddingCompare"
+            class="mr-2"
+            @click="addSelectedToCompare"
+          >
+            Zu Vergleich hinzufügen
+          </v-btn>
+          <v-btn size="small" variant="text" @click="selectedCloudIds = []">Auswahl aufheben</v-btn>
+        </template>
         <v-btn size="small" variant="text" icon="mdi-refresh" :loading="loadingList" @click="loadList"></v-btn>
       </v-card-title>
       <v-divider></v-divider>
@@ -236,6 +248,11 @@
       <v-list v-else density="compact">
         <v-list-item v-for="f in cloudFiles" :key="f.id">
           <template #prepend>
+            <v-checkbox-btn
+              :model-value="selectedCloudIds.includes(f.id)"
+              class="mr-1"
+              @update:model-value="toggleCloudSelection(f.id)"
+            ></v-checkbox-btn>
             <v-icon color="primary">mdi-file-chart</v-icon>
           </template>
           <v-list-item-title class="font-weight-medium">{{ f.name }}</v-list-item-title>
@@ -529,6 +546,41 @@ function addCurrentToCompare() {
 }
 
 const compareAddingId = ref(null);
+const selectedCloudIds = ref([]);
+const bulkAddingCompare = ref(false);
+
+function toggleCloudSelection(id) {
+  const i = selectedCloudIds.value.indexOf(id);
+  if (i === -1) selectedCloudIds.value = [...selectedCloudIds.value, id];
+  else selectedCloudIds.value = selectedCloudIds.value.filter((x) => x !== id);
+}
+
+async function addSelectedToCompare() {
+  const files = cloudFiles.value.filter((f) => selectedCloudIds.value.includes(f.id));
+  if (!files.length) return;
+  bulkAddingCompare.value = true;
+  errorMsg.value = "";
+  const failed = [];
+  for (const f of files) {
+    if (mtStore.compareFiles.some((c) => c.name === f.name)) continue; // already added
+    try {
+      const buffer = await mtStorage.downloadMessfile(f.storage_path);
+      const text = decodeLatin1(buffer);
+      const result = await parseMesstoolCsv(text, {});
+      mtStore.addCompareFile(f.name, result);
+    } catch {
+      failed.push(f.name);
+    }
+  }
+  bulkAddingCompare.value = false;
+  selectedCloudIds.value = [];
+  if (failed.length) {
+    errorMsg.value = "Nicht hinzugefügt: " + failed.join(", ");
+  } else {
+    emit("navigate", "mt-vergleich");
+  }
+}
+
 async function addCloudFileToCompare(f) {
   if (mtStore.compareFiles.some((c) => c.name === f.name)) {
     emit("navigate", "mt-vergleich");
