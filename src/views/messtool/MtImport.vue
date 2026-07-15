@@ -382,6 +382,22 @@
           </v-row>
         </v-col>
       </v-row>
+
+      <!-- Quick compare preview: fast overlay right here, no page switch.
+           Full controls (offset, stats table, batch export, multi-signal
+           picking) live on the Vergleich page — this is just a fast look. -->
+      <div v-if="mtStore.compareFiles.length > 1" class="mt-2">
+        <div class="d-flex align-center flex-wrap ga-2 mb-2">
+          <span class="text-subtitle-2">
+            Schnellvorschau: {{ mtStore.compareFiles.length }} Datei(en) im Vergleich
+          </span>
+          <v-spacer></v-spacer>
+          <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-open-in-new" @click="emit('navigate', 'mt-vergleich')">
+            Alle Funktionen im Vergleich öffnen
+          </v-btn>
+        </div>
+        <ChartCard title="Überlagert" :config="quickCompareConfig" :height="260" />
+      </div>
     </template>
 
     <!-- Vergleich shortcut -->
@@ -646,6 +662,43 @@ const combinedDuration = computed(() => {
 });
 const selectedCloudIds = ref([]);
 const bulkAddingCompare = ref(false);
+const compareAddingId = ref(null);
+
+// Lightweight overlay for the "Schnellvorschau" on Import — same series
+// data as the full Vergleich page (mtStore.compareSeries), just without
+// its extra controls (offset inputs, stats table, batch export).
+const quickCompareConfig = computed(() => {
+  const series = mtStore.compareSeries;
+  return (peakMode) => {
+    const datasets = series.map((s) => {
+      const y = s.signal.data.map((v) => (v == null ? null : v));
+      const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 600);
+      const off = s.offsetSec || 0;
+      const points = d.rx.map((x, i) => ({ x: x + off, y: d.ry[i] }));
+      return {
+        label: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
+        data: points,
+        borderColor: s.color,
+        backgroundColor: s.color,
+        borderWidth: 1.5,
+        pointRadius: 0,
+      };
+    });
+    return {
+      type: "line",
+      data: { datasets },
+      options: {
+        responsive: true,
+        animation: false,
+        parsing: false,
+        scales: {
+          x: { type: "linear", title: { display: true, text: "Zeit [s]" } },
+          y: { title: { display: true, text: "Wert" } },
+        },
+      },
+    };
+  };
+});
 
 function toggleCloudSelection(id) {
   const i = selectedCloudIds.value.indexOf(id);
