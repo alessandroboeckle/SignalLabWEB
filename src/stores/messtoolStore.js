@@ -214,6 +214,9 @@ export const useMesstoolStore = defineStore("messtool", () => {
       messfileStoragePath: cloudRef?.storagePath || null,
       selectedIndices,
       offsetSec: 0,
+      // Feature toggles — each one opt-in per file, off by default:
+      useSecondAxis: false, // plot against a separate right-hand y-axis
+      autoAlign: false, // keep offsetSec continuously re-computed via cross-correlation against the first file
     };
     compareFiles.value.push(entry);
     return entry;
@@ -245,6 +248,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
           fileName: f.name,
           time: f.parsed.time,
           offsetSec: f.offsetSec || 0,
+          useSecondAxis: f.useSecondAxis || false,
           signalIdx: idx,
           signal,
           color: COMPARE_PALETTE[colorIdx % COMPARE_PALETTE.length],

@@ -53,7 +53,7 @@
       <!-- Per-file signal selection -->
       <v-card variant="outlined" rounded="lg" class="mb-4">
         <v-list density="comfortable">
-          <v-list-item v-for="f in mtStore.compareFiles" :key="f.id">
+          <v-list-item v-for="(f, idx) in mtStore.compareFiles" :key="f.id">
             <template #prepend>
               <v-icon color="grey" class="mr-1">mdi-file-outline</v-icon>
             </template>
@@ -112,6 +112,38 @@
               </v-col>
               <v-col cols="12" sm="1" class="text-right">
                 <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} aus Vergleich entfernen`" @click="mtStore.removeCompareFile(f.id)"></v-btn>
+              </v-col>
+              <v-col cols="12" class="d-flex flex-wrap ga-4 pt-0">
+                <v-switch
+                  v-model="f.useSecondAxis"
+                  color="primary"
+                  density="compact"
+                  hide-details
+                  label="Zweite Y-Achse"
+                ></v-switch>
+                <v-switch
+                  v-if="idx > 0"
+                  v-model="f.autoAlign"
+                  color="primary"
+                  density="compact"
+                  hide-details
+                  label="Automatisch ausrichten (Kreuzkorrelation)"
+                  @update:model-value="(v) => v && autoAlignFile(f)"
+                ></v-switch>
+                <v-btn
+                  v-if="idx > 0 && f.autoAlign"
+                  size="x-small"
+                  variant="text"
+                  icon="mdi-refresh"
+                  aria-label="Ausrichtung neu berechnen"
+                  @click="autoAlignFile(f)"
+                ></v-btn>
+                <span v-if="idx > 0 && f.autoAlign && alignConfidence[f.id] !== undefined" class="text-caption text-medium-emphasis">
+                  Übereinstimmung: {{ (alignConfidence[f.id] * 100).toFixed(0) }}%
+                  <template v-if="alignConfidence[f.id] < 0.2">
+                    — unsicher, Signale wirken nicht ähnlich
+                  </template>
+                </span>
               </v-col>
             </v-row>
           </v-list-item>
@@ -198,6 +230,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { parseMesstoolCsv } from "../../utils/messtoolParser.js";
 import { downsample } from "../../utils/downsample.js";
+import { findBestOffset } from "../../utils/crossCorrelate.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import ChartCard from "./ChartCard.vue";
 
@@ -205,6 +238,7 @@ const mtStore = useMesstoolStore();
 
 const fileInput = ref(null);
 const errorMsg = ref("");
+const alignConfidence = ref({}); // { [fileId]: score } from the last auto-align run
 const cloudDialog = ref(false);
 const cloudFiles = ref([]);
 const cloudBusyId = ref(null);
@@ -262,6 +296,26 @@ async function addFromCloud(f) {
   }
 }
 
+// Auto-align (via cross-correlation) a file's time offset against the
+// *first* file in the list, using each one's first selected signal as
+// the representative "shape" to match on. Low-confidence matches (the
+// two signals don't share a recognizable common event) get flagged
+// instead of silently applying a probably-meaningless offset.
+function autoAlignFile(f) {
+  const ref = mtStore.compareFiles[0];
+  if (!ref || ref.id === f.id) return;
+  const refSig = ref.parsed.signals[ref.selectedIndices[0]];
+  const targetSig = f.parsed.signals[f.selectedIndices[0]];
+  if (!refSig || !targetSig) return;
+
+  const { offsetSec, confidence } = findBestOffset(
+    ref.parsed.time, refSig.data.map((v) => v ?? 0),
+    f.parsed.time, targetSig.data.map((v) => v ?? 0),
+  );
+  f.offsetSec = +offsetSec.toFixed(2);
+  alignConfidence.value = { ...alignConfidence.value, [f.id]: confidence };
+}
+
 function signalOptions(f) {
   return f.parsed.signals.map((s, i) => ({ title: `${s.name} [${s.unit || "-"}]`, value: i }));
 }
@@ -287,7 +341,8 @@ const overlayConfig = computed(() => {
       const off = s.offsetSec || 0;
       const points = d.rx.map((x, i) => ({ x: x + off, y: d.ry[i] }));
       const offsetSuffix = off ? ` (${off > 0 ? "+" : ""}${off}s)` : "";
-      const label = `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]${offsetSuffix}`;
+      const axisSuffix = s.useSecondAxis ? " ▸ rechte Achse" : "";
+      const label = `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]${offsetSuffix}${axisSuffix}`;
       return {
         label,
         data: points,
@@ -295,8 +350,24 @@ const overlayConfig = computed(() => {
         backgroundColor: s.color,
         borderWidth: 1.5,
         pointRadius: 0,
+        yAxisID: s.useSecondAxis ? "y1" : "y",
       };
     });
+
+    const scales = {
+      x: { type: "linear", title: { display: true, text: "Zeit [s]" } },
+      y: { title: { display: true, text: "Wert" } },
+    };
+    // Only add the right-hand axis if at least one series actually uses
+    // it — otherwise an empty second axis would just clutter the chart.
+    if (series.some((s) => s.useSecondAxis)) {
+      scales.y1 = {
+        position: "right",
+        title: { display: true, text: "Wert (rechte Achse)" },
+        grid: { drawOnChartArea: false }, // avoid a doubled-up gridline mess
+      };
+    }
+
     return {
       type: "line",
       data: { datasets },
@@ -304,10 +375,7 @@ const overlayConfig = computed(() => {
         responsive: true,
         animation: false,
         parsing: false,
-        scales: {
-          x: { type: "linear", title: { display: true, text: "Zeit [s]" } },
-          y: { title: { display: true, text: "Wert" } },
-        },
+        scales,
       },
     };
   };

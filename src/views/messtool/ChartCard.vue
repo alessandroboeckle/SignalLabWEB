@@ -46,6 +46,36 @@
         <v-icon>mdi-restore</v-icon>
         <v-tooltip activator="parent" location="bottom">Zoom zurücksetzen</v-tooltip>
       </v-btn>
+      <v-btn
+        size="small"
+        :variant="outlierMode ? 'flat' : 'outlined'"
+        :color="outlierMode ? 'error' : 'default'"
+        prepend-icon="mdi-alert-circle-outline"
+        :aria-pressed="outlierMode"
+        @click="toggleOutlierMode"
+      >
+        Ausreisser {{ outlierMode ? "AN" : "AUS" }}
+        <v-tooltip activator="parent" location="bottom">
+          Markiert Punkte, die statistisch stark aus der Reihe tanzen (&gt;3σ)
+        </v-tooltip>
+      </v-btn>
+      <v-btn
+        size="small"
+        :variant="playing ? 'flat' : 'outlined'"
+        :color="playing ? 'success' : 'default'"
+        :icon="playing ? 'mdi-pause' : 'mdi-play'"
+        :aria-label="playing ? 'Pause' : 'Abspielen'"
+        @click="togglePlay"
+      ></v-btn>
+      <v-select
+        v-model="playSpeed"
+        :items="[{title:'1x', value:1},{title:'5x', value:5},{title:'20x', value:20},{title:'60x', value:60}]"
+        density="compact"
+        variant="outlined"
+        hide-details
+        style="max-width: 90px"
+        label="Tempo"
+      ></v-select>
       <v-btn size="small" variant="text" icon="mdi-fullscreen" aria-label="Vollbild" @click="openFullscreen">
         <v-icon>mdi-fullscreen</v-icon>
         <v-tooltip activator="parent" location="bottom">Vergrößern</v-tooltip>
@@ -123,6 +153,7 @@ import { useTheme } from "vuetify";
 import Chart from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { findOutlierIndices } from "../../utils/outlierDetection.js";
 
 Chart.register(zoomPlugin);
 
@@ -141,6 +172,7 @@ const fullscreen = ref(false);
 const peakMode = ref(false);
 const cursorMode = ref(false);
 const markerMode = ref(false);
+const outlierMode = ref(false);
 const cursors = ref([]); // up to 2 points: {x, y, label}
 let inlineChart = null;
 let fsChart = null;
@@ -168,6 +200,69 @@ function toggleMarkerMode() {
   if (markerMode.value) cursorMode.value = false;
   buildInline();
   if (fullscreen.value) buildFullscreen();
+}
+
+function toggleOutlierMode() {
+  outlierMode.value = !outlierMode.value;
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+}
+
+const playing = ref(false);
+const playSpeed = ref(5); // "seconds of signal time" covered per real second
+const playheadX = ref(null);
+let playRafId = null;
+let playLastTs = null;
+
+function activeChart() {
+  return fullscreen.value ? fsChart : inlineChart;
+}
+
+function togglePlay() {
+  const chart = activeChart();
+  if (!chart || !chart.scales?.x) return;
+  playing.value = !playing.value;
+  if (playing.value) {
+    const xScale = chart.scales.x;
+    if (playheadX.value == null || playheadX.value >= xScale.max) {
+      playheadX.value = xScale.min;
+    }
+    playLastTs = null;
+    playRafId = requestAnimationFrame(stepPlay);
+  } else if (playRafId) {
+    cancelAnimationFrame(playRafId);
+    playRafId = null;
+  }
+}
+
+function stepPlay(ts) {
+  if (!playing.value) return;
+  const chart = activeChart();
+  if (!chart || !chart.scales?.x) {
+    playing.value = false;
+    return;
+  }
+  if (playLastTs == null) playLastTs = ts;
+  const dtReal = (ts - playLastTs) / 1000;
+  playLastTs = ts;
+
+  const xScale = chart.scales.x;
+  playheadX.value += dtReal * playSpeed.value;
+  const reachedEnd = playheadX.value >= xScale.max;
+  if (reachedEnd) playheadX.value = xScale.max;
+
+  try {
+    chart.update("none"); // cheap redraw, no full rebuild — keeps playback smooth
+  } catch {
+    playing.value = false;
+    return;
+  }
+
+  if (reachedEnd) {
+    playing.value = false;
+    return;
+  }
+  playRafId = requestAnimationFrame(stepPlay);
 }
 
 // Works for both scale types ChartCard is used with: category scale with
@@ -272,6 +367,58 @@ const markerPlugin = {
   },
 };
 
+// Highlights points that sit more than 3 standard deviations from their
+// dataset's own mean — a quick visual flag for likely sensor glitches or
+// genuinely extreme events, without having to eyeball the whole trace.
+const outlierPlugin = {
+  id: "outlierHighlight",
+  afterDraw(chart) {
+    if (!outlierMode.value) return;
+    const { ctx, chartArea } = chart;
+    ctx.save();
+    chart.data.datasets.forEach((ds, dsIndex) => {
+      const values = ds.data.map((p) => (p && typeof p === "object" ? p.y : p));
+      const outlierIndices = findOutlierIndices(values);
+      if (!outlierIndices.length) return;
+
+      const meta = chart.getDatasetMeta(dsIndex);
+      for (const i of outlierIndices) {
+        const point = meta.data[i];
+        if (!point) continue;
+        const { x, y } = point.getProps(["x", "y"], true);
+        if (x < chartArea.left || x > chartArea.right) continue;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+        ctx.strokeStyle = "#DC2626";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    });
+    ctx.restore();
+  },
+};
+
+// Moving vertical line for "Abspiel-Modus" (see togglePlay/stepPlay below).
+// Drawn as its own plugin so playback only needs a cheap chart.update()
+// each frame, not a full rebuild of the chart/datasets.
+const playheadPlugin = {
+  id: "playhead",
+  afterDraw(chart) {
+    if (playheadX.value == null) return;
+    const { ctx, chartArea, scales } = chart;
+    const px = scales.x.getPixelForValue(playheadX.value);
+    if (px < chartArea.left || px > chartArea.right) return;
+    ctx.save();
+    ctx.strokeStyle = "#059669";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, chartArea.top);
+    ctx.lineTo(px, chartArea.bottom);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+
 // Chart.js has no idea about Vuetify's theme, so left alone it always
 // renders axis ticks/titles and gridlines in its own (dark) default color
 // — unreadable once the card itself goes dark in dark mode. Inject
@@ -370,7 +517,7 @@ function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
   const cfg = withInteractions(props.config(peakMode.value));
-  cfg.plugins = [cursorPlugin, markerPlugin];
+  cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
   inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
   applyZoomLimits(inlineChart);
 }
@@ -379,7 +526,7 @@ function buildFullscreen() {
   if (fsChart) { fsChart.destroy(); fsChart = null; }
   if (!fsCanvas.value) return;
   const cfg = withInteractions(props.config(peakMode.value));
-  cfg.plugins = [cursorPlugin, markerPlugin];
+  cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
   fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
   applyZoomLimits(fsChart);
 }
@@ -405,6 +552,7 @@ watch(fullscreen, (open) => {
 
 onMounted(async () => { await nextTick(); buildInline(); });
 onBeforeUnmount(() => {
+  if (playRafId) cancelAnimationFrame(playRafId);
   if (inlineChart) inlineChart.destroy();
   if (fsChart) fsChart.destroy();
 });
