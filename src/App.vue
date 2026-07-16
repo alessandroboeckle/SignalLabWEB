@@ -15,7 +15,7 @@
     <template v-else>
       <!-- Top bar with gradient -->
       <v-app-bar :elevation="3" class="app-header" height="64">
-        <v-app-bar-nav-icon color="white" @click="toggleDrawer">
+        <v-app-bar-nav-icon color="white" aria-label="Navigation ein-/ausblenden" @click="toggleDrawer">
           <v-icon>mdi-menu</v-icon>
         </v-app-bar-nav-icon>
 

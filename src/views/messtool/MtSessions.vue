@@ -51,7 +51,7 @@
         <v-icon class="mr-2" size="20">mdi-folder-multiple-outline</v-icon>
         Gespeicherte Sessions
         <v-spacer></v-spacer>
-        <v-btn size="small" variant="text" icon="mdi-refresh" :loading="loading" @click="loadSessions"></v-btn>
+        <v-btn size="small" variant="text" icon="mdi-refresh" aria-label="Sessions aktualisieren" :loading="loading" @click="loadSessions"></v-btn>
       </v-card-title>
       <v-divider></v-divider>
 
@@ -96,7 +96,7 @@
             </v-btn>
             <v-menu v-if="s.created_by === auth.user?.id">
               <template #activator="{ props }">
-                <v-btn size="small" variant="text" icon="mdi-dots-vertical" v-bind="props"></v-btn>
+                <v-btn size="small" variant="text" icon="mdi-dots-vertical" aria-label="Weitere Aktionen" v-bind="props"></v-btn>
               </template>
               <v-list density="compact" min-width="240">
                 <v-list-item

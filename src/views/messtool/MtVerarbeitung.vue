@@ -33,14 +33,14 @@
               Operationen
               <v-spacer></v-spacer>
               <v-btn
-                size="small" variant="text" icon="mdi-undo"
+                size="small" variant="text" icon="mdi-undo" aria-label="Rückgängig"
                 :disabled="historyIndex <= 0"
                 @click="undo"
               >
                 <v-tooltip activator="parent" location="bottom">Rückgängig (Strg+Z)</v-tooltip>
               </v-btn>
               <v-btn
-                size="small" variant="text" icon="mdi-redo"
+                size="small" variant="text" icon="mdi-redo" aria-label="Wiederholen"
                 :disabled="historyIndex >= history.length - 1"
                 @click="redo"
               >
@@ -131,9 +131,9 @@
                   </div>
 
                   <template #append>
-                    <v-btn size="x-small" variant="text" icon="mdi-arrow-up" :disabled="i===0" @click="move(i,-1)"></v-btn>
-                    <v-btn size="x-small" variant="text" icon="mdi-arrow-down" :disabled="i===ops.length-1" @click="move(i,1)"></v-btn>
-                    <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click="removeOp(i)"></v-btn>
+                    <v-btn size="x-small" variant="text" icon="mdi-arrow-up" aria-label="Nach oben verschieben" :disabled="i===0" @click="move(i,-1)"></v-btn>
+                    <v-btn size="x-small" variant="text" icon="mdi-arrow-down" aria-label="Nach unten verschieben" :disabled="i===ops.length-1" @click="move(i,1)"></v-btn>
+                    <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" aria-label="Operation entfernen" @click="removeOp(i)"></v-btn>
                   </template>
                 </v-list-item>
                 <v-divider v-if="i < ops.length - 1"></v-divider>

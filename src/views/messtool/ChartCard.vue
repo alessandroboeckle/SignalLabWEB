@@ -8,6 +8,7 @@
         :variant="cursorMode ? 'flat' : 'outlined'"
         :color="cursorMode ? 'secondary' : 'default'"
         prepend-icon="mdi-ruler"
+        :aria-pressed="cursorMode"
         @click="toggleCursorMode"
       >
         Cursor {{ cursorMode ? "AN" : "AUS" }}
@@ -20,6 +21,7 @@
         :variant="markerMode ? 'flat' : 'outlined'"
         :color="markerMode ? 'warning' : 'default'"
         prepend-icon="mdi-map-marker-plus-outline"
+        :aria-pressed="markerMode"
         @click="toggleMarkerMode"
       >
         Marker {{ markerMode ? "AN" : "AUS" }}
@@ -32,6 +34,7 @@
         :variant="peakMode ? 'flat' : 'outlined'"
         :color="peakMode ? 'primary' : 'default'"
         prepend-icon="mdi-pulse"
+        :aria-pressed="peakMode"
         @click="peakMode = !peakMode"
       >
         Spitzen {{ peakMode ? "AN" : "AUS" }}
@@ -39,11 +42,11 @@
           {{ peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen' }}
         </v-tooltip>
       </v-btn>
-      <v-btn size="small" variant="text" icon="mdi-restore" @click="resetZoom('inline')">
+      <v-btn size="small" variant="text" icon="mdi-restore" aria-label="Zoom zurücksetzen" @click="resetZoom('inline')">
         <v-icon>mdi-restore</v-icon>
         <v-tooltip activator="parent" location="bottom">Zoom zurücksetzen</v-tooltip>
       </v-btn>
-      <v-btn size="small" variant="text" icon="mdi-fullscreen" @click="openFullscreen">
+      <v-btn size="small" variant="text" icon="mdi-fullscreen" aria-label="Vollbild" @click="openFullscreen">
         <v-icon>mdi-fullscreen</v-icon>
         <v-tooltip activator="parent" location="bottom">Vergrößern</v-tooltip>
       </v-btn>
@@ -93,7 +96,7 @@
           <v-toolbar-title>{{ title }}</v-toolbar-title>
           <v-spacer></v-spacer>
           <v-btn variant="text" prepend-icon="mdi-restore" @click="resetZoom('fs')">Zoom zurück</v-btn>
-          <v-btn icon="mdi-close" @click="fullscreen = false">
+          <v-btn icon="mdi-close" aria-label="Schliessen" @click="fullscreen = false">
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-toolbar>

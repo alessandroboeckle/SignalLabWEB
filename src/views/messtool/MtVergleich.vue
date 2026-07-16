@@ -101,6 +101,7 @@
                     <v-btn
                       v-if="f.offsetSec"
                       size="x-small" variant="text"
+                      aria-label="Offset zurücksetzen"
                       @click="f.offsetSec = 0"
                     >
                       <v-icon size="16">mdi-backup-restore</v-icon>
@@ -110,7 +111,7 @@
                 </v-text-field>
               </v-col>
               <v-col cols="12" sm="1" class="text-right">
-                <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="mtStore.removeCompareFile(f.id)"></v-btn>
+                <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} aus Vergleich entfernen`" @click="mtStore.removeCompareFile(f.id)"></v-btn>
               </v-col>
             </v-row>
           </v-list-item>

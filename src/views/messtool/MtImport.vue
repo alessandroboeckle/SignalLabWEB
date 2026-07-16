@@ -437,7 +437,7 @@
           </v-btn>
           <v-btn size="small" variant="text" @click="selectedCloudIds = []">Auswahl aufheben</v-btn>
         </template>
-        <v-btn size="small" variant="text" icon="mdi-refresh" :loading="loadingList" @click="loadList"></v-btn>
+        <v-btn size="small" variant="text" icon="mdi-refresh" aria-label="Liste aktualisieren" :loading="loadingList" @click="loadList"></v-btn>
       </v-card-title>
       <v-divider></v-divider>
       <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
@@ -448,6 +448,7 @@
           <template #prepend>
             <v-checkbox-btn
               :model-value="selectedCloudIds.includes(f.id)"
+              :aria-label="`${f.name} auswählen`"
               class="mr-1"
               @update:model-value="toggleCloudSelection(f.id)"
             ></v-checkbox-btn>
@@ -470,7 +471,7 @@
             <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
               Öffnen
             </v-btn>
-            <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="removeCloudFile(f)"></v-btn>
+            <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} löschen`" @click="removeCloudFile(f)"></v-btn>
           </template>
         </v-list-item>
       </v-list>
