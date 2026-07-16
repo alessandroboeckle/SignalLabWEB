@@ -36,6 +36,8 @@
               density="comfortable"
               prepend-inner-icon="mdi-sine-wave"
               class="mb-3"
+              hint="↑ / ↓ zum Durchblättern"
+              persistent-hint
             ></v-autocomplete>
 
             <v-select
@@ -121,12 +123,14 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import { applyFilter } from "../../utils/messtoolFilter.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
+useSignalNavigationShortcuts(mtStore);
 
 // Shared across Analyse/Filter/Verarbeitung/Export so switching pages
 // keeps showing the same signal instead of resetting to the first one.

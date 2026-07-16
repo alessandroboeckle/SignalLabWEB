@@ -24,6 +24,8 @@
               density="comfortable"
               prepend-inner-icon="mdi-sine-wave"
               class="mb-4"
+              hint="↑ / ↓ zum Durchblättern"
+              persistent-hint
             ></v-autocomplete>
 
             <v-btn
@@ -113,11 +115,13 @@ import { ref, computed } from "vue";
 import jsPDF from "jspdf";
 import JSZip from "jszip";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { downsample } from "../../utils/downsample.js";
 import ChartCard from "./ChartCard.vue";
 
 const mtStore = useMesstoolStore();
+useSignalNavigationShortcuts(mtStore);
 
 // Shared across Analyse/Filter/Verarbeitung/Export so switching pages
 // keeps showing the same signal instead of resetting to the first one.

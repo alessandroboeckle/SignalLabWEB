@@ -22,6 +22,8 @@
             variant="outlined"
             density="comfortable"
             prepend-inner-icon="mdi-sine-wave"
+            hint="↑ / ↓ zum Durchblättern"
+            persistent-hint
           ></v-autocomplete>
         </v-col>
         <v-col cols="12" md="6">
@@ -90,11 +92,13 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
+useSignalNavigationShortcuts(mtStore);
 
 const overviewHeaders = [
   { title: "Signal", key: "name" },

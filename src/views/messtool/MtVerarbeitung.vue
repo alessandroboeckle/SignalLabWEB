@@ -24,6 +24,8 @@
             density="comfortable"
             prepend-inner-icon="mdi-sine-wave"
             class="mb-4"
+            hint="↑ / ↓ zum Durchblättern"
+            persistent-hint
           ></v-autocomplete>
 
           <v-card variant="outlined" rounded="lg" class="mb-4">
@@ -152,12 +154,14 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
+useSignalNavigationShortcuts(mtStore);
 const registry = OP_REGISTRY;
 
 // Reconstruct live ProcessingOp instances from a plain {id,params}[]

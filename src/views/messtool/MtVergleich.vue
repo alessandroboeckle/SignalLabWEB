@@ -86,7 +86,7 @@
                   </template>
                 </v-autocomplete>
               </v-col>
-              <v-col cols="8" sm="3">
+              <v-col cols="12" sm="3">
                 <v-text-field
                   v-model.number="f.offsetSec"
                   type="number"
@@ -109,7 +109,7 @@
                   </template>
                 </v-text-field>
               </v-col>
-              <v-col cols="4" sm="1" class="text-right">
+              <v-col cols="12" sm="1" class="text-right">
                 <v-btn size="small" variant="text" color="error" icon="mdi-delete" @click="mtStore.removeCompareFile(f.id)"></v-btn>
               </v-col>
             </v-row>
