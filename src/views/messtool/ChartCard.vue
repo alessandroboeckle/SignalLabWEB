@@ -259,9 +259,12 @@ function stepPlay(ts) {
   // currently visible (the full range, or a zoomed-in slice), scroll
   // that window forward with it — like scrubbing through a video —
   // instead of the bar just running off the edge of a static view.
+  // Goes through the zoom plugin's own zoomScale() API (not a direct
+  // chart.options.scales mutation) so its internal state/limits tracking
+  // stays correct for whatever zoom/pan the user does afterward.
   const visibleSpan = xScale.max - xScale.min;
   const followThreshold = xScale.max - visibleSpan * 0.1;
-  if (playheadX.value > followThreshold) {
+  if (playheadX.value > followThreshold && typeof chart.zoomScale === "function") {
     const shift = playheadX.value - followThreshold;
     let newMin = xScale.min + shift;
     let newMax = xScale.max + shift;
@@ -269,8 +272,7 @@ function stepPlay(ts) {
       newMax = fullRange.max;
       newMin = newMax - visibleSpan;
     }
-    chart.options.scales.x.min = newMin;
-    chart.options.scales.x.max = newMax;
+    chart.zoomScale("x", { min: newMin, max: newMax }, "none");
   }
 
   try {
@@ -443,16 +445,19 @@ const playheadPlugin = {
     ctx.lineTo(px, chartArea.bottom);
     ctx.stroke();
 
-    const xs = chart.data.labels
-      ? chart.data.labels.map(Number)
-      : chart.data.datasets[0]?.data.map((p) => (p && typeof p === "object" ? p.x : null)) || [];
-
     chart.data.datasets.forEach((ds, dsIndex) => {
       if (!ds.data.length) return;
+      // Each dataset can have its own independent x-values (e.g. Vergleich's
+      // overlay, where every file/series has its own time array plus its
+      // own offset) — using one shared xs array for all of them would find
+      // the wrong nearest point and land the dot off the actual line.
+      const dsXs = chart.data.labels
+        ? chart.data.labels.map(Number)
+        : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
       let nearestIdx = 0;
       let nearestDist = Infinity;
-      for (let i = 0; i < xs.length; i++) {
-        const dist = Math.abs(xs[i] - playheadX.value);
+      for (let i = 0; i < dsXs.length; i++) {
+        const dist = Math.abs(dsXs[i] - playheadX.value);
         if (dist < nearestDist) { nearestDist = dist; nearestIdx = i; }
       }
       const meta = chart.getDatasetMeta(dsIndex);
