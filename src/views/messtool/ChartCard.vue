@@ -221,20 +221,30 @@ function activeChart() {
   return fullscreen.value ? fsChart : inlineChart;
 }
 
+function setTooltipEnabled(chart, enabled) {
+  if (chart?.options?.plugins?.tooltip) {
+    chart.options.plugins.tooltip.enabled = enabled;
+  }
+}
+
 function togglePlay() {
   const chart = activeChart();
   if (!chart || !chart.scales?.x) return;
   playing.value = !playing.value;
   if (playing.value) {
+    setTooltipEnabled(chart, false);
     const fullRange = getFullXRange(chart);
     if (playheadX.value == null || playheadX.value >= fullRange.max) {
       playheadX.value = fullRange.min;
     }
     playLastTs = null;
     playRafId = requestAnimationFrame(stepPlay);
-  } else if (playRafId) {
-    cancelAnimationFrame(playRafId);
-    playRafId = null;
+  } else {
+    setTooltipEnabled(chart, true);
+    if (playRafId) {
+      cancelAnimationFrame(playRafId);
+      playRafId = null;
+    }
   }
 }
 
@@ -279,11 +289,13 @@ function stepPlay(ts) {
     chart.update("none"); // cheap redraw, no full rebuild — keeps playback smooth
   } catch {
     playing.value = false;
+    setTooltipEnabled(chart, true);
     return;
   }
 
   if (reachedEnd) {
     playing.value = false;
+    setTooltipEnabled(chart, true);
     return;
   }
   playRafId = requestAnimationFrame(stepPlay);
@@ -454,19 +466,35 @@ const playheadPlugin = {
       const dsXs = chart.data.labels
         ? chart.data.labels.map(Number)
         : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
-      let nearestIdx = 0;
-      let nearestDist = Infinity;
-      for (let i = 0; i < dsXs.length; i++) {
-        const dist = Math.abs(dsXs[i] - playheadX.value);
-        if (dist < nearestDist) { nearestDist = dist; nearestIdx = i; }
+
+      // Find the two points bracketing the exact playhead x and linearly
+      // interpolate between them, rather than snapping to whichever single
+      // point is "nearest" — on a steep slope the nearest point's y can
+      // sit noticeably off the line at this exact x, making the dot look
+      // like it's floating above/below the curve instead of on it.
+      let lo = -1;
+      for (let i = 0; i < dsXs.length - 1; i++) {
+        if (dsXs[i] <= playheadX.value && dsXs[i + 1] >= playheadX.value) {
+          lo = i;
+          break;
+        }
       }
-      const meta = chart.getDatasetMeta(dsIndex);
-      const point = meta.data[nearestIdx];
-      if (!point) return;
-      const { y } = point.getProps(["y"], true);
-      const rawY = ds.data[nearestIdx];
-      const yVal = rawY && typeof rawY === "object" ? rawY.y : rawY;
-      if (yVal == null || !Number.isFinite(yVal)) return;
+      if (lo === -1) return; // playhead is outside this dataset's own x-range
+
+      const rawLo = ds.data[lo];
+      const rawHi = ds.data[lo + 1];
+      const yLo = rawLo && typeof rawLo === "object" ? rawLo.y : rawLo;
+      const yHi = rawHi && typeof rawHi === "object" ? rawHi.y : rawHi;
+      if (yLo == null || yHi == null || !Number.isFinite(yLo) || !Number.isFinite(yHi)) return;
+
+      const xLo = dsXs[lo];
+      const xHi = dsXs[lo + 1];
+      const frac = xHi > xLo ? (playheadX.value - xLo) / (xHi - xLo) : 0;
+      const yVal = yLo + (yHi - yLo) * frac;
+
+      const yScale = chart.scales[ds.yAxisID || "y"];
+      if (!yScale) return;
+      const y = yScale.getPixelForValue(yVal);
 
       const color = ds.borderColor || "#059669";
       ctx.fillStyle = color;
