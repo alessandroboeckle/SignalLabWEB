@@ -115,6 +115,7 @@ import { ref, computed } from "vue";
 import jsPDF from "jspdf";
 import JSZip from "jszip";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { downsample } from "../../utils/downsample.js";
@@ -256,6 +257,7 @@ async function exportPng() {
   if (!sig.value) return;
   const dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
   downloadDataUrl(dataUrl, `${sig.value.name.replace(/[^\w.-]+/g, "_")}.png`);
+  showToast("PNG heruntergeladen.");
 }
 
 // Builds a single-page report PDF for one signal and returns the jsPDF doc
@@ -325,6 +327,7 @@ async function exportPdf() {
   try {
     const doc = await buildReportPdf(sig.value, time.value, mtStore.fileName, { showMarkers: true });
     doc.save(`${sig.value.name.replace(/[^\w.-]+/g, "_")}_report.pdf`);
+    showToast("PDF-Report heruntergeladen.");
   } finally {
     buildingPdf.value = false;
   }
@@ -361,6 +364,7 @@ async function exportBatchZip() {
     const url = URL.createObjectURL(blob);
     downloadDataUrl(url, `messtool_batch_${Date.now()}.zip`);
     URL.revokeObjectURL(url);
+    showToast(`${series.length} PDF(s) als ZIP heruntergeladen.`);
   } finally {
     buildingBatch.value = false;
   }

@@ -175,7 +175,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
   // recordings didn't start at the same real-world moment.
   const compareFiles = ref([]);
 
-  function addCompareFile(name, parsedData) {
+  function addCompareFile(name, parsedData, cloudRef = null) {
     // avoid adding the exact same file twice — to compare more signals
     // from a file that's already in the list, just select more signals
     // on that existing entry instead
@@ -206,6 +206,12 @@ export const useMesstoolStore = defineStore("messtool", () => {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name,
       parsed: parsedData,
+      // Only set when the file is actually in the cloud (opened from
+      // there, or just uploaded) — needed to re-download it later when
+      // restoring a saved Vergleichs-Session. Null for a raw local upload
+      // that was never saved to the cloud.
+      messfileId: cloudRef?.messfileId || null,
+      messfileStoragePath: cloudRef?.storagePath || null,
       selectedIndices,
       offsetSec: 0,
     };

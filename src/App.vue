@@ -214,6 +214,19 @@
         </v-card>
       </v-dialog>
     </template>
+
+    <!-- Global toast notifications (src/composables/useToast.js) -->
+    <v-snackbar
+      v-model="toast.show"
+      :color="toast.color"
+      :timeout="toast.timeout"
+      location="bottom right"
+    >
+      {{ toast.message }}
+      <template #actions>
+        <v-btn variant="text" size="small" @click="toast.show = false">Schliessen</v-btn>
+      </template>
+    </v-snackbar>
   </v-app>
 </template>
 
@@ -222,6 +235,7 @@ import { ref, computed, watch } from "vue";
 import { useTheme, useDisplay } from "vuetify";
 import { useSignalStore } from "./stores/signalStore";
 import { useAuthStore } from "./stores/authStore";
+import { useToast } from "./composables/useToast.js";
 
 import LoginScreen from "./views/LoginScreen.vue";
 import WaitingScreen from "./views/WaitingScreen.vue";
@@ -243,6 +257,7 @@ import MtSessions from "./views/messtool/MtSessions.vue";
 const theme = useTheme();
 const store = useSignalStore();
 const auth = useAuthStore();
+const { toast } = useToast();
 
 const activeTab = ref("overview");
 const showAbout = ref(false);

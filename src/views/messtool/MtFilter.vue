@@ -126,6 +126,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import { applyFilter } from "../../utils/messtoolFilter.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
+import { showToast } from "../../composables/useToast.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
@@ -190,6 +191,7 @@ function exportCsv() {
     { name: "Gefiltert", unit: s.unit, data: filtered },
   ]);
   downloadCsv(csv, `${s.name.replace(/[^\w.-]+/g, "_")}_gefiltert.csv`);
+  showToast("CSV heruntergeladen.");
 }
 
 const charOptions = [

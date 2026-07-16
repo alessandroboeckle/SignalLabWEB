@@ -38,6 +38,7 @@ export async function createSession(payload) {
       selected_signal_idx: payload.selectedSignalIdx || 0,
       verarbeitung_ops: payload.verarbeitungOps || [],
       filter_settings: payload.filterSettings || {},
+      compare_files: payload.compareFiles || [],
     })
     .select()
     .single();
@@ -57,6 +58,7 @@ export async function updateSession(id, payload) {
   if (payload.selectedSignalIdx !== undefined) patch.selected_signal_idx = payload.selectedSignalIdx;
   if (payload.verarbeitungOps !== undefined) patch.verarbeitung_ops = payload.verarbeitungOps;
   if (payload.filterSettings !== undefined) patch.filter_settings = payload.filterSettings;
+  if (payload.compareFiles !== undefined) patch.compare_files = payload.compareFiles;
 
   const { data, error } = await supabase
     .from("messtool_sessions")

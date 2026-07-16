@@ -157,6 +157,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
+import { showToast } from "../../composables/useToast.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
@@ -272,6 +273,7 @@ function exportCsv() {
     { name: "Verarbeitet", unit: s.unit, data: processed },
   ]);
   downloadCsv(csv, `${s.name.replace(/[^\w.-]+/g, "_")}_verarbeitet.csv`);
+  showToast("CSV heruntergeladen.");
 }
 
 const signalOptions = computed(() => {

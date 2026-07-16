@@ -215,7 +215,10 @@ function decodeLatin1(buffer) {
 function addCurrent() {
   if (!mtStore.parsed) return;
   const name = mtStore.fileName || "Aktuelle Datei";
-  const added = mtStore.addCompareFile(name, mtStore.parsed);
+  const added = mtStore.addCompareFile(name, mtStore.parsed, {
+    messfileId: mtStore.messfileId,
+    storagePath: mtStore.messfileStoragePath,
+  });
   if (!added) errorMsg.value = `"${name}" ist bereits in der Liste.`;
 }
 
@@ -250,7 +253,7 @@ async function addFromCloud(f) {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
     const text = decodeLatin1(buffer);
     const result = await parseMesstoolCsv(text, {});
-    mtStore.addCompareFile(f.name, result);
+    mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
   } catch (err) {
     errorMsg.value = err.message || "Datei konnte nicht geladen werden.";
   } finally {

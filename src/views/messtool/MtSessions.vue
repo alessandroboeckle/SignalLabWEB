@@ -34,6 +34,9 @@
             Aktuell: <strong>{{ mtStore.fileName }}</strong> ·
             {{ mtStore.verarbeitungSnapshot.length }} Verarbeitungsschritt(e) ·
             Signal "{{ currentSignalName }}"
+            <template v-if="mtStore.compareFiles.length">
+              · {{ mtStore.compareFiles.length }} Vergleichs-Datei(en)
+            </template>
           </p>
           <v-btn color="primary" prepend-icon="mdi-content-save-outline" @click="openSaveDialog">
             Als neue Session speichern
@@ -73,6 +76,9 @@
           <v-list-item-subtitle class="text-caption session-details">
             {{ s.messfile_name || "Datei nicht gefunden" }} ·
             {{ (s.verarbeitung_ops || []).length }} Schritt(e) ·
+            <template v-if="(s.compare_files || []).length">
+              {{ s.compare_files.length }} Vergleichs-Datei(en) ·
+            </template>
             {{ new Date(s.updated_at).toLocaleString("de-DE") }}
             <v-chip size="x-small" class="ml-1" :color="s.is_shared ? 'primary' : undefined" variant="tonal">
               {{ s.is_shared ? "geteilt" : "privat" }}
@@ -209,6 +215,7 @@ import { useAuthStore } from "../../stores/authStore.js";
 import * as sessionsApi from "../../utils/messtoolSessionStorage.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { parseMesstoolCsv } from "../../utils/messtoolParser.js";
+import { showToast } from "../../composables/useToast.js";
 
 const emit = defineEmits(["navigate"]);
 
@@ -261,6 +268,22 @@ function openSaveDialog() {
   saveDialog.value = true;
 }
 
+// Only entries that actually reference a cloud file can be restored later
+// (need to re-download them) — a raw local upload never saved to the
+// cloud gets silently skipped, with a count so the user isn't surprised.
+function serializeCompareFiles() {
+  const usable = mtStore.compareFiles.filter((f) => f.messfileStoragePath);
+  const skipped = mtStore.compareFiles.length - usable.length;
+  const serialized = usable.map((f) => ({
+    name: f.name,
+    messfileId: f.messfileId,
+    messfileStoragePath: f.messfileStoragePath,
+    selectedIndices: f.selectedIndices,
+    offsetSec: f.offsetSec || 0,
+  }));
+  return { serialized, skipped };
+}
+
 async function confirmSaveSession() {
   if (!newName.value.trim()) {
     saveError.value = "Bitte einen Namen angeben.";
@@ -269,6 +292,7 @@ async function confirmSaveSession() {
   saving.value = true;
   saveError.value = "";
   try {
+    const { serialized, skipped } = serializeCompareFiles();
     await sessionsApi.createSession({
       name: newName.value.trim(),
       isShared: newShared.value,
@@ -278,9 +302,15 @@ async function confirmSaveSession() {
       selectedSignalIdx: mtStore.selectedSignalIdx,
       verarbeitungOps: mtStore.verarbeitungSnapshot,
       filterSettings: mtStore.filterSettings,
+      compareFiles: serialized,
     });
     saveDialog.value = false;
     await loadSessions();
+    if (skipped > 0) {
+      errorMsg.value = `Hinweis: ${skipped} Vergleichs-Datei(en) ohne Cloud-Speicherung wurden nicht mitgespeichert.`;
+    } else {
+      showToast(`Session "${newName.value.trim()}" gespeichert.`);
+    }
   } catch (e) {
     saveError.value = "Konnte nicht speichern: " + (e.message || e);
   }
@@ -311,6 +341,33 @@ async function loadSession(s) {
       cutoff: 1, cutoff2: 3, stopbandDb: 40,
       ...(s.filter_settings || {}),
     };
+
+    mtStore.clearCompare();
+    const compareEntries = s.compare_files || [];
+    const failed = [];
+    for (const entry of compareEntries) {
+      try {
+        const cBuffer = await mtStorage.downloadMessfile(entry.messfileStoragePath);
+        const cText = decodeLatin1(cBuffer);
+        const cResult = await parseMesstoolCsv(cText, {});
+        const added = mtStore.addCompareFile(entry.name, cResult, {
+          messfileId: entry.messfileId,
+          storagePath: entry.messfileStoragePath,
+        });
+        if (added) {
+          added.selectedIndices = entry.selectedIndices || [0];
+          added.offsetSec = entry.offsetSec || 0;
+        }
+      } catch {
+        failed.push(entry.name);
+      }
+    }
+    if (failed.length) {
+      errorMsg.value = "Vergleichs-Dateien nicht geladen: " + failed.join(", ");
+    } else {
+      showToast(`Session "${s.name}" geladen.`);
+    }
+
     emit("navigate", "mt-verarbeitung");
   } catch (e) {
     errorMsg.value = `"${s.name}" konnte nicht geladen werden: ` + (e.message || e);
@@ -323,6 +380,7 @@ async function updateWithCurrent(s) {
   updatingId.value = s.id;
   errorMsg.value = "";
   try {
+    const { serialized, skipped } = serializeCompareFiles();
     await sessionsApi.updateSession(s.id, {
       messfileId: mtStore.messfileId,
       messfileStoragePath: mtStore.messfileStoragePath,
@@ -330,8 +388,14 @@ async function updateWithCurrent(s) {
       selectedSignalIdx: mtStore.selectedSignalIdx,
       verarbeitungOps: mtStore.verarbeitungSnapshot,
       filterSettings: mtStore.filterSettings,
+      compareFiles: serialized,
     });
     await loadSessions();
+    if (skipped > 0) {
+      errorMsg.value = `Hinweis: ${skipped} Vergleichs-Datei(en) ohne Cloud-Speicherung wurden nicht mitaktualisiert.`;
+    } else {
+      showToast(`Session "${s.name}" aktualisiert.`);
+    }
   } catch (e) {
     errorMsg.value = `"${s.name}" konnte nicht aktualisiert werden: ` + (e.message || e);
   }
@@ -356,6 +420,7 @@ async function confirmRename() {
     await sessionsApi.updateSession(sessionToRename.value.id, { name: renameValue.value.trim() });
     renameDialog.value = false;
     await loadSessions();
+    showToast(`Session umbenannt zu "${renameValue.value.trim()}".`);
   } catch (e) {
     renameError.value = "Konnte nicht umbenennen: " + (e.message || e);
   }
@@ -367,6 +432,7 @@ async function toggleShared(s) {
   try {
     await sessionsApi.updateSession(s.id, { isShared: !s.is_shared });
     await loadSessions();
+    showToast(`"${s.name}" ist jetzt ${!s.is_shared ? "geteilt" : "privat"}.`);
   } catch (e) {
     errorMsg.value = `"${s.name}" konnte nicht umgestellt werden: ` + (e.message || e);
   }
@@ -381,9 +447,11 @@ async function doDelete() {
   if (!sessionToDelete.value) return;
   deleting.value = true;
   try {
+    const name = sessionToDelete.value.name;
     await sessionsApi.deleteSession(sessionToDelete.value.id);
     deleteDialog.value = false;
     await loadSessions();
+    showToast(`Session "${name}" gelöscht.`, { color: "info" });
   } catch (e) {
     errorMsg.value = "Löschen fehlgeschlagen: " + (e.message || e);
   }

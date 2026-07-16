@@ -485,6 +485,7 @@ import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { showToast } from "../../composables/useToast.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
@@ -625,8 +626,13 @@ async function uploadExtraFiles(files) {
       const buffer = await file.arrayBuffer();
       const text = decodeLatin1(buffer);
       const result = await parseMesstoolCsv(text, {});
-      await mtStorage.uploadMessfile(file, result.meta);
-      batchUpload.uploadedFiles.push({ name: file.name, parsed: result });
+      const row = await mtStorage.uploadMessfile(file, result.meta);
+      batchUpload.uploadedFiles.push({
+        name: file.name,
+        parsed: result,
+        messfileId: row.id,
+        storagePath: row.storage_path,
+      });
     } catch {
       batchUpload.failed.push(file.name);
     }
@@ -638,7 +644,11 @@ async function uploadExtraFiles(files) {
 
 function addCurrentToCompare() {
   if (!parsed.value) return;
-  mtStore.addCompareFile(fileName.value, parsed.value);
+  mtStore.addCompareFile(fileName.value, parsed.value, {
+    messfileId: mtStore.messfileId,
+    storagePath: mtStore.messfileStoragePath,
+  });
+  showToast(`${fileName.value} zu Vergleich hinzugefügt.`, { color: "info" });
 }
 
 const combinedStats = ref(false);
@@ -718,7 +728,7 @@ async function addSelectedToCompare() {
       const buffer = await mtStorage.downloadMessfile(f.storage_path);
       const text = decodeLatin1(buffer);
       const result = await parseMesstoolCsv(text, {});
-      mtStore.addCompareFile(f.name, result);
+      mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
     } catch {
       failed.push(f.name);
     }
@@ -743,7 +753,7 @@ async function addCloudFileToCompare(f) {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
     const text = decodeLatin1(buffer);
     const result = await parseMesstoolCsv(text, {});
-    mtStore.addCompareFile(f.name, result);
+    mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
   } catch (e) {
     errorMsg.value = `"${f.name}" konnte nicht zum Vergleich hinzugefügt werden: ` + (e.message || e);
   }
@@ -752,11 +762,14 @@ async function addCloudFileToCompare(f) {
 
 function compareBatchFiles() {
   if (parsed.value && !mtStore.compareFiles.some((f) => f.name === fileName.value)) {
-    mtStore.addCompareFile(fileName.value, parsed.value);
+    mtStore.addCompareFile(fileName.value, parsed.value, {
+      messfileId: mtStore.messfileId,
+      storagePath: mtStore.messfileStoragePath,
+    });
   }
   for (const f of batchUpload.uploadedFiles) {
     if (!mtStore.compareFiles.some((c) => c.name === f.name)) {
-      mtStore.addCompareFile(f.name, f.parsed);
+      mtStore.addCompareFile(f.name, f.parsed, { messfileId: f.messfileId, storagePath: f.storagePath });
     }
   }
   emit("navigate", "mt-vergleich");
@@ -812,6 +825,7 @@ async function saveToCloud() {
     const row = await mtStorage.uploadMessfile(lastFile.value, parsed.value.meta);
     mtStore.setCloudRef(row.id, row.storage_path);
     await loadList();
+    showToast(`${fileName.value} in die Cloud gespeichert.`);
   } catch (e) {
     errorMsg.value = "Upload fehlgeschlagen: " + (e.message || e);
   }
