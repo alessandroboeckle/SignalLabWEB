@@ -42,10 +42,6 @@
           {{ peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen' }}
         </v-tooltip>
       </v-btn>
-      <v-btn size="small" variant="text" icon="mdi-restore" aria-label="Zoom zurücksetzen" @click="resetZoom('inline')">
-        <v-icon>mdi-restore</v-icon>
-        <v-tooltip activator="parent" location="bottom">Zoom zurücksetzen</v-tooltip>
-      </v-btn>
       <v-btn
         size="small"
         :variant="outlierMode ? 'flat' : 'outlined'"
@@ -67,6 +63,9 @@
         :aria-label="playing ? 'Pause' : 'Abspielen'"
         @click="togglePlay"
       ></v-btn>
+      <span v-if="playheadX !== null" class="text-caption text-medium-emphasis" style="min-width: 60px">
+        t = {{ playheadX.toFixed(1) }}s
+      </span>
       <v-select
         v-model="playSpeed"
         :items="[{title:'1x', value:1},{title:'5x', value:5},{title:'20x', value:20},{title:'60x', value:60}]"
@@ -76,6 +75,10 @@
         style="max-width: 90px"
         label="Tempo"
       ></v-select>
+      <v-btn size="small" variant="text" icon="mdi-restore" aria-label="Zoom zurücksetzen" @click="resetZoom('inline')">
+        <v-icon>mdi-restore</v-icon>
+        <v-tooltip activator="parent" location="bottom">Zoom zurücksetzen</v-tooltip>
+      </v-btn>
       <v-btn size="small" variant="text" icon="mdi-fullscreen" aria-label="Vollbild" @click="openFullscreen">
         <v-icon>mdi-fullscreen</v-icon>
         <v-tooltip activator="parent" location="bottom">Vergrößern</v-tooltip>
@@ -223,9 +226,9 @@ function togglePlay() {
   if (!chart || !chart.scales?.x) return;
   playing.value = !playing.value;
   if (playing.value) {
-    const xScale = chart.scales.x;
-    if (playheadX.value == null || playheadX.value >= xScale.max) {
-      playheadX.value = xScale.min;
+    const fullRange = getFullXRange(chart);
+    if (playheadX.value == null || playheadX.value >= fullRange.max) {
+      playheadX.value = fullRange.min;
     }
     playLastTs = null;
     playRafId = requestAnimationFrame(stepPlay);
@@ -247,9 +250,28 @@ function stepPlay(ts) {
   playLastTs = ts;
 
   const xScale = chart.scales.x;
+  const fullRange = getFullXRange(chart);
   playheadX.value += dtReal * playSpeed.value;
-  const reachedEnd = playheadX.value >= xScale.max;
-  if (reachedEnd) playheadX.value = xScale.max;
+  const reachedEnd = playheadX.value >= fullRange.max;
+  if (reachedEnd) playheadX.value = fullRange.max;
+
+  // Auto-follow: once the playhead nears the right edge of whatever's
+  // currently visible (the full range, or a zoomed-in slice), scroll
+  // that window forward with it — like scrubbing through a video —
+  // instead of the bar just running off the edge of a static view.
+  const visibleSpan = xScale.max - xScale.min;
+  const followThreshold = xScale.max - visibleSpan * 0.1;
+  if (playheadX.value > followThreshold) {
+    const shift = playheadX.value - followThreshold;
+    let newMin = xScale.min + shift;
+    let newMax = xScale.max + shift;
+    if (newMax > fullRange.max) {
+      newMax = fullRange.max;
+      newMin = newMax - visibleSpan;
+    }
+    chart.options.scales.x.min = newMin;
+    chart.options.scales.x.max = newMax;
+  }
 
   try {
     chart.update("none"); // cheap redraw, no full rebuild — keeps playback smooth
@@ -400,14 +422,19 @@ const outlierPlugin = {
 
 // Moving vertical line for "Abspiel-Modus" (see togglePlay/stepPlay below).
 // Drawn as its own plugin so playback only needs a cheap chart.update()
-// each frame, not a full rebuild of the chart/datasets.
+// each frame, not a full rebuild of the chart/datasets. Also tracks each
+// dataset's current value at the playhead with a dot + live number, so
+// it's more than just a bar sliding across — you actually see what's
+// happening at that moment, like scrubbing through a video.
 const playheadPlugin = {
   id: "playhead",
   afterDraw(chart) {
     if (playheadX.value == null) return;
     const { ctx, chartArea, scales } = chart;
-    const px = scales.x.getPixelForValue(playheadX.value);
+    const xScale = scales.x;
+    const px = xScale.getPixelForValue(playheadX.value);
     if (px < chartArea.left || px > chartArea.right) return;
+
     ctx.save();
     ctx.strokeStyle = "#059669";
     ctx.lineWidth = 2;
@@ -415,9 +442,53 @@ const playheadPlugin = {
     ctx.moveTo(px, chartArea.top);
     ctx.lineTo(px, chartArea.bottom);
     ctx.stroke();
+
+    const xs = chart.data.labels
+      ? chart.data.labels.map(Number)
+      : chart.data.datasets[0]?.data.map((p) => (p && typeof p === "object" ? p.x : null)) || [];
+
+    chart.data.datasets.forEach((ds, dsIndex) => {
+      if (!ds.data.length) return;
+      let nearestIdx = 0;
+      let nearestDist = Infinity;
+      for (let i = 0; i < xs.length; i++) {
+        const dist = Math.abs(xs[i] - playheadX.value);
+        if (dist < nearestDist) { nearestDist = dist; nearestIdx = i; }
+      }
+      const meta = chart.getDatasetMeta(dsIndex);
+      const point = meta.data[nearestIdx];
+      if (!point) return;
+      const { y } = point.getProps(["y"], true);
+      const rawY = ds.data[nearestIdx];
+      const yVal = rawY && typeof rawY === "object" ? rawY.y : rawY;
+      if (yVal == null || !Number.isFinite(yVal)) return;
+
+      const color = ds.borderColor || "#059669";
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(px, y, 4, 0, 2 * Math.PI);
+      ctx.fill();
+
+      ctx.font = "11px sans-serif";
+      const label = yVal.toFixed(2);
+      const labelY = y - 8 < chartArea.top + 10 ? y + 16 : y - 8;
+      ctx.fillText(label, px + 6, labelY);
+    });
+
     ctx.restore();
   },
 };
+
+// Reads the chart's true full data range (set once by applyZoomLimits),
+// not just whatever's currently zoomed/panned into — playback should be
+// able to scrub across the *whole* recording, not just the visible slice.
+function getFullXRange(chart) {
+  const limits = chart.options.plugins?.zoom?.limits?.x;
+  if (limits && typeof limits.min === "number" && typeof limits.max === "number") {
+    return limits;
+  }
+  return { min: chart.scales.x.min, max: chart.scales.x.max };
+}
 
 // Chart.js has no idea about Vuetify's theme, so left alone it always
 // renders axis ticks/titles and gridlines in its own (dark) default color
