@@ -259,31 +259,10 @@ function stepPlay(ts) {
   const dtReal = (ts - playLastTs) / 1000;
   playLastTs = ts;
 
-  const xScale = chart.scales.x;
   const fullRange = getFullXRange(chart);
   playheadX.value += dtReal * playSpeed.value;
   const reachedEnd = playheadX.value >= fullRange.max;
   if (reachedEnd) playheadX.value = fullRange.max;
-
-  // Auto-follow: once the playhead nears the right edge of whatever's
-  // currently visible (the full range, or a zoomed-in slice), scroll
-  // that window forward with it — like scrubbing through a video —
-  // instead of the bar just running off the edge of a static view.
-  // Goes through the zoom plugin's own zoomScale() API (not a direct
-  // chart.options.scales mutation) so its internal state/limits tracking
-  // stays correct for whatever zoom/pan the user does afterward.
-  const visibleSpan = xScale.max - xScale.min;
-  const followThreshold = xScale.max - visibleSpan * 0.1;
-  if (playheadX.value > followThreshold && typeof chart.zoomScale === "function") {
-    const shift = playheadX.value - followThreshold;
-    let newMin = xScale.min + shift;
-    let newMax = xScale.max + shift;
-    if (newMax > fullRange.max) {
-      newMax = fullRange.max;
-      newMin = newMax - visibleSpan;
-    }
-    chart.zoomScale("x", { min: newMin, max: newMax }, "none");
-  }
 
   try {
     chart.update("none"); // cheap redraw, no full rebuild — keeps playback smooth
