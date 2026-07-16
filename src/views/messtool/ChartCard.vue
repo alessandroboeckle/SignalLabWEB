@@ -326,15 +326,40 @@ function onCanvasClick(evt, which) {
 }
 
 // Custom plugin: draws vertical lines + dots at cursor positions.
+// Chart.js's category scale treats a raw JS number passed to
+// getPixelForValue() as an INDEX into the labels array, not a data value
+// to look up — so passing an actual x-value (e.g. 23.625 seconds) there
+// silently gives a nonsense position (it just happens to look plausible
+// often enough to go unnoticed). This converts a *real* x-axis value into
+// whatever getPixelForValue actually expects for the chart's current
+// scale: a fractional index for category scales (interpolating between
+// the two bracketing labels), or the value itself for a linear scale
+// (e.g. Vergleich's overlay, which isn't label-based at all).
+function xValueToPixel(chart, value) {
+  const xScale = chart.scales.x;
+  if (!chart.data.labels || !chart.data.labels.length) {
+    return xScale.getPixelForValue(value);
+  }
+  const labels = chart.data.labels.map(Number);
+  if (value <= labels[0]) return xScale.getPixelForValue(0);
+  if (value >= labels[labels.length - 1]) return xScale.getPixelForValue(labels.length - 1);
+  for (let i = 0; i < labels.length - 1; i++) {
+    if (labels[i] <= value && labels[i + 1] >= value) {
+      const frac = labels[i + 1] > labels[i] ? (value - labels[i]) / (labels[i + 1] - labels[i]) : 0;
+      return xScale.getPixelForValue(i + frac);
+    }
+  }
+  return xScale.getPixelForValue(0);
+}
+
 const cursorPlugin = {
   id: "cursorMarkers",
   afterDraw(chart) {
     if (!cursorMode.value || cursors.value.length === 0) return;
-    const { ctx, chartArea, scales } = chart;
-    const xScale = scales.x;
+    const { ctx, chartArea } = chart;
     ctx.save();
     cursors.value.forEach((c, i) => {
-      const px = xScale.getPixelForValue(c.x);
+      const px = xValueToPixel(chart, c.x);
       if (px < chartArea.left || px > chartArea.right) return;
       ctx.strokeStyle = i === 0 ? "#DC2626" : "#059669";
       ctx.lineWidth = 1.5;
@@ -359,11 +384,10 @@ const markerPlugin = {
   id: "fileMarkers",
   afterDraw(chart) {
     if (!mtStore.markers.length) return;
-    const { ctx, chartArea, scales } = chart;
-    const xScale = scales.x;
+    const { ctx, chartArea } = chart;
     ctx.save();
     for (const m of mtStore.markers) {
-      const px = xScale.getPixelForValue(m.timeSec);
+      const px = xValueToPixel(chart, m.timeSec);
       if (Number.isNaN(px) || px < chartArea.left || px > chartArea.right) continue;
       ctx.strokeStyle = "#D97706";
       ctx.lineWidth = 1.5;
@@ -423,9 +447,8 @@ const playheadPlugin = {
   id: "playhead",
   afterDraw(chart) {
     if (playheadX.value == null) return;
-    const { ctx, chartArea, scales } = chart;
-    const xScale = scales.x;
-    const px = xScale.getPixelForValue(playheadX.value);
+    const { ctx, chartArea } = chart;
+    const px = xValueToPixel(chart, playheadX.value);
     if (px < chartArea.left || px > chartArea.right) return;
 
     ctx.save();
