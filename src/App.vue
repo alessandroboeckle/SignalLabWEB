@@ -302,7 +302,7 @@ const messtoolItems = [
   { value: "mt-filter", label: "Filter", icon: "mdi-tune-variant" },
   { value: "mt-analyse", label: "Analyse", icon: "mdi-chart-bell-curve" },
   { value: "mt-verarbeitung", label: "Verarbeitung", icon: "mdi-cog-transfer" },
-  { value: "mt-vergleich", label: "Vergleich", icon: "mdi-chart-multiple" },
+  { value: "mt-vergleich", label: "Anzeige", icon: "mdi-chart-multiple" },
   { value: "mt-export", label: "Export", icon: "mdi-file-export" },
   { value: "mt-sessions", label: "Sessions", icon: "mdi-content-save-cog-outline" },
 ];

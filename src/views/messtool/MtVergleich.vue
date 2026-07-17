@@ -2,9 +2,9 @@
   <v-container fluid class="pa-6">
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-chart-multiple</v-icon>
-      <h2 class="text-h5 font-weight-bold">Vergleich</h2>
+      <h2 class="text-h5 font-weight-bold">Anzeige</h2>
     </div>
-    <p class="text-medium-emphasis mb-6">Mehrere Messungen überlagern und vergleichen</p>
+    <p class="text-medium-emphasis mb-6">Signale anzeigen, überlagern und vergleichen</p>
 
     <!-- Add files -->
     <v-card variant="outlined" rounded="lg" class="mb-4">

@@ -89,13 +89,13 @@
               <span class="text-subtitle-1">Batch-Export</span>
             </div>
             <p class="text-caption text-medium-emphasis mb-3">
-              Erstellt einen PDF-Report je Signal aus dem <strong>Vergleich</strong>-Bereich
+              Erstellt einen PDF-Report je Signal aus dem <strong>Anzeige</strong>-Bereich
               (auch mehrere je Datei) und packt alle in ein ZIP.
             </p>
 
             <template v-if="mtStore.compareSeries.length === 0">
               <v-alert type="info" variant="tonal" density="compact" class="text-caption">
-                Noch keine Signale im Vergleich ausgewählt. Füge welche auf der Vergleich-Seite hinzu.
+                Noch keine Signale in der Anzeige ausgewählt. Füge welche auf der Anzeige-Seite hinzu.
               </v-alert>
             </template>
             <template v-else>

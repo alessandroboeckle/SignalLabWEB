@@ -215,7 +215,7 @@
           :disabled="mtStore.compareFiles.some((f) => f.name === fileName)"
           @click="addCurrentToCompare"
         >
-          {{ mtStore.compareFiles.some((f) => f.name === fileName) ? "Im Vergleich" : "Zu Vergleich hinzufügen" }}
+          {{ mtStore.compareFiles.some((f) => f.name === fileName) ? "In Anzeige" : "Zur Anzeige hinzufügen" }}
         </v-btn>
         <v-btn
           v-if="lastFile"
@@ -394,7 +394,7 @@
           </span>
           <v-spacer></v-spacer>
           <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-open-in-new" @click="emit('navigate', 'mt-vergleich')">
-            Alle Funktionen im Vergleich öffnen
+            Alle Funktionen in der Anzeige öffnen
           </v-btn>
         </div>
         <ChartCard title="Überlagert" :config="quickCompareConfig" :height="260" />
@@ -415,7 +415,7 @@
         </span>
         <v-spacer></v-spacer>
         <v-btn size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple" @click="emit('navigate', 'mt-vergleich')">
-          Zum Vergleich
+          Zur Anzeige
         </v-btn>
       </div>
     </v-alert>
@@ -434,7 +434,7 @@
             class="mr-2"
             @click="addSelectedToCompare"
           >
-            Zu Vergleich hinzufügen
+            Zur Anzeige hinzufügen
           </v-btn>
           <v-btn size="small" variant="text" @click="selectedCloudIds = []">Auswahl aufheben</v-btn>
         </template>
@@ -467,7 +467,7 @@
               @click="addCloudFileToCompare(f)"
             >
               <v-icon>mdi-chart-multiple-outline</v-icon>
-              <v-tooltip activator="parent" location="bottom">Zu Vergleich hinzufügen</v-tooltip>
+              <v-tooltip activator="parent" location="bottom">Zur Anzeige hinzufügen</v-tooltip>
             </v-btn>
             <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
               Öffnen
@@ -651,7 +651,7 @@ function addCurrentToCompare() {
     messfileId: mtStore.messfileId,
     storagePath: mtStore.messfileStoragePath,
   });
-  showToast(`${fileName.value} zu Vergleich hinzugefügt.`, { color: "info" });
+  showToast(`${fileName.value} zur Anzeige hinzugefügt.`, { color: "info" });
 }
 
 const combinedStats = ref(false);
@@ -762,7 +762,7 @@ async function addCloudFileToCompare(f) {
     const result = await parseMesstoolCsv(text, {});
     mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
   } catch (e) {
-    errorMsg.value = `"${f.name}" konnte nicht zum Vergleich hinzugefügt werden: ` + (e.message || e);
+    errorMsg.value = `"${f.name}" konnte nicht zur Anzeige hinzugefügt werden: ` + (e.message || e);
   }
   compareAddingId.value = null;
 }
