@@ -119,7 +119,7 @@
                     ></v-slider>
                     <v-select
                       v-model="op.params.windowType"
-                      :items="['hanning','hamming','flat']"
+                      :items="['hanning','hamming','blackman','flat']"
                       density="compact"
                       variant="outlined"
                       hide-details

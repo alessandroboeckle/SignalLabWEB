@@ -14,6 +14,12 @@ function windowWeights(len, type) {
     for (let i = 0; i < len; i++) w[i] = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (len - 1));
   } else if (type === "hanning" || type === "hann") {
     for (let i = 0; i < len; i++) w[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (len - 1));
+  } else if (type === "blackman") {
+    for (let i = 0; i < len; i++) {
+      w[i] = 0.42
+        - 0.5 * Math.cos((2 * Math.PI * i) / (len - 1))
+        + 0.08 * Math.cos((4 * Math.PI * i) / (len - 1));
+    }
   } else {
     w.fill(1); // rectangular / moving average
   }

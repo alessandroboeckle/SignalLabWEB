@@ -57,6 +57,16 @@
             </v-btn>
 
             <v-btn
+              class="mb-3 w-100"
+              color="primary"
+              variant="outlined"
+              prepend-icon="mdi-microsoft-excel"
+              @click="exportAllSignalsExcel"
+            >
+              Alle Signale als Excel
+            </v-btn>
+
+            <v-btn
               class="w-100"
               color="primary"
               variant="outlined"
@@ -131,14 +141,13 @@
 
 <script setup>
 import { ref, computed } from "vue";
-import jsPDF from "jspdf";
-import JSZip from "jszip";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { downsample } from "../../utils/downsample.js";
 import { buildLineChartSvg } from "../../utils/svgChart.js";
+import { buildMultiSignalWorkbook, downloadWorkbook } from "../../utils/xlsxExport.js";
 import ChartCard from "./ChartCard.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
@@ -276,6 +285,13 @@ function downloadDataUrl(dataUrl, filename) {
   document.body.removeChild(link);
 }
 
+async function exportAllSignalsExcel() {
+  if (!mtStore.parsed) return;
+  const wb = await buildMultiSignalWorkbook(mtStore.parsed.time, mtStore.parsed.signals);
+  await downloadWorkbook(wb, `${(mtStore.fileName || "signale").replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "")}_alle_signale.xlsx`);
+  showToast("Excel-Datei heruntergeladen.");
+}
+
 async function exportPng() {
   if (!sig.value) return;
   const dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
@@ -316,6 +332,7 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false } = {}) {
 
   const imgData = await renderOffscreenChart(s, t, 1000, 500, { showMarkers });
 
+  const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 15;
@@ -386,6 +403,7 @@ async function exportBatchZip() {
   buildingBatch.value = true;
   batchProgress.value = 0;
   try {
+    const { default: JSZip } = await import("jszip");
     const zip = new JSZip();
     const usedNames = new Set();
     for (let i = 0; i < series.length; i++) {

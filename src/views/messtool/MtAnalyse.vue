@@ -200,6 +200,7 @@ const windowType = ref(mtStore.fftWindowDefault || "hann");
 const windowOptions = [
   { title: "Hann", value: "hann" },
   { title: "Hamming", value: "hamming" },
+  { title: "Blackman", value: "blackman" },
   { title: "Rechteck (keins)", value: "none" },
 ];
 

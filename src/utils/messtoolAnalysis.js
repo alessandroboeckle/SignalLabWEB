@@ -76,13 +76,19 @@ export function integral(y, t) {
 
 // --- FFT ---
 
-// Hann / Hamming / rectangular window
+// Hann / Hamming / Blackman / rectangular window
 function getWindow(N, type) {
   const w = new Array(N);
   if (type === "hann") {
     for (let i = 0; i < N; i++) w[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
   } else if (type === "hamming") {
     for (let i = 0; i < N; i++) w[i] = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (N - 1));
+  } else if (type === "blackman") {
+    for (let i = 0; i < N; i++) {
+      w[i] = 0.42
+        - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1))
+        + 0.08 * Math.cos((4 * Math.PI * i) / (N - 1));
+    }
   } else {
     w.fill(1);
   }

@@ -592,6 +592,12 @@ export function sosfiltfilt(sos, x) {
 
 // convenience: design + apply, with characteristic
 export function applyFilter(x, { order = 4, cutoffHz, cutoff2Hz, sampleRate, btype = "low", characteristic = "butterworth", rippleDb = 1, rs = 40 }) {
+  // A single NaN/Infinity would poison an IIR filter's entire output (its
+  // internal state carries forward sample to sample) — safer to just
+  // hand back the original signal than a silently corrupted one.
+  for (let i = 0; i < x.length; i++) {
+    if (!Number.isFinite(x[i])) return x.slice();
+  }
   const nyq = sampleRate / 2;
   if (btype === "low" || btype === "high") {
     const wn = cutoffHz / nyq;
