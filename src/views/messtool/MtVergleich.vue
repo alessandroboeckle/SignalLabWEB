@@ -188,13 +188,21 @@
       </v-card>
 
       <!-- Display mode -->
-      <div class="d-flex align-center ga-3 mb-3">
+      <div class="d-flex align-center flex-wrap ga-3 mb-3">
         <v-btn-toggle v-model="displayMode" color="primary" density="comfortable" mandatory>
           <v-btn value="overlay" prepend-icon="mdi-layers-outline">Überlagert</v-btn>
           <v-btn value="stacked" prepend-icon="mdi-view-sequential-outline">Gestapelt</v-btn>
         </v-btn-toggle>
+
+        <v-btn-toggle v-model="xAxisMode" color="secondary" density="comfortable" mandatory>
+          <v-btn value="zeit" prepend-icon="mdi-timer-outline">Zeit</v-btn>
+          <v-btn value="uhrzeit" prepend-icon="mdi-clock-outline">Uhrzeit</v-btn>
+        </v-btn-toggle>
         <span class="text-caption text-medium-emphasis">
           {{ displayMode === "overlay" ? "Alle Signale in einem Chart übereinander" : "Jedes Signal als eigenes Chart untereinander" }}
+          <template v-if="xAxisMode === 'uhrzeit' && displayMode === 'overlay' && mtStore.compareFiles.length > 1">
+            · Uhrzeit-Achse richtet sich nach der ersten Datei
+          </template>
         </span>
       </div>
 
@@ -323,7 +331,7 @@
 import { ref, computed, onBeforeUnmount } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import * as A from "../../utils/messtoolAnalysis.js";
-import { parseMesstoolCsv } from "../../utils/messtoolParser.js";
+import { parseMesstoolCsv, formatClockTime } from "../../utils/messtoolParser.js";
 import { downsample } from "../../utils/downsample.js";
 import { findBestOffset } from "../../utils/crossCorrelate.js";
 import * as groupsApi from "../../utils/messtoolSignalGroups.js";
@@ -338,6 +346,20 @@ const mtStore = useMesstoolStore();
 const fileInput = ref(null);
 const errorMsg = ref("");
 const displayMode = ref("overlay"); // 'overlay' | 'stacked'
+const xAxisMode = ref("zeit"); // 'zeit' (elapsed seconds) | 'uhrzeit' (real clock time)
+
+// Elapsed-time-to-clock offset for a series: clockSec[i] ≈ time[i] +
+// clockOffset, assuming a steady sample rate (reasonable — big gaps are
+// already flagged separately by the quality check). Used to relabel the
+// x-axis ticks as real clock time without touching where points are
+// actually plotted.
+function clockOffsetFor(s) {
+  if (!s?.clockSec?.length || !s?.time?.length) return null;
+  const c0 = s.clockSec[0];
+  const t0 = s.time[0];
+  if (c0 == null || t0 == null) return null;
+  return c0 - t0;
+}
 
 // One config per series for the "Gestapelt" view — same data as the
 // overlay, just one signal per chart instead of superimposed. Points
@@ -353,6 +375,10 @@ function stackedConfig(s) {
       y: d.ry[i],
       clock: s.clockSec ? s.clockSec[d.indices[i]] : null,
     }));
+
+    const useClock = xAxisMode.value === "uhrzeit";
+    const clockOffset = useClock ? clockOffsetFor(s) : null;
+
     return {
       type: "line",
       data: {
@@ -370,7 +396,13 @@ function stackedConfig(s) {
         animation: false,
         parsing: false,
         scales: {
-          x: { type: "linear", title: { display: true, text: "Zeit [s]" } },
+          x: {
+            type: "linear",
+            title: { display: true, text: useClock ? "Uhrzeit" : "Zeit [s]" },
+            ticks: clockOffset != null
+              ? { callback: (val) => formatClockTime(val + clockOffset) }
+              : {},
+          },
           y: { title: { display: true, text: s.signal.unit || "Wert" } },
         },
       },
@@ -510,6 +542,7 @@ function colorForSeries(fileId, idx) {
 // picked from the same file each get their own line here too.
 const overlayConfig = computed(() => {
   const series = mtStore.compareSeries;
+  void xAxisMode.value; // read here so toggling Zeit/Uhrzeit triggers a rebuild
   return (peakMode) => {
     const datasets = series.map((s) => {
       const y = s.signal.data.map((v) => (v == null ? null : v));
@@ -534,8 +567,17 @@ const overlayConfig = computed(() => {
       };
     });
 
+    const useClock = xAxisMode.value === "uhrzeit";
+    const clockOffset = useClock ? clockOffsetFor(series[0]) : null;
+
     const scales = {
-      x: { type: "linear", title: { display: true, text: "Zeit [s]" } },
+      x: {
+        type: "linear",
+        title: { display: true, text: useClock ? "Uhrzeit" : "Zeit [s]" },
+        ticks: clockOffset != null
+          ? { callback: (val) => formatClockTime(val + clockOffset) }
+          : {},
+      },
       y: { title: { display: true, text: "Wert" } },
     };
     // Only add the right-hand axis if at least one series actually uses
