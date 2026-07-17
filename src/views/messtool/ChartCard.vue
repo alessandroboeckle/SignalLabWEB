@@ -57,6 +57,19 @@
       </v-btn>
       <v-btn
         size="small"
+        :variant="yLogMode ? 'flat' : 'outlined'"
+        :color="yLogMode ? 'secondary' : 'default'"
+        prepend-icon="mdi-math-log"
+        :aria-pressed="yLogMode"
+        @click="toggleYLog"
+      >
+        Y-Log {{ yLogMode ? "AN" : "AUS" }}
+        <v-tooltip activator="parent" location="bottom">
+          Logarithmische Y-Achse — Werte ≤ 0 werden dabei nicht angezeigt
+        </v-tooltip>
+      </v-btn>
+      <v-btn
+        size="small"
         :variant="playing ? 'flat' : 'outlined'"
         :color="playing ? 'success' : 'default'"
         :icon="playing ? 'mdi-pause' : 'mdi-play'"
@@ -176,6 +189,7 @@ const peakMode = ref(false);
 const cursorMode = ref(false);
 const markerMode = ref(false);
 const outlierMode = ref(false);
+const yLogMode = ref(false);
 const cursors = ref([]); // up to 2 points: {x, y, label}
 let inlineChart = null;
 let fsChart = null;
@@ -207,6 +221,12 @@ function toggleMarkerMode() {
 
 function toggleOutlierMode() {
   outlierMode.value = !outlierMode.value;
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+}
+
+function toggleYLog() {
+  yLogMode.value = !yLogMode.value;
   buildInline();
   if (fullscreen.value) buildFullscreen();
 }
@@ -579,6 +599,17 @@ function withInteractions(cfg) {
   );
 
   applyThemeColors(cfg);
+
+  // Optional log-scale y-axis (see toggleYLog below) — applied to every
+  // y-axis the page's own config defines (y, y1, ...), never touching x
+  // (the Filter page's Bode plot already uses its own logarithmic x-axis
+  // independently of this toggle).
+  if (yLogMode.value) {
+    for (const key of Object.keys(cfg.options.scales || {})) {
+      if (key === "x") continue;
+      cfg.options.scales[key].type = "logarithmic";
+    }
+  }
 
   // zoom + pan (matplotlib-style)
   cfg.options.plugins.zoom = {

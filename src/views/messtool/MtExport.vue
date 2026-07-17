@@ -47,6 +47,16 @@
             </v-btn>
 
             <v-btn
+              class="mb-3 w-100"
+              color="primary"
+              variant="outlined"
+              prepend-icon="mdi-svg"
+              @click="exportSvg"
+            >
+              Als SVG speichern
+            </v-btn>
+
+            <v-btn
               class="w-100"
               color="primary"
               variant="outlined"
@@ -128,6 +138,7 @@ import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { downsample } from "../../utils/downsample.js";
+import { buildLineChartSvg } from "../../utils/svgChart.js";
 import ChartCard from "./ChartCard.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
@@ -270,6 +281,24 @@ async function exportPng() {
   const dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
   downloadDataUrl(dataUrl, `${sig.value.name.replace(/[^\w.-]+/g, "_")}.png`);
   showToast("PNG heruntergeladen.");
+}
+
+function exportSvg() {
+  if (!sig.value) return;
+  const s = sig.value;
+  const { rx, ry } = downsample(s.data, time.value, "minmax", 1000);
+  const svg = buildLineChartSvg({
+    x: rx,
+    y: ry,
+    title: `${s.name}${s.unit ? ` [${s.unit}]` : ""}`,
+    xLabel: "Zeit [s]",
+    yLabel: s.unit || "Wert",
+  });
+  const blob = new Blob([svg], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  downloadDataUrl(url, `${s.name.replace(/[^\w.-]+/g, "_")}.svg`);
+  URL.revokeObjectURL(url);
+  showToast("SVG heruntergeladen.");
 }
 
 // Builds a single-page report PDF for one signal and returns the jsPDF doc
