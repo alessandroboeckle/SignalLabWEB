@@ -7,65 +7,70 @@
         size="small"
         :variant="cursorMode ? 'flat' : 'outlined'"
         :color="cursorMode ? 'secondary' : 'default'"
-        prepend-icon="mdi-ruler"
+        icon="mdi-ruler"
+        :aria-label="`Cursor ${cursorMode ? 'ausschalten' : 'einschalten'}`"
         :aria-pressed="cursorMode"
         @click="toggleCursorMode"
       >
-        Cursor {{ cursorMode ? "AN" : "AUS" }}
+        <v-icon>mdi-ruler</v-icon>
         <v-tooltip activator="parent" location="bottom">
-          Zwei Punkte anklicken, um Δt und ΔWert zu messen
+          Cursor {{ cursorMode ? "AN" : "AUS" }} — zwei Punkte anklicken, um Δt und ΔWert zu messen
         </v-tooltip>
       </v-btn>
       <v-btn
         size="small"
         :variant="markerMode ? 'flat' : 'outlined'"
         :color="markerMode ? 'warning' : 'default'"
-        prepend-icon="mdi-map-marker-plus-outline"
+        icon="mdi-map-marker-plus-outline"
+        :aria-label="`Marker ${markerMode ? 'ausschalten' : 'einschalten'}`"
         :aria-pressed="markerMode"
         @click="toggleMarkerMode"
       >
-        Marker {{ markerMode ? "AN" : "AUS" }}
+        <v-icon>mdi-map-marker-plus-outline</v-icon>
         <v-tooltip activator="parent" location="bottom">
-          Stelle anklicken, um eine Notiz zu setzen — gilt für alle Charts dieser Datei
+          Marker {{ markerMode ? "AN" : "AUS" }} — Stelle anklicken, um eine Notiz zu setzen (gilt für alle Charts dieser Datei)
         </v-tooltip>
       </v-btn>
       <v-btn
         size="small"
         :variant="peakMode ? 'flat' : 'outlined'"
         :color="peakMode ? 'primary' : 'default'"
-        prepend-icon="mdi-pulse"
+        icon="mdi-pulse"
+        :aria-label="`Spitzen-Modus ${peakMode ? 'ausschalten' : 'einschalten'}`"
         :aria-pressed="peakMode"
         @click="peakMode = !peakMode"
       >
-        Spitzen {{ peakMode ? "AN" : "AUS" }}
+        <v-icon>mdi-pulse</v-icon>
         <v-tooltip activator="parent" location="bottom">
-          {{ peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen' }}
+          Spitzen {{ peakMode ? "AN" : "AUS" }} — {{ peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen' }}
         </v-tooltip>
       </v-btn>
       <v-btn
         size="small"
         :variant="outlierMode ? 'flat' : 'outlined'"
         :color="outlierMode ? 'error' : 'default'"
-        prepend-icon="mdi-alert-circle-outline"
+        icon="mdi-alert-circle-outline"
+        :aria-label="`Ausreisser-Markierung ${outlierMode ? 'ausschalten' : 'einschalten'}`"
         :aria-pressed="outlierMode"
         @click="toggleOutlierMode"
       >
-        Ausreisser {{ outlierMode ? "AN" : "AUS" }}
+        <v-icon>mdi-alert-circle-outline</v-icon>
         <v-tooltip activator="parent" location="bottom">
-          Markiert Punkte, die statistisch stark aus der Reihe tanzen (&gt;3σ)
+          Ausreisser {{ outlierMode ? "AN" : "AUS" }} — markiert Punkte, die statistisch stark aus der Reihe tanzen (&gt;3σ)
         </v-tooltip>
       </v-btn>
       <v-btn
         size="small"
         :variant="yLogMode ? 'flat' : 'outlined'"
         :color="yLogMode ? 'secondary' : 'default'"
-        prepend-icon="mdi-math-log"
+        icon="mdi-math-log"
+        :aria-label="`Logarithmische Y-Achse ${yLogMode ? 'ausschalten' : 'einschalten'}`"
         :aria-pressed="yLogMode"
         @click="toggleYLog"
       >
-        Y-Log {{ yLogMode ? "AN" : "AUS" }}
+        <v-icon>mdi-math-log</v-icon>
         <v-tooltip activator="parent" location="bottom">
-          Logarithmische Y-Achse — Werte ≤ 0 werden dabei nicht angezeigt
+          Y-Log {{ yLogMode ? "AN" : "AUS" }} — logarithmische Y-Achse (Werte ≤ 0 werden dabei nicht angezeigt)
         </v-tooltip>
       </v-btn>
       <v-btn

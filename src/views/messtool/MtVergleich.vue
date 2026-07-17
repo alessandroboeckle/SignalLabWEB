@@ -52,7 +52,7 @@
 
     <v-card v-if="mtStore.compareFiles.length === 0" variant="outlined" rounded="lg" class="pa-8 text-center">
       <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-chart-multiple</v-icon>
-      <h3 class="text-h6 mb-2">Noch keine Dateien zum Vergleich hinzugefügt</h3>
+      <h3 class="text-h6 mb-2">Noch keine Dateien zur Anzeige hinzugefügt</h3>
       <p class="text-medium-emphasis">
         Füge die aktuell geladene Datei, eine neue Datei oder eine aus der Cloud hinzu.
       </p>
@@ -148,7 +148,7 @@
                 </v-text-field>
               </v-col>
               <v-col cols="12" sm="1" class="text-right">
-                <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} aus Vergleich entfernen`" @click="mtStore.removeCompareFile(f.id)"></v-btn>
+                <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} aus Anzeige entfernen`" @click="mtStore.removeCompareFile(f.id)"></v-btn>
               </v-col>
               <v-col cols="12" class="d-flex flex-wrap ga-4 pt-0">
                 <v-switch
@@ -189,14 +189,14 @@
 
       <!-- Display mode -->
       <div class="d-flex align-center flex-wrap ga-3 mb-3">
-        <v-btn-toggle v-model="displayMode" color="primary" density="comfortable" mandatory>
-          <v-btn value="overlay" prepend-icon="mdi-layers-outline">Überlagert</v-btn>
-          <v-btn value="stacked" prepend-icon="mdi-view-sequential-outline">Gestapelt</v-btn>
+        <v-btn-toggle v-model="displayMode" color="primary" density="comfortable" mandatory divided>
+          <v-btn value="overlay" size="small" prepend-icon="mdi-layers-outline">Überlagert</v-btn>
+          <v-btn value="stacked" size="small" prepend-icon="mdi-view-sequential-outline">Gestapelt</v-btn>
         </v-btn-toggle>
 
-        <v-btn-toggle v-model="xAxisMode" color="secondary" density="comfortable" mandatory>
-          <v-btn value="zeit" prepend-icon="mdi-timer-outline">Zeit</v-btn>
-          <v-btn value="uhrzeit" prepend-icon="mdi-clock-outline">Uhrzeit</v-btn>
+        <v-btn-toggle v-model="xAxisMode" color="secondary" density="comfortable" mandatory divided>
+          <v-btn value="zeit" size="small" prepend-icon="mdi-timer-outline">Zeit</v-btn>
+          <v-btn value="uhrzeit" size="small" prepend-icon="mdi-clock-outline">Uhrzeit</v-btn>
         </v-btn-toggle>
         <span class="text-caption text-medium-emphasis">
           {{ displayMode === "overlay" ? "Alle Signale in einem Chart übereinander" : "Jedes Signal als eigenes Chart untereinander" }}
@@ -227,7 +227,7 @@
 
       <!-- Stat comparison -->
       <v-card variant="outlined" rounded="lg" class="mt-4">
-        <v-card-title class="text-subtitle-1">Statistik-Vergleich</v-card-title>
+        <v-card-title class="text-subtitle-1">Statistik-Übersicht</v-card-title>
         <v-divider></v-divider>
         <v-table density="comfortable">
           <thead>

@@ -38,7 +38,7 @@
             {{ mtStore.verarbeitungSnapshot.length }} Verarbeitungsschritt(e) ·
             Signal "{{ currentSignalName }}"
             <template v-if="mtStore.compareFiles.length">
-              · {{ mtStore.compareFiles.length }} Vergleichs-Datei(en)
+              · {{ mtStore.compareFiles.length }} Anzeige-Datei(en)
             </template>
           </p>
           <v-btn color="primary" prepend-icon="mdi-content-save-outline" @click="openSaveDialog">
@@ -80,7 +80,7 @@
             {{ s.messfile_name || "Datei nicht gefunden" }} ·
             {{ (s.verarbeitung_ops || []).length }} Schritt(e) ·
             <template v-if="(s.compare_files || []).length">
-              {{ s.compare_files.length }} Vergleichs-Datei(en) ·
+              {{ s.compare_files.length }} Anzeige-Datei(en) ·
             </template>
             {{ new Date(s.updated_at).toLocaleString("de-DE") }}
             <v-chip size="x-small" class="ml-1" :color="s.is_shared ? 'primary' : undefined" variant="tonal">
@@ -310,7 +310,7 @@ async function confirmSaveSession() {
     saveDialog.value = false;
     await loadSessions();
     if (skipped > 0) {
-      errorMsg.value = `Hinweis: ${skipped} Vergleichs-Datei(en) ohne Cloud-Speicherung wurden nicht mitgespeichert.`;
+      errorMsg.value = `Hinweis: ${skipped} Anzeige-Datei(en) ohne Cloud-Speicherung wurden nicht mitgespeichert.`;
     } else {
       showToast(`Session "${newName.value.trim()}" gespeichert.`);
     }
@@ -366,7 +366,7 @@ async function loadSession(s) {
       }
     }
     if (failed.length) {
-      errorMsg.value = "Vergleichs-Dateien nicht geladen: " + failed.join(", ");
+      errorMsg.value = "Anzeige-Dateien nicht geladen: " + failed.join(", ");
     } else {
       showToast(`Session "${s.name}" geladen.`);
     }
@@ -395,7 +395,7 @@ async function updateWithCurrent(s) {
     });
     await loadSessions();
     if (skipped > 0) {
-      errorMsg.value = `Hinweis: ${skipped} Vergleichs-Datei(en) ohne Cloud-Speicherung wurden nicht mitaktualisiert.`;
+      errorMsg.value = `Hinweis: ${skipped} Anzeige-Datei(en) ohne Cloud-Speicherung wurden nicht mitaktualisiert.`;
     } else {
       showToast(`Session "${s.name}" aktualisiert.`);
     }
