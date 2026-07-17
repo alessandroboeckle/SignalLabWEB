@@ -187,8 +187,35 @@
         </v-list>
       </v-card>
 
+      <!-- Display mode -->
+      <div class="d-flex align-center ga-3 mb-3">
+        <v-btn-toggle v-model="displayMode" color="primary" density="comfortable" mandatory>
+          <v-btn value="overlay" prepend-icon="mdi-layers-outline">Überlagert</v-btn>
+          <v-btn value="stacked" prepend-icon="mdi-view-sequential-outline">Gestapelt</v-btn>
+        </v-btn-toggle>
+        <span class="text-caption text-medium-emphasis">
+          {{ displayMode === "overlay" ? "Alle Signale in einem Chart übereinander" : "Jedes Signal als eigenes Chart untereinander" }}
+        </span>
+      </div>
+
       <!-- Overlay chart -->
-      <ChartCard title="Überlagerte Signale" :config="overlayConfig" :height="380" />
+      <ChartCard v-if="displayMode === 'overlay'" title="Überlagerte Signale" :config="overlayConfig" :height="380" />
+
+      <!-- Stacked individual charts -->
+      <template v-else>
+        <ChartCard
+          v-for="s in mtStore.compareSeries"
+          :key="s.key"
+          :title="`${s.fileName} — ${s.signal.name} [${s.signal.unit || '-'}]`"
+          :config="stackedConfig(s)"
+          :height="260"
+          sync-group="vergleich-gestapelt"
+          class="mb-4"
+        />
+        <p v-if="mtStore.compareSeries.length === 0" class="text-medium-emphasis text-center pa-6">
+          Keine Signale ausgewählt.
+        </p>
+      </template>
 
       <!-- Stat comparison -->
       <v-card variant="outlined" rounded="lg" class="mt-4">
@@ -310,6 +337,46 @@ const mtStore = useMesstoolStore();
 
 const fileInput = ref(null);
 const errorMsg = ref("");
+const displayMode = ref("overlay"); // 'overlay' | 'stacked'
+
+// One config per series for the "Gestapelt" view — same data as the
+// overlay, just one signal per chart instead of superimposed. Points
+// carry the file's real clock time (see messtoolParser's clockSec)
+// alongside elapsed seconds, so ChartCard's tooltip can show both.
+function stackedConfig(s) {
+  return (peakMode) => {
+    const y = s.signal.data.map((v) => (v == null ? null : v));
+    const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
+    const off = s.offsetSec || 0;
+    const points = d.rx.map((x, i) => ({
+      x: x + off,
+      y: d.ry[i],
+      clock: s.clockSec ? s.clockSec[d.indices[i]] : null,
+    }));
+    return {
+      type: "line",
+      data: {
+        datasets: [{
+          label: `${s.signal.name} [${s.signal.unit || "-"}]`,
+          data: points,
+          borderColor: s.color,
+          backgroundColor: s.color,
+          borderWidth: 1.5,
+          pointRadius: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        parsing: false,
+        scales: {
+          x: { type: "linear", title: { display: true, text: "Zeit [s]" } },
+          y: { title: { display: true, text: s.signal.unit || "Wert" } },
+        },
+      },
+    };
+  };
+}
 const signalGroups = ref(groupsApi.listGroups());
 const saveGroupDialog = ref(false);
 const groupNameInput = ref("");
@@ -448,7 +515,11 @@ const overlayConfig = computed(() => {
       const y = s.signal.data.map((v) => (v == null ? null : v));
       const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
       const off = s.offsetSec || 0;
-      const points = d.rx.map((x, i) => ({ x: x + off, y: d.ry[i] }));
+      const points = d.rx.map((x, i) => ({
+        x: x + off,
+        y: d.ry[i],
+        clock: s.clockSec ? s.clockSec[d.indices[i]] : null,
+      }));
       const offsetSuffix = off ? ` (${off > 0 ? "+" : ""}${off}s)` : "";
       const axisSuffix = s.useSecondAxis ? " ▸ rechte Achse" : "";
       const label = `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]${offsetSuffix}${axisSuffix}`;

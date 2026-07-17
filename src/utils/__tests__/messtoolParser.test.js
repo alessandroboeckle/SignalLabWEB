@@ -117,3 +117,39 @@ describe("parseMesstoolCsv", () => {
     expect(updates.every((f) => f >= 0 && f <= 1)).toBe(true);
   });
 });
+
+describe("formatClockTime", () => {
+  it("formats seconds-since-midnight as HH:MM:SS", async () => {
+    const { formatClockTime } = await import("../messtoolParser.js");
+    expect(formatClockTime(14 * 3600 + 34 * 60 + 28.09)).toBe("14:34:28");
+  });
+
+  it("includes milliseconds when requested", async () => {
+    const { formatClockTime } = await import("../messtoolParser.js");
+    expect(formatClockTime(14 * 3600 + 34 * 60 + 28.09, true)).toBe("14:34:28.090");
+  });
+
+  it("returns a dash for null/invalid input", async () => {
+    const { formatClockTime } = await import("../messtoolParser.js");
+    expect(formatClockTime(null)).toBe("-");
+    expect(formatClockTime(NaN)).toBe("-");
+  });
+});
+
+describe("parseMesstoolCsv clockSec", () => {
+  it("keeps the real wall-clock time per row alongside the relative time axis", async () => {
+    const { parseMesstoolCsv } = await import("../messtoolParser.js");
+    const csv = [
+      "SECTION;LOGITEMS",
+      "LOGITEM;Sig1;;X;desc",
+      "SECTION;LOGDATA",
+      "Nb;Type;Date;Time;Sig1",
+      "1;+;07.03.2025;14:34:28:000;1",
+      "2;+;07.03.2025;14:34:29:000;2",
+    ].join("\n");
+    const result = await parseMesstoolCsv(csv, {});
+    expect(result.clockSec).toHaveLength(2);
+    expect(result.clockSec[0]).toBeCloseTo(14 * 3600 + 34 * 60 + 28, 3);
+    expect(result.time).toEqual([0, 1]); // relative axis unaffected
+  });
+});

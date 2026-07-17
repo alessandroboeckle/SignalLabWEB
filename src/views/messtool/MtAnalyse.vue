@@ -87,6 +87,18 @@
         </v-col>
       </v-row>
 
+      <v-row dense class="mb-2">
+        <v-col cols="auto">
+          <v-switch v-model="showAvgLine" color="success" density="compact" hide-details label="Mittelwert-Linie"></v-switch>
+        </v-col>
+        <v-col cols="auto">
+          <v-switch v-model="showRmsLine" color="secondary" density="compact" hide-details label="RMS-Linie"></v-switch>
+        </v-col>
+        <v-col cols="auto">
+          <v-switch v-model="showStdBand" color="primary" density="compact" hide-details label="±1σ-Band"></v-switch>
+        </v-col>
+      </v-row>
+
       <v-row class="mb-4">
         <v-col v-for="stat in stats" :key="stat.label" cols="6" sm="4" md="2">
           <v-card variant="tonal" color="primary" class="pa-3 text-center">
@@ -125,10 +137,10 @@
 
       <v-row>
         <v-col cols="12" md="6">
-          <ChartCard title="Signal & Ableitung" :config="derivConfig" :height="260" />
+          <ChartCard title="Signal & Ableitung" :config="derivConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
         <v-col cols="12" md="6">
-          <ChartCard title="Integral" :config="integralConfig" :height="260" />
+          <ChartCard title="Integral" :config="integralConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
         <v-col cols="12">
           <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" />
@@ -222,6 +234,9 @@ const time = computed(() => (mtStore.parsed ? mtStore.parsed.time : []));
 // "just the braking event between t=10s and t=25s".
 const zeitbereichStart = ref(null);
 const zeitbereichEnd = ref(null);
+const showAvgLine = ref(false);
+const showRmsLine = ref(false);
+const showStdBand = ref(false);
 
 // Slices a signal's data + the shared time array down to the current
 // Zeitbereich window (or returns them unchanged if no window is set).
@@ -260,21 +275,53 @@ const derivConfig = computed(() => {
   // read here (not just inside the returned function below) so changing
   // the Zeitbereich actually triggers ChartCard to rebuild
   void zeitbereichStart.value; void zeitbereichEnd.value;
+  void showAvgLine.value; void showRmsLine.value; void showStdBand.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const deriv = A.derivative(y, wt);
     const sD = down(y, wt, peakMode), dD = down(deriv, wt, peakMode);
+
+    const validY = y.filter((v) => Number.isFinite(v));
+    const meanVal = A.mean(validY);
+    const rmsVal = A.rms(validY);
+    const stdVal = A.stddev(validY);
+
+    const datasets = [];
+    // ±1σ band drawn first (as two filled boundary lines) so the signal
+    // line renders on top of it, not hidden underneath.
+    if (showStdBand.value && meanVal != null && stdVal != null) {
+      datasets.push({
+        label: "Mittel + 1σ", data: sD.rx.map(() => meanVal + stdVal),
+        borderColor: "rgba(37,99,235,0.25)", borderWidth: 1, pointRadius: 0,
+        yAxisID: "y", fill: "+1",
+        backgroundColor: "rgba(37,99,235,0.1)",
+      });
+      datasets.push({
+        label: "Mittel − 1σ", data: sD.rx.map(() => meanVal - stdVal),
+        borderColor: "rgba(37,99,235,0.25)", borderWidth: 1, pointRadius: 0,
+        yAxisID: "y", fill: false,
+      });
+    }
+    datasets.push({ label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, yAxisID: "y" });
+    datasets.push({ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1, pointRadius: 0, yAxisID: "y1" });
+    if (showAvgLine.value && meanVal != null) {
+      datasets.push({
+        label: `Mittelwert [${unit}]`, data: sD.rx.map(() => meanVal),
+        borderColor: "#10B981", borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, yAxisID: "y",
+      });
+    }
+    if (showRmsLine.value && rmsVal != null) {
+      datasets.push({
+        label: `RMS [${unit}]`, data: sD.rx.map(() => rmsVal),
+        borderColor: "#DB2777", borderWidth: 1.5, borderDash: [2, 3], pointRadius: 0, yAxisID: "y",
+      });
+    }
+
     return {
       type: "line",
-      data: {
-        labels: sD.rx,
-        datasets: [
-          { label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, yAxisID: "y" },
-          { label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1, pointRadius: 0, yAxisID: "y1" },
-        ],
-      },
+      data: { labels: sD.rx, datasets },
       options: {
         responsive: true, animation: false,
         scales: {

@@ -687,7 +687,11 @@ const quickCompareConfig = computed(() => {
       const y = s.signal.data.map((v) => (v == null ? null : v));
       const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 600);
       const off = s.offsetSec || 0;
-      const points = d.rx.map((x, i) => ({ x: x + off, y: d.ry[i] }));
+      const points = d.rx.map((x, i) => ({
+        x: x + off,
+        y: d.ry[i],
+        clock: s.clockSec ? s.clockSec[d.indices[i]] : null,
+      }));
       return {
         label: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
         data: points,

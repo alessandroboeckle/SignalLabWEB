@@ -43,3 +43,30 @@ describe("downsample", () => {
     }
   });
 });
+
+describe("downsample indices", () => {
+  it("returns indices that correctly index back into the original arrays", () => {
+    const n = 5000;
+    const values = Array.from({ length: n }, (_, i) => Math.sin(i / 37));
+    const xs = Array.from({ length: n }, (_, i) => i * 0.01);
+    const { ry, indices } = downsample(values, xs, "simple", 300);
+    for (let i = 0; i < ry.length; i++) {
+      expect(ry[i]).toBe(values[indices[i]]);
+    }
+  });
+
+  it("minmax mode's indices also line up with the emitted values", () => {
+    const n = 5000;
+    const values = Array.from({ length: n }, () => Math.random());
+    const xs = Array.from({ length: n }, (_, i) => i * 0.01);
+    const { ry, indices } = downsample(values, xs, "minmax", 200);
+    for (let i = 0; i < ry.length; i++) {
+      expect(ry[i]).toBe(values[indices[i]]);
+    }
+  });
+
+  it("when data already fits under the target, indices are simply 0..n-1", () => {
+    const { indices } = downsample([1, 2, 3], [0, 1, 2], "simple", 800);
+    expect(indices).toEqual([0, 1, 2]);
+  });
+});

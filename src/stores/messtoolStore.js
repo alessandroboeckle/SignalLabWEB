@@ -247,6 +247,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
           fileId: f.id,
           fileName: f.name,
           time: f.parsed.time,
+          clockSec: f.parsed.clockSec || null,
           offsetSec: f.offsetSec || 0,
           useSecondAxis: f.useSecondAxis || false,
           signalIdx: idx,

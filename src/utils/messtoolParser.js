@@ -109,6 +109,7 @@ export async function parseMesstoolCsv(text, options = {}) {
 
   // prepare containers
   const time = [];
+  const clockSec = []; // real wall-clock time (seconds since midnight) per row, independent of whatever the x-axis uses
   const signalData = signalNames.map(() => []);
   const isBoolFlag = signalNames.map((name) => typeMap[name] === "BOOL");
 
@@ -137,6 +138,7 @@ export async function parseMesstoolCsv(text, options = {}) {
     const tSec = parseTimeToSeconds(cells[3]);
     if (t0 === null && tSec !== null) t0 = tSec;
     time.push(tSec !== null ? +(tSec - t0).toFixed(3) : time.length);
+    clockSec.push(tSec);
 
     for (let s = 0; s < signalNames.length; s++) {
       const raw = cells[META_COLS + colFrom + s];
@@ -229,6 +231,7 @@ export async function parseMesstoolCsv(text, options = {}) {
   return {
     signals,
     time,
+    clockSec,
     meta: {
       rowCount: time.length,
       signalCount: signals.length,
@@ -262,6 +265,21 @@ function parseTimeToSeconds(str) {
   const ms = p.length >= 4 ? parseInt(p[3], 10) : 0;
   if ([h, m, s].some((n) => Number.isNaN(n))) return null;
   return h * 3600 + m * 60 + s + (Number.isNaN(ms) ? 0 : ms / 1000);
+}
+
+// Inverse of parseTimeToSeconds: seconds-since-midnight -> "HH:MM:SS" (or
+// with milliseconds if withMillis is set). Used to show the file's real
+// clock time on a plot instead of just elapsed seconds.
+export function formatClockTime(sec, withMillis = false) {
+  if (sec == null || !Number.isFinite(sec)) return "-";
+  let s = ((sec % 86400) + 86400) % 86400; // wrap safely, just in case
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const whole = Math.floor(s % 60);
+  const ms = Math.round((s - Math.floor(s)) * 1000);
+  const pad = (n, len = 2) => String(n).padStart(len, "0");
+  const base = `${pad(h)}:${pad(m)}:${pad(whole)}`;
+  return withMillis ? `${base}.${pad(ms, 3)}` : base;
 }
 
 // Decode an ArrayBuffer as ISO-8859-1 (latin1), which these files use.

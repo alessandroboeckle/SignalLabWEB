@@ -170,6 +170,8 @@ import Chart from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { findOutlierIndices } from "../../utils/outlierDetection.js";
+import { subscribeZoomSync, broadcastZoomSync } from "../../composables/useChartZoomSync.js";
+import { formatClockTime } from "../../utils/messtoolParser.js";
 
 Chart.register(zoomPlugin);
 
@@ -180,6 +182,10 @@ const props = defineProps({
   title: { type: String, default: "" },
   config: { type: Function, required: true },
   height: { type: Number, default: 260 },
+  // Charts sharing the same syncGroup name stay zoomed/panned together on
+  // their x-axis (e.g. Analyse's two time-domain charts) — matches the
+  // original tool's "Synchroner Zoom" checkbox.
+  syncGroup: { type: String, default: null },
 });
 
 const inlineCanvas = ref(null);
@@ -588,7 +594,15 @@ function withInteractions(cfg) {
     {
       enabled: true,
       callbacks: {
-        title: (items) => (items.length ? `x = ${items[0].label}` : ""),
+        title: (items) => {
+          if (!items.length) return "";
+          const raw = items[0].raw;
+          if (raw && typeof raw === "object" && raw.clock != null) {
+            const xVal = typeof raw.x === "number" ? raw.x.toFixed(3) : items[0].label;
+            return `x = ${xVal}  ·  ${formatClockTime(raw.clock, true)}`;
+          }
+          return `x = ${items[0].label}`;
+        },
         label: (item) => {
           const v = item.parsed.y;
           return `${item.dataset.label}: ${typeof v === "number" ? v.toFixed(3) : v}`;
@@ -623,11 +637,13 @@ function withInteractions(cfg) {
       wheel: { enabled: true },
       drag: { enabled: true, backgroundColor: "rgba(37,99,235,0.15)" }, // rectangle select
       mode: "x",
+      onZoomComplete: ({ chart }) => broadcastOwnRange(chart),
     },
     pan: {
       enabled: true,
       mode: "x",
       modifierKey: "shift",
+      onPanComplete: ({ chart }) => broadcastOwnRange(chart),
     },
   };
   return cfg;
@@ -649,6 +665,33 @@ function applyZoomLimits(chart) {
     minRange: span * 0.01, // never zoom in past ~1% of the full range
   };
 }
+
+// --- synchronized zoom across charts sharing props.syncGroup ---
+const syncInstanceId = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+let applyingSyncedRange = false; // guard so applying an incoming range doesn't re-broadcast it
+
+function broadcastOwnRange(chart) {
+  if (!props.syncGroup || applyingSyncedRange) return;
+  const xScale = chart.scales?.x;
+  if (!xScale) return;
+  broadcastZoomSync(props.syncGroup, { min: xScale.min, max: xScale.max }, syncInstanceId);
+}
+
+function onIncomingSyncedRange(range, sourceId) {
+  if (sourceId === syncInstanceId) return; // ignore our own broadcast
+  applyingSyncedRange = true;
+  try {
+    for (const chart of [inlineChart, fsChart]) {
+      if (chart && typeof chart.zoomScale === "function") {
+        chart.zoomScale("x", range, "none");
+      }
+    }
+  } finally {
+    applyingSyncedRange = false;
+  }
+}
+
+let unsubscribeZoomSync = null;
 
 function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
@@ -687,9 +730,16 @@ watch(fullscreen, (open) => {
   if (!open && fsChart) { fsChart.destroy(); fsChart = null; }
 });
 
-onMounted(async () => { await nextTick(); buildInline(); });
+onMounted(async () => {
+  await nextTick();
+  buildInline();
+  if (props.syncGroup) {
+    unsubscribeZoomSync = subscribeZoomSync(props.syncGroup, onIncomingSyncedRange);
+  }
+});
 onBeforeUnmount(() => {
   if (playRafId) cancelAnimationFrame(playRafId);
+  if (unsubscribeZoomSync) unsubscribeZoomSync();
   if (inlineChart) inlineChart.destroy();
   if (fsChart) fsChart.destroy();
 });
