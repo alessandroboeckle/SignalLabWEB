@@ -9,10 +9,20 @@
     <v-card v-if="!mtStore.parsed" variant="outlined" rounded="lg" class="pa-8 text-center">
       <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-file-question-outline</v-icon>
       <h3 class="text-h6 mb-2">Keine Messdatei geladen</h3>
-      <p class="text-medium-emphasis">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
+      <p class="text-medium-emphasis mb-4">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
+      <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-file-upload" @click="$emit('navigate', 'mt-import')">
+        Zu Import
+      </v-btn>
     </v-card>
 
     <template v-else>
+      <MtQuickNav
+        :items="[
+          { target: 'mt-filter', label: 'Filter', icon: 'mdi-tune-variant' },
+          { target: 'mt-export', label: 'Export', icon: 'mdi-file-export' },
+        ]"
+        @navigate="$emit('navigate', $event)"
+      />
       <v-row>
         <!-- Left: controls -->
         <v-col cols="12" md="4">
@@ -159,6 +169,9 @@ import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import { showToast } from "../../composables/useToast.js";
 import ChartCard from "./ChartCard.vue";
+import MtQuickNav from "./MtQuickNav.vue";
+
+defineEmits(["navigate"]);
 import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();

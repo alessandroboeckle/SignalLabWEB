@@ -9,10 +9,20 @@
     <v-card v-if="!mtStore.parsed" variant="outlined" rounded="lg" class="pa-8 text-center">
       <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-file-question-outline</v-icon>
       <h3 class="text-h6 mb-2">Keine Messdatei geladen</h3>
-      <p class="text-medium-emphasis">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
+      <p class="text-medium-emphasis mb-4">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
+      <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-file-upload" @click="$emit('navigate', 'mt-import')">
+        Zu Import
+      </v-btn>
     </v-card>
 
     <template v-else>
+      <MtQuickNav
+        :items="[
+          { target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' },
+          { target: 'mt-export', label: 'Export', icon: 'mdi-file-export' },
+        ]"
+        @navigate="$emit('navigate', $event)"
+      />
       <v-row>
         <v-col cols="12" md="4">
           <v-card variant="outlined" rounded="lg" class="pa-4">
@@ -109,11 +119,26 @@
             >
               {{ cutoffWarning }}
             </v-alert>
+
+            <v-switch
+              v-model="showFrequencyResponse"
+              color="primary"
+              density="compact"
+              hide-details
+              label="Frequenzgang anzeigen"
+              class="mt-2"
+            ></v-switch>
           </v-card>
         </v-col>
 
         <v-col cols="12" md="8">
           <ChartCard title="Original vs. Gefiltert" :config="filterConfig" :height="440" />
+          <ChartCard
+            v-if="showFrequencyResponse"
+            title="Frequenzgang des Filters (Bode-Plot)"
+            :config="frequencyResponseConfig"
+            :height="320"
+          />
         </v-col>
       </v-row>
     </template>
@@ -124,10 +149,13 @@
 import { ref, computed, watch } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
-import { applyFilter } from "../../utils/messtoolFilter.js";
+import { applyFilter, designSOS, computeFrequencyResponse } from "../../utils/messtoolFilter.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import { showToast } from "../../composables/useToast.js";
 import ChartCard from "./ChartCard.vue";
+import MtQuickNav from "./MtQuickNav.vue";
+
+defineEmits(["navigate"]);
 import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
@@ -248,6 +276,54 @@ const cutoffWarning = computed(() => {
 function down(arr, xs, mode) {
   return downsample(arr, xs, mode ? 'minmax' : 'simple', 800);
 }
+
+const showFrequencyResponse = ref(false);
+
+const frequencyResponseConfig = computed(() => {
+  const fs = sampleRate.value;
+  const bt = btype.value, ord = order.value, c1 = cutoff.value, c2 = cutoff2.value;
+  const char = characteristic.value, rs = stopbandDb.value;
+  return () => {
+    const nyq = fs / 2;
+    let sos = [];
+    try {
+      if (bt === "band") {
+        if (c1 > 0 && c1 < nyq) sos.push(...designSOS(ord, c1 / nyq, "high", char, 1, rs));
+        if (c2 > 0 && c2 < nyq) sos.push(...designSOS(ord, c2 / nyq, "low", char, 1, rs));
+      } else if (c1 > 0 && c1 < nyq) {
+        sos = designSOS(ord, c1 / nyq, bt, char, 1, rs);
+      }
+    } catch {
+      sos = [];
+    }
+    if (!sos.length) return { type: "line", data: { labels: [], datasets: [] } };
+
+    const { freqs, magDb } = computeFrequencyResponse(sos, fs, 300);
+    return {
+      type: "line",
+      data: {
+        datasets: [{
+          label: "Amplitude [dB]",
+          data: freqs.map((f, i) => ({ x: f, y: magDb[i] })),
+          borderColor: "#2563EB",
+          backgroundColor: "rgba(37,99,235,0.08)",
+          borderWidth: 1.5, pointRadius: 0, fill: true,
+        }],
+      },
+      options: {
+        responsive: true, animation: false,
+        parsing: false,
+        scales: {
+          x: {
+            type: "logarithmic",
+            title: { display: true, text: "Frequenz [Hz] (log)" },
+          },
+          y: { title: { display: true, text: "Amplitude [dB]" } },
+        },
+      },
+    };
+  };
+});
 
 const filterConfig = computed(() => {
   const s = sig.value, t = time.value, fs = sampleRate.value;

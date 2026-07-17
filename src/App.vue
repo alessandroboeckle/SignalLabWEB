@@ -164,19 +164,19 @@
             <MtImport @navigate="activeTab = $event" />
           </v-window-item>
           <v-window-item value="mt-filter">
-            <MtFilter />
+            <MtFilter @navigate="activeTab = $event" />
           </v-window-item>
           <v-window-item value="mt-analyse">
-            <MtAnalyse />
+            <MtAnalyse @navigate="activeTab = $event" />
           </v-window-item>
           <v-window-item value="mt-verarbeitung">
-            <MtVerarbeitung />
+            <MtVerarbeitung @navigate="activeTab = $event" />
           </v-window-item>
           <v-window-item value="mt-vergleich">
-            <MtVergleich />
+            <MtVergleich @navigate="activeTab = $event" />
           </v-window-item>
           <v-window-item value="mt-export">
-            <MtExport />
+            <MtExport @navigate="activeTab = $event" />
           </v-window-item>
           <v-window-item value="mt-sessions">
             <MtSessions @navigate="activeTab = $event" />

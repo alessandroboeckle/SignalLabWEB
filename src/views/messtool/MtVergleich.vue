@@ -41,6 +41,15 @@
       {{ errorMsg }}
     </v-alert>
 
+    <MtQuickNav
+      v-if="mtStore.compareFiles.length > 0"
+      :items="[
+        { target: 'mt-export', label: 'Export (Batch)', icon: 'mdi-file-export' },
+        { target: 'mt-sessions', label: 'Sessions', icon: 'mdi-content-save-cog-outline' },
+      ]"
+      @navigate="$emit('navigate', $event)"
+    />
+
     <v-card v-if="mtStore.compareFiles.length === 0" variant="outlined" rounded="lg" class="pa-8 text-center">
       <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-chart-multiple</v-icon>
       <h3 class="text-h6 mb-2">Noch keine Dateien zum Vergleich hinzugefügt</h3>
@@ -60,9 +69,37 @@
             <v-row align="center" dense class="ml-1">
               <v-col cols="12" sm="3">
                 <div class="text-body-2 font-weight-medium">{{ f.name }}</div>
-                <div class="text-caption text-medium-emphasis">
+                <div class="text-caption text-medium-emphasis mb-1">
                   {{ f.parsed.signals.length }} Signale · {{ f.parsed.time.length }} Punkte
                 </div>
+                <v-menu>
+                  <template #activator="{ props }">
+                    <v-btn size="x-small" variant="outlined" prepend-icon="mdi-folder-star-outline" v-bind="props">
+                      Gruppen
+                    </v-btn>
+                  </template>
+                  <v-list density="compact" min-width="220">
+                    <v-list-item
+                      prepend-icon="mdi-content-save-outline"
+                      title="Aktuelle Auswahl als Gruppe speichern"
+                      :disabled="!f.selectedIndices.length"
+                      @click="openSaveGroupDialog(f)"
+                    ></v-list-item>
+                    <v-divider></v-divider>
+                    <v-list-item v-if="signalGroups.length === 0" disabled title="Noch keine Gruppen gespeichert"></v-list-item>
+                    <v-list-item
+                      v-for="g in signalGroups"
+                      :key="g.name"
+                      :title="g.name"
+                      :subtitle="`${g.signalNames.length} Signal(e)`"
+                      @click="applyGroup(f, g)"
+                    >
+                      <template #append>
+                        <v-btn size="x-small" variant="text" color="error" icon="mdi-delete" @click.stop="removeGroup(g.name)"></v-btn>
+                      </template>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
               </v-col>
               <v-col cols="12" sm="5">
                 <v-autocomplete
@@ -184,6 +221,37 @@
       </v-card>
     </template>
 
+    <!-- Save group dialog -->
+    <v-dialog v-model="saveGroupDialog" max-width="400">
+      <v-card>
+        <v-card-title>Signal-Gruppe speichern</v-card-title>
+        <v-divider></v-divider>
+        <v-card-text>
+          <v-text-field
+            v-model="groupNameInput"
+            label="Name"
+            variant="outlined"
+            density="comfortable"
+            autofocus
+            hide-details
+            @keyup.enter="confirmSaveGroup"
+          ></v-text-field>
+          <p class="text-caption text-medium-emphasis mt-2">
+            Speichert die {{ groupSaveTarget?.selectedIndices.length || 0 }} aktuell ausgewählten
+            Signale (nach Name, funktioniert auch bei anderen Dateien mit denselben Kanälen).
+          </p>
+          <v-alert v-if="groupSaveError" type="error" variant="tonal" density="compact" class="mt-2">
+            {{ groupSaveError }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="saveGroupDialog = false">Abbrechen</v-btn>
+          <v-btn color="primary" variant="flat" @click="confirmSaveGroup">Speichern</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Cloud file picker -->
     <v-dialog v-model="cloudDialog" max-width="560">
       <v-card>
@@ -231,13 +299,54 @@ import * as A from "../../utils/messtoolAnalysis.js";
 import { parseMesstoolCsv } from "../../utils/messtoolParser.js";
 import { downsample } from "../../utils/downsample.js";
 import { findBestOffset } from "../../utils/crossCorrelate.js";
+import * as groupsApi from "../../utils/messtoolSignalGroups.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import ChartCard from "./ChartCard.vue";
+import MtQuickNav from "./MtQuickNav.vue";
+
+defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
 
 const fileInput = ref(null);
 const errorMsg = ref("");
+const signalGroups = ref(groupsApi.listGroups());
+const saveGroupDialog = ref(false);
+const groupNameInput = ref("");
+const groupSaveError = ref("");
+const groupSaveTarget = ref(null);
+
+function openSaveGroupDialog(f) {
+  groupSaveTarget.value = f;
+  groupNameInput.value = "";
+  groupSaveError.value = "";
+  saveGroupDialog.value = true;
+}
+
+function confirmSaveGroup() {
+  const f = groupSaveTarget.value;
+  if (!f) return;
+  try {
+    const names = f.selectedIndices.map((i) => f.parsed.signals[i]?.name).filter(Boolean);
+    signalGroups.value = groupsApi.saveGroup(groupNameInput.value, names);
+    saveGroupDialog.value = false;
+  } catch (err) {
+    groupSaveError.value = err.message || "Konnte Gruppe nicht speichern.";
+  }
+}
+
+function applyGroup(f, group) {
+  const matched = groupsApi.resolveGroupIndices(group, f.parsed.signals);
+  if (!matched.length) {
+    errorMsg.value = `Keines der Signale aus "${group.name}" ist in "${f.name}" vorhanden.`;
+    return;
+  }
+  f.selectedIndices = matched;
+}
+
+function removeGroup(name) {
+  signalGroups.value = groupsApi.deleteGroup(name);
+}
 const alignConfidence = ref({}); // { [fileId]: score } from the last auto-align run
 const cloudDialog = ref(false);
 const cloudFiles = ref([]);

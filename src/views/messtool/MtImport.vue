@@ -112,6 +112,7 @@
           <v-card-text>
             <p class="text-caption text-medium-emphasis mb-3">
               Ohne Angabe wird wie bisher die ganze Datei mit automatischer Zeitachse geladen.
+              Lädst du mehrere Dateien gleichzeitig, gelten diese Einstellungen für alle.
             </p>
             <v-row dense>
               <v-col cols="12" sm="6">
@@ -626,7 +627,7 @@ async function uploadExtraFiles(files) {
     try {
       const buffer = await file.arrayBuffer();
       const text = decodeLatin1(buffer);
-      const result = await parseMesstoolCsv(text, {});
+      const result = await parseMesstoolCsv(text, buildParseOptions());
       const row = await mtStorage.uploadMessfile(file, result.meta);
       batchUpload.uploadedFiles.push({
         name: file.name,

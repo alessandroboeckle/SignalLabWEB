@@ -9,10 +9,19 @@
     <v-card v-if="!mtStore.parsed" variant="outlined" rounded="lg" class="pa-8 text-center">
       <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-file-question-outline</v-icon>
       <h3 class="text-h6 mb-2">Keine Messdatei geladen</h3>
-      <p class="text-medium-emphasis">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
+      <p class="text-medium-emphasis mb-4">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
+      <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-file-upload" @click="$emit('navigate', 'mt-import')">
+        Zu Import
+      </v-btn>
     </v-card>
 
     <template v-else>
+      <MtQuickNav
+        :items="[
+          { target: 'mt-sessions', label: 'Sessions (speichern)', icon: 'mdi-content-save-cog-outline' },
+        ]"
+        @navigate="$emit('navigate', $event)"
+      />
       <v-row>
         <v-col cols="12" md="4">
           <v-card variant="outlined" rounded="lg" class="pa-4 mb-4">
@@ -120,6 +129,9 @@ import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigat
 import * as A from "../../utils/messtoolAnalysis.js";
 import { downsample } from "../../utils/downsample.js";
 import ChartCard from "./ChartCard.vue";
+import MtQuickNav from "./MtQuickNav.vue";
+
+defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
 useSignalNavigationShortcuts(mtStore);

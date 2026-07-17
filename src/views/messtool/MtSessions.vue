@@ -21,6 +21,9 @@
           <v-alert type="info" variant="tonal" density="compact">
             Lade zuerst im Bereich <strong>Import</strong> eine Datei.
           </v-alert>
+          <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-file-upload" class="mt-3" @click="$emit('navigate', 'mt-import')">
+            Zu Import
+          </v-btn>
         </template>
         <template v-else-if="!mtStore.messfileStoragePath">
           <v-alert type="warning" variant="tonal" density="compact">

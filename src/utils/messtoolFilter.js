@@ -610,3 +610,46 @@ export function applyFilter(x, { order = 4, cutoffHz, cutoff2Hz, sampleRate, bty
 export function applyButterworth(x, opts) {
   return applyFilter(x, { ...opts, characteristic: "butterworth" });
 }
+
+// Evaluates the filter's own frequency response H(e^jw) — magnitude (dB)
+// and phase (degrees) across the spectrum from ~0 Hz to Nyquist — so you
+// can see exactly where the cutoff sits and how steep the roll-off is
+// *before* applying the filter to real data. Log-spaced frequency points,
+// standard for Bode-style plots.
+export function computeFrequencyResponse(sos, sampleRate, numPoints = 200) {
+  const nyquist = sampleRate / 2;
+  const fMin = Math.max(0.01, nyquist / 10000);
+  const freqs = [];
+  const magDb = [];
+  const phaseDeg = [];
+
+  for (let i = 0; i < numPoints; i++) {
+    const t = i / (numPoints - 1);
+    const f = fMin * Math.pow(nyquist / fMin, t); // log-spaced
+    const w = (2 * Math.PI * f) / sampleRate;
+    const cosw = Math.cos(w), sinw = Math.sin(w);
+    const cos2w = Math.cos(2 * w), sin2w = Math.sin(2 * w);
+
+    let reH = 1, imH = 0;
+    for (const [b0, b1, b2, a0, a1, a2] of sos) {
+      const numRe = b0 + b1 * cosw + b2 * cos2w;
+      const numIm = -b1 * sinw - b2 * sin2w;
+      const denRe = a0 + a1 * cosw + a2 * cos2w;
+      const denIm = -a1 * sinw - a2 * sin2w;
+      const denMagSq = denRe * denRe + denIm * denIm || 1e-30;
+      const sectionRe = (numRe * denRe + numIm * denIm) / denMagSq;
+      const sectionIm = (numIm * denRe - numRe * denIm) / denMagSq;
+      const newRe = reH * sectionRe - imH * sectionIm;
+      const newIm = reH * sectionIm + imH * sectionRe;
+      reH = newRe;
+      imH = newIm;
+    }
+
+    const mag = Math.sqrt(reH * reH + imH * imH);
+    freqs.push(f);
+    magDb.push(20 * Math.log10(Math.max(mag, 1e-12)));
+    phaseDeg.push((Math.atan2(imH, reH) * 180) / Math.PI);
+  }
+
+  return { freqs, magDb, phaseDeg };
+}

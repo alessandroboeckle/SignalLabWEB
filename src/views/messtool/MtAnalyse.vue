@@ -9,10 +9,20 @@
     <v-card v-if="!mtStore.parsed" variant="outlined" rounded="lg" class="pa-8 text-center">
       <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-file-question-outline</v-icon>
       <h3 class="text-h6 mb-2">Keine Messdatei geladen</h3>
-      <p class="text-medium-emphasis">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
+      <p class="text-medium-emphasis mb-4">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
+      <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-file-upload" @click="$emit('navigate', 'mt-import')">
+        Zu Import
+      </v-btn>
     </v-card>
 
     <template v-else>
+      <MtQuickNav
+        :items="[
+          { target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' },
+          { target: 'mt-filter', label: 'Filter', icon: 'mdi-tune-variant' },
+        ]"
+        @navigate="$emit('navigate', $event)"
+      />
       <v-row class="mb-2">
         <v-col cols="12" md="6">
           <v-autocomplete
@@ -35,6 +45,45 @@
             density="comfortable"
             prepend-inner-icon="mdi-window-maximize"
           ></v-select>
+        </v-col>
+      </v-row>
+
+      <v-row dense class="mb-2 align-center">
+        <v-col cols="6" sm="3">
+          <v-text-field
+            v-model.number="zeitbereichStart"
+            type="number"
+            label="Zeitbereich Start [s]"
+            placeholder="Anfang"
+            variant="outlined"
+            density="compact"
+            hide-details
+          ></v-text-field>
+        </v-col>
+        <v-col cols="6" sm="3">
+          <v-text-field
+            v-model.number="zeitbereichEnd"
+            type="number"
+            label="Zeitbereich Ende [s]"
+            placeholder="Ende"
+            variant="outlined"
+            density="compact"
+            hide-details
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6" class="d-flex align-center ga-2">
+          <v-btn
+            v-if="zeitbereichStart != null || zeitbereichEnd != null"
+            size="small"
+            variant="text"
+            prepend-icon="mdi-backup-restore"
+            @click="zeitbereichStart = null; zeitbereichEnd = null"
+          >
+            Ganze Datei
+          </v-btn>
+          <span v-if="zeitbereichStart != null || zeitbereichEnd != null" class="text-caption text-medium-emphasis">
+            Statistik/Ableitung/Integral/FFT gelten nur für diesen Zeitbereich
+          </span>
         </v-col>
       </v-row>
 
@@ -94,8 +143,12 @@ import { ref, computed } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
+import { findWindowBounds } from "../../utils/timeWindow.js";
 import ChartCard from "./ChartCard.vue";
+import MtQuickNav from "./MtQuickNav.vue";
 import { downsample } from "../../utils/downsample.js";
+
+defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
 useSignalNavigationShortcuts(mtStore);
@@ -163,9 +216,23 @@ const sig = computed(() =>
 );
 const time = computed(() => (mtStore.parsed ? mtStore.parsed.time : []));
 
+// Optional time window (seconds) restricting stats/derivative/integral/FFT
+// to a slice of the recording instead of always the whole file — e.g.
+// "just the braking event between t=10s and t=25s".
+const zeitbereichStart = ref(null);
+const zeitbereichEnd = ref(null);
+
+// Slices a signal's data + the shared time array down to the current
+// Zeitbereich window (or returns them unchanged if no window is set).
+function windowedYT(s, t) {
+  const [i0, i1] = findWindowBounds(t, zeitbereichStart.value, zeitbereichEnd.value);
+  return { y: s.data.slice(i0, i1).map((v) => (v == null ? 0 : v)), t: t.slice(i0, i1) };
+}
+
 const stats = computed(() => {
   if (!sig.value) return [];
-  const y = sig.value.data.filter((v) => v != null && Number.isFinite(v));
+  const [i0, i1] = findWindowBounds(time.value, zeitbereichStart.value, zeitbereichEnd.value);
+  const y = sig.value.data.slice(i0, i1).filter((v) => v != null && Number.isFinite(v));
   const mm = A.minMax(y);
   const u = sig.value.unit || "";
   const f = (v) => (v == null ? "-" : v.toFixed(3));
@@ -189,12 +256,15 @@ function down(arr, xs, mode) {
 
 const derivConfig = computed(() => {
   const s = sig.value, t = time.value;
+  // read here (not just inside the returned function below) so changing
+  // the Zeitbereich actually triggers ChartCard to rebuild
+  void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
-    const y = s.data.map((v) => (v == null ? 0 : v));
+    const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
-    const deriv = A.derivative(y, t);
-    const sD = down(y, t, peakMode), dD = down(deriv, t, peakMode);
+    const deriv = A.derivative(y, wt);
+    const sD = down(y, wt, peakMode), dD = down(deriv, wt, peakMode);
     return {
       type: "line",
       data: {
@@ -218,12 +288,13 @@ const derivConfig = computed(() => {
 
 const integralConfig = computed(() => {
   const s = sig.value, t = time.value;
+  void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
-    const y = s.data.map((v) => (v == null ? 0 : v));
+    const { y, t: wt2 } = windowedYT(s, t);
     const unit = s.unit || "";
-    const integ = A.integral(y, t);
-    const iD = down(integ, t, peakMode);
+    const integ = A.integral(y, wt2);
+    const iD = down(integ, wt2, peakMode);
     return {
       type: "line",
       data: {
@@ -243,11 +314,12 @@ const integralConfig = computed(() => {
 
 const fftConfig = computed(() => {
   const s = sig.value, t = time.value, wt = windowType.value;
+  void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
-    const y = s.data.map((v) => (v == null ? 0 : v));
+    const { y, t: wt3 } = windowedYT(s, t);
     const unit = s.unit || "";
-    const { freq, amp } = A.fft(y, t, { windowType: wt, normalize: true });
+    const { freq, amp } = A.fft(y, wt3, { windowType: wt, normalize: true });
     const fD = down(amp, freq, peakMode);
     return {
       type: "line",
