@@ -2,30 +2,33 @@
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h2 class="text-h5 font-weight-bold mb-4">Settings</h2>
+        <h2 class="text-h5 font-weight-bold mb-1">Einstellungen</h2>
+        <p class="text-medium-emphasis mb-4">
+          Gilt für die ganze App, ausser wo eigens als Generator-Tool-spezifisch markiert.
+        </p>
       </v-col>
     </v-row>
 
     <v-row>
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Appearance</v-card-title>
+          <v-card-title>Darstellung</v-card-title>
           <v-card-text>
-            <!-- Theme Selection -->
-            <div class="mb-6">
-              <label class="text-caption font-weight-500 mb-2 d-block"
-                >Theme</label
-              >
+            <div class="mb-2">
+              <label class="text-caption font-weight-500 mb-2 d-block">Theme</label>
               <v-btn-toggle v-model="settings.theme" group class="w-100">
                 <v-btn value="light" class="flex-grow-1">
-                  <v-icon left small>mdi-white-balance-sunny</v-icon>
-                  Light
+                  <v-icon start size="small">mdi-white-balance-sunny</v-icon>
+                  Hell
                 </v-btn>
                 <v-btn value="dark" class="flex-grow-1">
-                  <v-icon left small>mdi-moon-waning-crescent</v-icon>
-                  Dark
+                  <v-icon start size="small">mdi-moon-waning-crescent</v-icon>
+                  Dunkel
                 </v-btn>
               </v-btn-toggle>
+              <p class="text-caption text-medium-emphasis mt-2">
+                Dasselbe Theme wie über das Symbol oben in der Kopfzeile — beide steuern denselben Schalter.
+              </p>
             </div>
           </v-card-text>
         </v-card>
@@ -33,31 +36,35 @@
 
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Signal Processing</v-card-title>
+          <v-card-title class="d-flex align-center ga-2">
+            Signalverarbeitung
+            <v-chip size="x-small" variant="tonal" color="secondary">Generator-Tool</v-chip>
+          </v-card-title>
           <v-card-text>
-            <!-- Auto FFT -->
             <div class="mb-4">
               <v-checkbox
                 v-model="settings.autoFFT"
-                label="Enable FFT by default"
+                label="FFT standardmässig aktivieren"
+                density="comfortable"
+                hide-details
               ></v-checkbox>
             </div>
 
-            <!-- Window Function -->
             <v-select
               v-model="settings.windowFunction"
-              label="Default Window Function"
+              label="Standard-Fensterfunktion"
               :items="windowFunctions"
-              outlined
-              dense
+              variant="outlined"
+              density="comfortable"
               class="mb-4"
             ></v-select>
 
-            <!-- Grid -->
-            <div class="mb-4">
+            <div class="mb-2">
               <v-checkbox
                 v-model="settings.gridEnabled"
-                label="Show grid in plots"
+                label="Gitter in Diagrammen anzeigen"
+                density="comfortable"
+                hide-details
               ></v-checkbox>
             </div>
           </v-card-text>
@@ -68,17 +75,24 @@
     <v-row class="mt-4">
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Storage & Data</v-card-title>
+          <v-card-title class="d-flex align-center ga-2">
+            Speicher & Daten
+            <v-chip size="x-small" variant="tonal" color="secondary">Generator-Tool</v-chip>
+          </v-card-title>
           <v-card-text>
+            <p class="text-caption text-medium-emphasis mb-3">
+              Betrifft nur die lokal im Browser gespeicherten Generator-Sessions und -Signale —
+              nicht die Messtool-Dateien und -Sessions in der Cloud.
+            </p>
             <div class="mb-4">
-              <div class="text-caption text-disabled">Storage Usage</div>
-              <div class="text-body2 mb-2">{{ storageInfo.storageUsage }}</div>
+              <div class="text-caption text-disabled">Speichernutzung</div>
+              <div class="text-body-2 mb-2">{{ storageInfo.storageUsage }}</div>
               <div class="text-caption mb-3">
-                {{ storageInfo.sessionCount }} sessions,
-                {{ storageInfo.signalCount }} signals
+                {{ storageInfo.sessionCount }} Sessions,
+                {{ storageInfo.signalCount }} Signale
               </div>
               <v-progress-linear
-                :value="storagePercentage"
+                :model-value="storagePercentage"
                 :color="storageColor"
                 class="mb-4"
               ></v-progress-linear>
@@ -88,20 +102,20 @@
               block
               color="warning"
               class="mb-2"
-              @click="exportAllData"
               prepend-icon="mdi-download"
+              @click="exportAllData"
             >
-              Export All Data
+              Generator-Daten exportieren
             </v-btn>
 
             <v-btn
               block
               color="error"
               variant="outlined"
-              @click="showClearDialog = true"
               prepend-icon="mdi-delete"
+              @click="showClearDialog = true"
             >
-              Clear All Data
+              Generator-Daten löschen
             </v-btn>
           </v-card-text>
         </v-card>
@@ -109,26 +123,26 @@
 
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>About</v-card-title>
+          <v-card-title>Über</v-card-title>
           <v-card-text>
             <div class="mb-4">
-              <div class="text-caption text-disabled">Application</div>
-              <div class="text-body2">Signal Lab v1.0</div>
+              <div class="text-caption text-disabled">Anwendung</div>
+              <div class="text-body-2">Signal Lab</div>
             </div>
 
             <div class="mb-4">
               <div class="text-caption text-disabled">Version</div>
-              <div class="text-body2">1.0.0</div>
+              <div class="text-body-2">1.0.0</div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption text-disabled">Last Updated</div>
-              <div class="text-body2">{{ currentDate }}</div>
+              <div class="text-caption text-disabled">Stand</div>
+              <div class="text-body-2">{{ currentDate }}</div>
             </div>
 
             <div class="mb-4">
-              <div class="text-caption text-disabled">Built with</div>
-              <div class="text-caption">Vue 3 • Vuetify • Chart.js</div>
+              <div class="text-caption text-disabled">Gebaut mit</div>
+              <div class="text-caption">Vue 3 • Vuetify • Chart.js • Supabase</div>
             </div>
           </v-card-text>
         </v-card>
@@ -138,21 +152,46 @@
     <v-row class="mt-4">
       <v-col cols="12">
         <v-card class="elevation-2">
-          <v-card-title>Keyboard Shortcuts</v-card-title>
+          <v-card-title>Tastatur-Kürzel</v-card-title>
           <v-card-text>
-            <v-table>
+            <v-table density="comfortable">
+              <thead>
+                <tr>
+                  <th>Kürzel</th>
+                  <th>Wirkung</th>
+                  <th>Gilt auf</th>
+                </tr>
+              </thead>
               <tbody>
                 <tr>
-                  <td><kbd>Ctrl/Cmd</kbd> + <kbd>S</kbd></td>
-                  <td>Save signal</td>
+                  <td><kbd>↑</kbd> / <kbd>↓</kbd></td>
+                  <td>Durchs Signal blättern</td>
+                  <td>Messtool: Analyse, Filter, Verarbeitung, Export</td>
                 </tr>
                 <tr>
-                  <td><kbd>Ctrl/Cmd</kbd> + <kbd>E</kbd></td>
-                  <td>Export signal</td>
+                  <td><kbd>Strg</kbd> + <kbd>Z</kbd></td>
+                  <td>Verarbeitungsschritt rückgängig</td>
+                  <td>Messtool: Verarbeitung</td>
                 </tr>
                 <tr>
-                  <td><kbd>Ctrl/Cmd</kbd> + <kbd>N</kbd></td>
-                  <td>New session</td>
+                  <td><kbd>Strg</kbd> + <kbd>Y</kbd></td>
+                  <td>Verarbeitungsschritt wiederholen</td>
+                  <td>Messtool: Verarbeitung</td>
+                </tr>
+                <tr>
+                  <td><kbd>Umschalt</kbd> + Ziehen</td>
+                  <td>Chart verschieben (pan)</td>
+                  <td>Messtool: alle Diagramme</td>
+                </tr>
+                <tr>
+                  <td>Mausrad</td>
+                  <td>Chart zoomen</td>
+                  <td>Messtool: alle Diagramme</td>
+                </tr>
+                <tr>
+                  <td>Rechteck ziehen</td>
+                  <td>In Bereich hineinzoomen</td>
+                  <td>Messtool: alle Diagramme</td>
                 </tr>
               </tbody>
             </v-table>
@@ -162,23 +201,24 @@
     </v-row>
 
     <!-- Clear Data Confirmation Dialog -->
-    <v-dialog v-model="showClearDialog" max-width="400">
+    <v-dialog v-model="showClearDialog" max-width="420">
       <v-card>
-        <v-card-title>Clear All Data?</v-card-title>
+        <v-card-title>Generator-Daten löschen?</v-card-title>
         <v-card-text>
-          This will permanently delete all sessions, signals, and settings. This
-          action cannot be undone.
+          Löscht dauerhaft alle lokal gespeicherten Generator-Sessions und -Signale. Das kann
+          nicht rückgängig gemacht werden. Deine Messtool-Dateien und -Sessions in der Cloud
+          sind davon nicht betroffen.
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn @click="showClearDialog = false">Cancel</v-btn>
-          <v-btn color="error" @click="clearAllData">Clear All</v-btn>
+          <v-btn @click="showClearDialog = false">Abbrechen</v-btn>
+          <v-btn color="error" @click="clearAllData">Löschen</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <!-- Success Snackbar -->
-    <v-snackbar v-model="showSnackbar" color="success" :timeout="2000">
+    <v-snackbar v-model="showSnackbar" color="success" :timeout="2500">
       {{ snackbarMessage }}
     </v-snackbar>
   </v-container>
@@ -206,13 +246,9 @@ const settings = reactive({
 
 const windowFunctions = ["none", "hann", "hamming", "blackman"];
 
-const currentDate = computed(() => {
-  return new Date().toLocaleDateString();
-});
+const currentDate = computed(() => new Date().toLocaleDateString("de-DE"));
 
-const storageInfo = computed(() => {
-  return storage.getStorageInfo();
-});
+const storageInfo = computed(() => storage.getStorageInfo());
 
 const storagePercentage = computed(() => {
   // Assume 5MB limit
@@ -245,14 +281,14 @@ function exportAllData() {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 
-  snackbarMessage.value = "Data exported successfully!";
+  snackbarMessage.value = "Generator-Daten exportiert.";
   showSnackbar.value = true;
 }
 
 async function clearAllData() {
   try {
     await store.clearAllData();
-    snackbarMessage.value = "All data cleared!";
+    snackbarMessage.value = "Generator-Daten gelöscht.";
   } catch (e) {
     snackbarMessage.value = "Fehler: " + (e.message || e);
   }
@@ -269,26 +305,19 @@ watch(
   },
 );
 
-// Watch for other settings changes
 watch(
   () => settings.autoFFT,
-  (val) => {
-    store.updateSettings({ autoFFT: val });
-  },
+  (val) => store.updateSettings({ autoFFT: val }),
 );
 
 watch(
   () => settings.windowFunction,
-  (val) => {
-    store.updateSettings({ windowFunction: val });
-  },
+  (val) => store.updateSettings({ windowFunction: val }),
 );
 
 watch(
   () => settings.gridEnabled,
-  (val) => {
-    store.updateSettings({ gridEnabled: val });
-  },
+  (val) => store.updateSettings({ gridEnabled: val }),
 );
 </script>
 
