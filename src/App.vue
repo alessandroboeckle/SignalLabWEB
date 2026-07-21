@@ -47,6 +47,11 @@
           </v-tooltip>
         </v-btn>
 
+        <v-btn icon variant="text" @click="selectTab('settings')">
+          <v-icon color="white">mdi-cog</v-icon>
+          <v-tooltip activator="parent" location="bottom">Settings</v-tooltip>
+        </v-btn>
+
         <v-btn icon variant="text" @click="showAbout = true">
           <v-icon color="white">mdi-information-outline</v-icon>
           <v-tooltip activator="parent" location="bottom">About</v-tooltip>
@@ -355,7 +360,6 @@ const generierToolItems = [
   { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
   { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
   { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
-  { value: "settings", label: "Settings", icon: "mdi-cog" },
 ];
 
 const messtoolItems = [
