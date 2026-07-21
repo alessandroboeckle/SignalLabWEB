@@ -438,6 +438,15 @@ watch(
   font-size: 18px;
 }
 
+/* In rail mode the drawer narrows to an icon-only strip — the 20px
+   left-padding above is meant for the full-width view and pushes
+   sub-item icons off-center once railed, unlike the top-level items.
+   Reset it here so sub-items line up the same centered way. */
+:deep(.v-navigation-drawer--rail) .nav-sub {
+  padding-inline-start: 0 !important;
+  justify-content: center;
+}
+
 /* Group activator (e.g. "Messtool") row itself — same left edge as the
    top-level items, just the expand chevron sits at the far right. */
 :deep(.v-list-group__items) {
