@@ -1,225 +1,174 @@
-# Signal Lab - Web Version
+# Signal Lab
 
-A modern web-based signal processing and analysis tool built with Vue 3 and Vuetify.
+Eine Web-App mit zwei Werkzeugen: dem **Messtool** für die Analyse von LOGDATA-Messdateien
+(Web-Port des ursprünglichen Python/PySide-Desktoptools), und dem **Generator-Tool** zum
+Erzeugen und Untersuchen eigener Testsignale.
 
-## 🌟 Features
+## 🌟 Funktionen
 
-- **Signal Generation**: Create various waveforms
-  - Sine waves
-  - Cosine waves
-  - Square waves
-  - Sawtooth waves
-  - Triangle waves
+### Messtool
 
-- **Signal Analysis**
-  - FFT (Fast Fourier Transform) analysis
-  - RMS, Peak, and Peak-to-Peak calculations
-  - Frequency domain visualization
-  - Window functions (Hann window)
+- **Import** — LOGDATA-CSV-Dateien (ISO-8859-1, semikolon-getrennt) einzeln oder als Batch
+  laden, mit Zeilen-/Spaltenbereich, Samplefrequenz-Override, Fenstertyp, Qualitätscheck
+  (leere/konstante Signale, Zeitlücken-Erkennung)
+- **Filter** — Butterworth, Chebyshev I, Bessel, Elliptic (Tiefpass/Hochpass/Bandpass,
+  Ordnung 1–10), gegen SciPy verifiziert (zero-phase `sosfiltfilt`), inkl. Frequenzgang/
+  Bode-Plot
+- **Analyse** — Statistik (Mittel/RMS/Std/Varianz/Min/Max), Ableitung, Integral, FFT
+  (Hann/Hamming/Blackman/Rechteck), optionale Zeitbereich-Einschränkung, Mittelwert-/
+  RMS-Referenzlinien, ±1σ-Band
+- **Verarbeitung** — verkettbare Operationen (Glätten, Detrend, Normalisieren, Offset
+  entfernen) mit Undo/Redo
+- **Anzeige** (früher "Vergleich") — mehrere Dateien/Signale überlagert oder gestapelt
+  darstellen, automatische Zeitausrichtung per Kreuzkorrelation, zweite Y-Achse,
+  Zeit/Uhrzeit-Achsenumschaltung, Signal-Gruppen (benannte, wiederverwendbare Auswahlen)
+- **Export** — PNG, SVG, PDF-Report (einzeln oder als Batch-ZIP), Excel (alle Signale
+  einer Datei in einer Arbeitsmappe)
+- **Sessions** — Arbeitsstand (Datei + Verarbeitung + Filter + Vergleichs-Zusammenstellung)
+  in der Cloud speichern, laden, teilen
+- **Charts** — Zoom/Pan, synchronisierter Zoom über mehrere Diagramme, Cursor-Messung,
+  Marker/Notizen, Ausreisser-Markierung (>3σ), Abspiel-Modus mit Live-Wertanzeige,
+  logarithmische Y-Achse
 
-- **Signal Tools**
-  - Signal comparison and visualization
-  - Calculator for signal parameters
-  - Frequency, period, and energy calculations
-  - Nyquist theorem verification
+### Generator-Tool
 
-- **Session Management**
-  - Save and manage multiple sessions
-  - Store signals within sessions
-  - Session notes and metadata
+- Signalgenerierung (Sinus, Cosinus, Rechteck, Sägezahn, Dreieck)
+- FFT-Analyse, RMS-/Spitzenwert-Berechnung, Fensterfunktionen
+- Signal-Vergleich und Rechner (Frequenz, Abtasttheorem, Energie, FFT-Auflösung)
+- Sessions mit Notizen, Export als JSON/CSV
 
-- **Data Management**
-  - Export signals as JSON or CSV
-  - Import/Export entire sessions
-  - Browser-based storage (localStorage)
+## 🚀 Erste Schritte
 
-- **Modern UI**
-  - Light and dark themes
-  - Responsive design
-  - Real-time signal visualization with Chart.js
-  - Clean and intuitive interface
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 16+ and npm
+### Voraussetzungen
+- Node.js 18+ und npm
+- Ein Supabase-Projekt (Auth, Postgres, Storage)
 
 ### Installation
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/signal-lab.git
-cd signal-lab
-```
-
-2. Install dependencies:
-```bash
+git clone <repo-url>
+cd SignalLabWEB
 npm install
 ```
 
-3. Start the development server:
+### Supabase einrichten
+
+Die App braucht ein paar Tabellen/Policies, die noch nicht Teil des Codes sind:
+
+1. Führe die SQL-Skripte aus `supabase/` im Supabase SQL-Editor aus, in dieser Reihenfolge:
+   - `messtool_sessions.sql`
+   - `messtool_sessions_compare.sql`
+2. Supabase-URL und -Key eintragen — entweder in einer `.env` (siehe `.env.example`,
+   empfohlen) oder direkt als Fallback-Wert in `src/lib/supabase.js`.
+3. Lege in der `profiles`-Tabelle einen Nutzer mit `approved = true` an (neue Accounts
+   sind bis zur Freigabe gesperrt; ein Admin kann das auch über den Admin-Bereich in
+   der App erledigen).
+
+### Entwicklung
+
 ```bash
 npm run dev
 ```
 
-4. Open your browser and navigate to `http://localhost:3000`
+Öffnet auf `http://localhost:3000`.
 
-## 🏗️ Build for Production
+### Tests
+
+```bash
+npm test          # einmal durchlaufen lassen
+npm run test:watch  # im Watch-Modus
+```
+
+86 Tests decken die Kern-Utilities ab (Parser, Filter, Verarbeitungsketten, Analyse,
+Downsampling, Kreuzkorrelation, Ausreisser-Erkennung, Zeitfenster, Signal-Gruppen,
+Excel-/SVG-Export, Zoom-Synchronisation, Test-Generator).
+
+### Production-Build
 
 ```bash
 npm run build
 ```
 
-This creates an optimized production build in the `dist` folder.
+Erzeugt einen optimierten Build in `dist/`. Schwere Abhängigkeiten (`jspdf`, `jszip`,
+`xlsx`) werden dynamisch nachgeladen, nicht ins Haupt-Bundle gepackt — sie werden nur
+geholt, wenn die jeweilige Export-Funktion tatsächlich benutzt wird.
 
-## 🌐 Deployment on GitHub Pages
+## 🌐 Deployment auf GitHub Pages
 
-This project is configured for automatic deployment to GitHub Pages using GitHub Actions.
+Über GitHub Actions eingerichtet:
 
-### Setup Instructions:
+1. Code auf den `main`-Branch pushen
+2. In den Repository-Einstellungen unter *Pages* als Quelle "GitHub Actions" wählen
+3. Der Workflow baut und deployt automatisch bei jedem Push auf `main`
 
-1. Fork or create your repository on GitHub
-2. Push the code to the main branch
-3. Enable GitHub Pages in your repository settings:
-   - Go to Settings → Pages
-   - Select "GitHub Actions" as the source
-4. The workflow will automatically build and deploy on every push to main
+Erreichbar unter: `https://<username>.github.io/SignalLabWEB/`
 
-The site will be available at: `https://yourusername.github.io/signal-lab/`
+Die Basis-URL lässt sich in `vite.config.js` anpassen (`base: '/SignalLabWEB/'`).
 
-To change the base URL, edit `vite.config.js`:
-```javascript
-base: process.env.NODE_ENV === 'production' ? '/signal-lab/' : '/',
-```
-
-## 📁 Project Structure
+## 📁 Projektstruktur
 
 ```
-signal-lab-vue/
+SignalLabWEB/
 ├── src/
-│   ├── components/       # Reusable Vue components
-│   ├── views/           # Tab view components
-│   ├── stores/          # Pinia state management
-│   ├── utils/           # Signal processing utilities
-│   ├── assets/          # Static assets
-│   ├── App.vue          # Root component
-│   └── main.js          # Application entry point
-├── public/              # Static files
-├── index.html           # HTML template
-├── vite.config.js       # Vite configuration
-├── package.json         # Project dependencies
-└── .github/workflows/   # GitHub Actions workflows
+│   ├── views/
+│   │   ├── messtool/         # Import, Filter, Analyse, Verarbeitung,
+│   │   │                     # Anzeige, Export, Sessions, ChartCard
+│   │   ├── OverviewTab.vue, SignalCreationTab.vue,      # Generator-Tool
+│   │   ├── ComparisonTab.vue, CalculatorTab.vue,
+│   │   ├── SessionManagementTab.vue, SettingsTab.vue,
+│   │   ├── AdminTab.vue, LoginScreen.vue, WaitingScreen.vue
+│   ├── stores/                # Pinia: messtoolStore, signalStore, authStore
+│   ├── utils/                 # Parser, Filter, Verarbeitung, Analyse,
+│   │   │                      # Downsampling, Kreuzkorrelation, Excel-/SVG-Export, ...
+│   │   └── __tests__/         # Vitest-Tests für die utils/
+│   ├── composables/           # useSignalNavigation, useChartZoomSync, useToast
+│   ├── lib/                   # Supabase-Client
+│   ├── styles/                # global.css
+│   ├── App.vue                # Navigation, Layout, Theme
+│   └── main.js
+├── supabase/                  # SQL-Migrationen (in der Reihenfolge ausführen)
+├── vite.config.js
+└── package.json
 ```
 
-## 📊 Signal Processing
+## 🔧 Technologien
 
-### Supported Waveforms
-- **Sine**: `y = A * sin(2πft + φ)`
-- **Cosine**: `y = A * cos(2πft + φ)`
-- **Square**: Rectangular wave
-- **Sawtooth**: Linear ramp wave
-- **Triangle**: Triangular wave
+- **Vue 3** + **Vuetify 3** — UI
+- **Vite** — Build-Tool
+- **Vitest** — Tests
+- **Pinia** — State Management
+- **Chart.js** + **chartjs-plugin-zoom** — Diagramme
+- **Supabase** — Auth, Postgres, Storage
+- **jsPDF**, **JSZip**, **xlsx (SheetJS)** — Export (alle drei lazy-loaded)
 
-### Signal Parameters
-- **Frequency**: 0.1 - 100 Hz (adjustable)
-- **Amplitude**: 0.1 - 100 (adjustable)
-- **Phase**: 0 - 360 degrees (adjustable)
-- **Duration**: 0.1 - 10 seconds (adjustable)
-- **Sampling Rate**: 100 - 44100 Hz
+## 💾 Datenhaltung
 
-## 🔧 Technologies
+- **Messtool**: Dateien und Sessions liegen in Supabase (Storage-Bucket + Postgres-
+  Tabellen), geräteübergreifend und optional mit Kollegen teilbar. Signal-Gruppen
+  liegen lokal im Browser (localStorage).
+- **Generator-Tool**: Sessions und Signale liegen ebenfalls in Supabase; die
+  "Speicher & Daten"-Verwaltung in den Einstellungen betrifft nur diesen Teil.
 
-- **Vue 3**: Modern JavaScript framework
-- **Vuetify 3**: Material Design component library
-- **Vite**: Lightning-fast build tool
-- **Chart.js**: Data visualization
-- **Pinia**: State management
-- **FFT.js**: Signal processing
+## 🐛 Fehlerbehebung
 
-## 📝 Usage Tips
+**Seite lädt nicht richtig**
+- Browser-Cache leeren, Konsole auf Fehler prüfen (F12)
 
-### Signal Creation
-1. Navigate to the "Signal Generator" tab
-2. Adjust parameters using sliders or input fields
-3. View real-time preview in the time domain
-4. Enable FFT for frequency domain analysis
-5. Save the signal to your current session
+**Kein Zugriff / "Warten auf Freigabe"**
+- Neue Accounts müssen von einem Admin freigeschaltet werden (`profiles.approved`)
 
-### Analysis
-1. Use the "Calculator" tab for quick calculations
-2. Compare signals using the "Comparison" tab
-3. View signal statistics in real-time
+**Sessions/Export funktionieren nicht**
+- Prüfen, ob die SQL-Migrationen aus `supabase/` ausgeführt wurden
 
-### Session Management
-1. Create new sessions to organize signals
-2. Add notes to sessions
-3. Export data for backup or sharing
+**FFT sieht komisch aus**
+- Abtastrate sollte ≥ 2× der höchsten interessanten Signalfrequenz sein (Nyquist)
+- Ein Fenster (Hann/Hamming/Blackman) reduziert meist Leck-Effekte
 
-## 💾 Data Storage
+## 📄 Lizenz
 
-All data is stored locally in your browser using localStorage:
-- Sessions are stored with metadata and notes
-- Signals are stored with time and amplitude data
-- Settings are remembered between sessions
-
-**Note**: Data is specific to each browser/device. Use the export feature to backup data.
-
-## 🎨 Customization
-
-### Theme Configuration
-Edit `src/main.js` to customize colors:
-```javascript
-colors: {
-  primary: '#2563EB',
-  secondary: '#64748B',
-  // ... more colors
-}
-```
-
-### Signal Parameters
-Adjust default values in `src/views/SignalCreationTab.vue`:
-```javascript
-const params = ref({
-  frequency: 5,      // Default frequency in Hz
-  amplitude: 10,     // Default amplitude
-  // ... more parameters
-})
-```
-
-## 🐛 Troubleshooting
-
-### Page not displaying correctly
-- Clear browser cache and localStorage
-- Check console for errors (F12 → Console)
-- Ensure JavaScript is enabled
-
-### Data not saving
-- Check browser's localStorage quota
-- Try exporting and clearing data
-- Use a different browser
-
-### FFT not computing correctly
-- Ensure sampling rate ≥ 2 × signal frequency (Nyquist theorem)
-- Try enabling window function for better results
-
-## 📄 License
-
-MIT License - Feel free to use this project for personal or commercial purposes.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📧 Support
-
-For issues, feature requests, or questions, please open an issue on GitHub.
-
-## 🙏 Acknowledgments
-
-- Vue 3 and Vuetify teams for excellent frameworks
-- Chart.js for visualization
-- Original Signal Lab Python version for inspiration
+MIT
 
 ---
 
-Built with ❤️ using Vue 3 and Vuetify
+Ursprüngliches Python/PySide-Desktoptool als Vorlage; Web-Port und Weiterentwicklung
+mit Vue 3 und Vuetify.
