@@ -109,11 +109,24 @@ export function loadSignal(signalId) {
 }
 
 export function getStorageInfo() {
+  let byteSize = 0;
+  try {
+    byteSize = new Blob([JSON.stringify({ sessions: _sessions, signals: _signals })]).size;
+  } catch {
+    byteSize = 0;
+  }
   return {
     sessionCount: _sessions.length,
     signalCount: _signals.length,
-    storageUsage: `${_sessions.length + _signals.length} records`,
+    byteSize,
+    storageUsage: formatByteSize(byteSize),
   };
+}
+
+function formatByteSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 // ---- async writes (Supabase + cache) ----

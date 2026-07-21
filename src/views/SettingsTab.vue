@@ -1,201 +1,234 @@
 <template>
-  <v-container fluid class="pa-4">
-    <v-row>
-      <v-col cols="12">
-        <h2 class="text-h5 font-weight-bold mb-1">Einstellungen</h2>
-        <p class="text-medium-emphasis mb-4">
-          Gilt für die ganze App, ausser wo eigens als Generator-Tool-spezifisch markiert.
-        </p>
-      </v-col>
-    </v-row>
+  <v-container fluid class="pa-4 pa-md-6 settings-page">
+    <div class="d-flex align-center ga-3 mb-1">
+      <v-icon size="28" color="primary">mdi-cog</v-icon>
+      <h2 class="text-h5 font-weight-bold">Einstellungen</h2>
+    </div>
+    <p class="text-medium-emphasis mb-6">
+      Gilt für die ganze App, ausser wo eigens als <v-chip size="x-small" variant="tonal" color="secondary">Generator-Tool</v-chip> markiert.
+    </p>
 
     <v-row>
+      <!-- Account -->
       <v-col cols="12" md="6">
-        <v-card class="elevation-2">
-          <v-card-title>Darstellung</v-card-title>
+        <v-card class="settings-card" variant="outlined" rounded="lg">
+          <v-card-title class="d-flex align-center ga-2">
+            <v-icon size="20">mdi-account-circle-outline</v-icon>
+            Account
+          </v-card-title>
+          <v-divider></v-divider>
           <v-card-text>
-            <div class="mb-2">
-              <label class="text-caption font-weight-500 mb-2 d-block">Theme</label>
-              <v-btn-toggle v-model="settings.theme" group class="w-100">
-                <v-btn value="light" class="flex-grow-1">
-                  <v-icon start size="small">mdi-white-balance-sunny</v-icon>
-                  Hell
-                </v-btn>
-                <v-btn value="dark" class="flex-grow-1">
-                  <v-icon start size="small">mdi-moon-waning-crescent</v-icon>
-                  Dunkel
-                </v-btn>
-              </v-btn-toggle>
-              <p class="text-caption text-medium-emphasis mt-2">
-                Dasselbe Theme wie über das Symbol oben in der Kopfzeile — beide steuern denselben Schalter.
-              </p>
+            <div class="d-flex align-center ga-3 mb-4">
+              <v-avatar color="primary" size="44">
+                <span class="text-h6">{{ (auth.user?.email || "?")[0].toUpperCase() }}</span>
+              </v-avatar>
+              <div>
+                <div class="font-weight-medium">{{ auth.user?.email }}</div>
+                <v-chip v-if="auth.isAdmin" size="x-small" color="primary" variant="tonal" class="mt-1">
+                  Admin
+                </v-chip>
+              </div>
             </div>
+            <v-btn variant="outlined" color="error" prepend-icon="mdi-logout" @click="auth.signOut()">
+              Abmelden
+            </v-btn>
           </v-card-text>
         </v-card>
       </v-col>
 
+      <!-- Darstellung -->
       <v-col cols="12" md="6">
-        <v-card class="elevation-2">
+        <v-card class="settings-card" variant="outlined" rounded="lg">
           <v-card-title class="d-flex align-center ga-2">
+            <v-icon size="20">mdi-palette-outline</v-icon>
+            Darstellung
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text>
+            <label class="text-caption font-weight-500 mb-2 d-block">Theme</label>
+            <v-btn-toggle v-model="settings.theme" color="primary" mandatory class="w-100" divided>
+              <v-btn value="light" class="flex-grow-1">
+                <v-icon start size="small">mdi-white-balance-sunny</v-icon>
+                Hell
+              </v-btn>
+              <v-btn value="dark" class="flex-grow-1">
+                <v-icon start size="small">mdi-moon-waning-crescent</v-icon>
+                Dunkel
+              </v-btn>
+            </v-btn-toggle>
+            <p class="text-caption text-medium-emphasis mt-3 mb-0">
+              Dasselbe Theme wie über das Symbol oben in der Kopfzeile — beide steuern denselben Schalter.
+            </p>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- Messtool: Signal-Gruppen -->
+      <v-col cols="12" md="6">
+        <v-card class="settings-card" variant="outlined" rounded="lg">
+          <v-card-title class="d-flex align-center ga-2">
+            <v-icon size="20">mdi-folder-star-outline</v-icon>
+            Signal-Gruppen
+            <v-chip size="x-small" variant="tonal" color="primary">Messtool</v-chip>
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text>
+            <p class="text-caption text-medium-emphasis mb-3">
+              Gespeicherte Signal-Auswahlen aus der Anzeige-Seite (z.B. "alle 4 Radsatz-Temperaturen").
+              Hier zentral einsehen und aufräumen.
+            </p>
+            <v-list v-if="signalGroups.length" density="compact" class="pa-0">
+              <v-list-item
+                v-for="g in signalGroups"
+                :key="g.name"
+                :title="g.name"
+                :subtitle="`${g.signalNames.length} Signal(e)`"
+              >
+                <template #append>
+                  <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${g.name} löschen`" @click="removeGroup(g.name)"></v-btn>
+                </template>
+              </v-list-item>
+            </v-list>
+            <p v-else class="text-medium-emphasis text-center pa-4 mb-0">
+              Noch keine Signal-Gruppen gespeichert.
+            </p>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- Signalverarbeitung (Generator-Tool) -->
+      <v-col cols="12" md="6">
+        <v-card class="settings-card" variant="outlined" rounded="lg">
+          <v-card-title class="d-flex align-center ga-2">
+            <v-icon size="20">mdi-sine-wave</v-icon>
             Signalverarbeitung
             <v-chip size="x-small" variant="tonal" color="secondary">Generator-Tool</v-chip>
           </v-card-title>
+          <v-divider></v-divider>
           <v-card-text>
-            <div class="mb-4">
-              <v-checkbox
-                v-model="settings.autoFFT"
-                label="FFT standardmässig aktivieren"
-                density="comfortable"
-                hide-details
-              ></v-checkbox>
-            </div>
+            <v-checkbox
+              v-model="settings.autoFFT"
+              label="FFT standardmässig aktivieren"
+              density="comfortable"
+              hide-details
+              class="mb-2"
+            ></v-checkbox>
 
             <v-select
               v-model="settings.windowFunction"
               label="Standard-Fensterfunktion"
-              :items="windowFunctions"
+              :items="windowFunctionOptions"
               variant="outlined"
               density="comfortable"
-              class="mb-4"
+              class="mb-2 mt-2"
             ></v-select>
 
-            <div class="mb-2">
-              <v-checkbox
-                v-model="settings.gridEnabled"
-                label="Gitter in Diagrammen anzeigen"
-                density="comfortable"
-                hide-details
-              ></v-checkbox>
-            </div>
+            <v-checkbox
+              v-model="settings.gridEnabled"
+              label="Gitter in Diagrammen anzeigen"
+              density="comfortable"
+              hide-details
+            ></v-checkbox>
           </v-card-text>
         </v-card>
       </v-col>
-    </v-row>
 
-    <v-row class="mt-4">
+      <!-- Speicher & Daten (Generator-Tool) -->
       <v-col cols="12" md="6">
-        <v-card class="elevation-2">
+        <v-card class="settings-card" variant="outlined" rounded="lg">
           <v-card-title class="d-flex align-center ga-2">
+            <v-icon size="20">mdi-database-outline</v-icon>
             Speicher & Daten
             <v-chip size="x-small" variant="tonal" color="secondary">Generator-Tool</v-chip>
           </v-card-title>
+          <v-divider></v-divider>
           <v-card-text>
             <p class="text-caption text-medium-emphasis mb-3">
-              Betrifft nur die lokal im Browser gespeicherten Generator-Sessions und -Signale —
-              nicht die Messtool-Dateien und -Sessions in der Cloud.
+              Nur die Generator-Sessions und -Signale — nicht die Messtool-Dateien und -Sessions in der Cloud.
             </p>
-            <div class="mb-4">
-              <div class="text-caption text-disabled">Speichernutzung</div>
-              <div class="text-body-2 mb-2">{{ storageInfo.storageUsage }}</div>
-              <div class="text-caption mb-3">
-                {{ storageInfo.sessionCount }} Sessions,
-                {{ storageInfo.signalCount }} Signale
-              </div>
-              <v-progress-linear
-                :model-value="storagePercentage"
-                :color="storageColor"
-                class="mb-4"
-              ></v-progress-linear>
-            </div>
+            <v-row dense class="mb-2">
+              <v-col cols="6">
+                <div class="text-h5 font-weight-bold">{{ storageInfo.sessionCount }}</div>
+                <div class="text-caption text-medium-emphasis">Sessions</div>
+              </v-col>
+              <v-col cols="6">
+                <div class="text-h5 font-weight-bold">{{ storageInfo.signalCount }}</div>
+                <div class="text-caption text-medium-emphasis">Signale</div>
+              </v-col>
+            </v-row>
+            <p class="text-caption text-medium-emphasis mb-4">
+              Datenumfang: {{ storageInfo.storageUsage }}
+            </p>
 
-            <v-btn
-              block
-              color="warning"
-              class="mb-2"
-              prepend-icon="mdi-download"
-              @click="exportAllData"
-            >
+            <v-btn block color="warning" variant="tonal" class="mb-2" prepend-icon="mdi-download" @click="exportAllData">
               Generator-Daten exportieren
             </v-btn>
-
-            <v-btn
-              block
-              color="error"
-              variant="outlined"
-              prepend-icon="mdi-delete"
-              @click="showClearDialog = true"
-            >
+            <v-btn block color="error" variant="outlined" prepend-icon="mdi-delete" @click="showClearDialog = true">
               Generator-Daten löschen
             </v-btn>
           </v-card-text>
         </v-card>
       </v-col>
 
+      <!-- Über -->
       <v-col cols="12" md="6">
-        <v-card class="elevation-2">
-          <v-card-title>Über</v-card-title>
+        <v-card class="settings-card" variant="outlined" rounded="lg">
+          <v-card-title class="d-flex align-center ga-2">
+            <v-icon size="20">mdi-information-outline</v-icon>
+            Über
+          </v-card-title>
+          <v-divider></v-divider>
           <v-card-text>
-            <div class="mb-4">
-              <div class="text-caption text-disabled">Anwendung</div>
-              <div class="text-body-2">Signal Lab</div>
-            </div>
-
-            <div class="mb-4">
-              <div class="text-caption text-disabled">Version</div>
-              <div class="text-body-2">1.0.0</div>
-            </div>
-
-            <div class="mb-4">
-              <div class="text-caption text-disabled">Stand</div>
-              <div class="text-body-2">{{ currentDate }}</div>
-            </div>
-
-            <div class="mb-4">
-              <div class="text-caption text-disabled">Gebaut mit</div>
-              <div class="text-caption">Vue 3 • Vuetify • Chart.js • Supabase</div>
-            </div>
+            <v-row dense>
+              <v-col cols="6">
+                <div class="text-caption text-disabled">Anwendung</div>
+                <div class="text-body-2 mb-3">Signal Lab</div>
+                <div class="text-caption text-disabled">Version</div>
+                <div class="text-body-2">1.0.0</div>
+              </v-col>
+              <v-col cols="6">
+                <div class="text-caption text-disabled">Stand</div>
+                <div class="text-body-2 mb-3">{{ currentDate }}</div>
+                <div class="text-caption text-disabled">Gebaut mit</div>
+                <div class="text-caption">Vue 3 · Vuetify · Chart.js · Supabase</div>
+              </v-col>
+            </v-row>
           </v-card-text>
         </v-card>
       </v-col>
-    </v-row>
 
-    <v-row class="mt-4">
+      <!-- Tastatur-Kürzel -->
       <v-col cols="12">
-        <v-card class="elevation-2">
-          <v-card-title>Tastatur-Kürzel</v-card-title>
-          <v-card-text>
-            <v-table density="comfortable">
-              <thead>
-                <tr>
-                  <th>Kürzel</th>
-                  <th>Wirkung</th>
-                  <th>Gilt auf</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><kbd>↑</kbd> / <kbd>↓</kbd></td>
-                  <td>Durchs Signal blättern</td>
-                  <td>Messtool: Analyse, Filter, Verarbeitung, Export</td>
-                </tr>
-                <tr>
-                  <td><kbd>Strg</kbd> + <kbd>Z</kbd></td>
-                  <td>Verarbeitungsschritt rückgängig</td>
-                  <td>Messtool: Verarbeitung</td>
-                </tr>
-                <tr>
-                  <td><kbd>Strg</kbd> + <kbd>Y</kbd></td>
-                  <td>Verarbeitungsschritt wiederholen</td>
-                  <td>Messtool: Verarbeitung</td>
-                </tr>
-                <tr>
-                  <td><kbd>Umschalt</kbd> + Ziehen</td>
-                  <td>Chart verschieben (pan)</td>
-                  <td>Messtool: alle Diagramme</td>
-                </tr>
-                <tr>
-                  <td>Mausrad</td>
-                  <td>Chart zoomen</td>
-                  <td>Messtool: alle Diagramme</td>
-                </tr>
-                <tr>
-                  <td>Rechteck ziehen</td>
-                  <td>In Bereich hineinzoomen</td>
-                  <td>Messtool: alle Diagramme</td>
-                </tr>
-              </tbody>
-            </v-table>
-          </v-card-text>
+        <v-card class="settings-card" variant="outlined" rounded="lg">
+          <v-card-title class="d-flex align-center ga-2">
+            <v-icon size="20">mdi-keyboard-outline</v-icon>
+            Tastatur-Kürzel
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-table density="comfortable">
+            <thead>
+              <tr>
+                <th>Kürzel</th>
+                <th>Wirkung</th>
+                <th>Gilt auf</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in shortcuts" :key="row.effect">
+                <td class="py-2">
+                  <span v-for="(k, i) in row.keys" :key="i" class="d-inline-flex align-center">
+                    <kbd class="key-badge">
+                      <v-icon v-if="k.icon" size="14">{{ k.icon }}</v-icon>
+                      <span v-else>{{ k.text }}</span>
+                    </kbd>
+                    <span v-if="i < row.keys.length - 1" class="mx-1 text-medium-emphasis">{{ row.keySep || "+" }}</span>
+                  </span>
+                </td>
+                <td>{{ row.effect }}</td>
+                <td class="text-medium-emphasis">{{ row.scope }}</td>
+              </tr>
+            </tbody>
+          </v-table>
         </v-card>
       </v-col>
     </v-row>
@@ -217,7 +250,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- Success Snackbar -->
     <v-snackbar v-model="showSnackbar" color="success" :timeout="2500">
       {{ snackbarMessage }}
     </v-snackbar>
@@ -228,10 +260,13 @@
 import { ref, computed, reactive, watch } from "vue";
 import { useTheme } from "vuetify";
 import { useSignalStore } from "../stores/signalStore";
+import { useAuthStore } from "../stores/authStore";
 import * as storage from "../utils/storage";
+import * as groupsApi from "../utils/messtoolSignalGroups.js";
 
 const theme = useTheme();
 const store = useSignalStore();
+const auth = useAuthStore();
 
 const showClearDialog = ref(false);
 const showSnackbar = ref(false);
@@ -244,24 +279,54 @@ const settings = reactive({
   gridEnabled: store.settings.gridEnabled,
 });
 
-const windowFunctions = ["none", "hann", "hamming", "blackman"];
+const windowFunctionOptions = [
+  { title: "Keine", value: "none" },
+  { title: "Hann", value: "hann" },
+  { title: "Hamming", value: "hamming" },
+  { title: "Blackman", value: "blackman" },
+];
 
 const currentDate = computed(() => new Date().toLocaleDateString("de-DE"));
-
 const storageInfo = computed(() => storage.getStorageInfo());
 
-const storagePercentage = computed(() => {
-  // Assume 5MB limit
-  const usage = parseFloat(storageInfo.value.storageUsage);
-  return Math.min((usage / 5000) * 100, 100);
-});
+const signalGroups = ref(groupsApi.listGroups());
+function removeGroup(name) {
+  signalGroups.value = groupsApi.deleteGroup(name);
+}
 
-const storageColor = computed(() => {
-  const percentage = storagePercentage.value;
-  if (percentage > 80) return "error";
-  if (percentage > 50) return "warning";
-  return "success";
-});
+const shortcuts = [
+  {
+    keys: [{ icon: "mdi-arrow-up" }, { icon: "mdi-arrow-down" }],
+    keySep: "/",
+    effect: "Durchs Signal blättern",
+    scope: "Messtool: Analyse, Filter, Verarbeitung, Export",
+  },
+  {
+    keys: [{ text: "Strg" }, { text: "Z" }],
+    effect: "Verarbeitungsschritt rückgängig",
+    scope: "Messtool: Verarbeitung",
+  },
+  {
+    keys: [{ text: "Strg" }, { text: "Y" }],
+    effect: "Verarbeitungsschritt wiederholen",
+    scope: "Messtool: Verarbeitung",
+  },
+  {
+    keys: [{ text: "Umschalt" }, { icon: "mdi-cursor-move" }],
+    effect: "Chart verschieben (pan)",
+    scope: "Messtool: alle Diagramme",
+  },
+  {
+    keys: [{ icon: "mdi-mouse-outline" }],
+    effect: "Chart zoomen",
+    scope: "Messtool: alle Diagramme",
+  },
+  {
+    keys: [{ icon: "mdi-vector-square" }],
+    effect: "Rechteck ziehen → in Bereich hineinzoomen",
+    scope: "Messtool: alle Diagramme",
+  },
+];
 
 function exportAllData() {
   const data = {
@@ -296,7 +361,6 @@ async function clearAllData() {
   showSnackbar.value = true;
 }
 
-// Watch for changes and update theme
 watch(
   () => settings.theme,
   (newTheme) => {
@@ -304,17 +368,14 @@ watch(
     store.updateSettings({ theme: newTheme });
   },
 );
-
 watch(
   () => settings.autoFFT,
   (val) => store.updateSettings({ autoFFT: val }),
 );
-
 watch(
   () => settings.windowFunction,
   (val) => store.updateSettings({ windowFunction: val }),
 );
-
 watch(
   () => settings.gridEnabled,
   (val) => store.updateSettings({ gridEnabled: val }),
@@ -322,27 +383,23 @@ watch(
 </script>
 
 <style scoped>
-kbd {
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  padding: 2px 6px;
+.settings-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.settings-card {
+  height: 100%;
+}
+.key-badge {
+  background-color: rgba(var(--v-theme-on-surface), 0.06);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  border-radius: 5px;
+  padding: 3px 7px;
   font-family: monospace;
-  font-size: 0.875rem;
-  display: inline-block;
-  margin: 0 2px;
-}
-
-:deep(.dark) kbd {
-  background-color: #374151;
-  border-color: #4b5563;
-}
-
-:deep(tbody tr:nth-child(odd)) {
-  background-color: rgba(0, 0, 0, 0.02);
-}
-
-:deep(.dark tbody tr:nth-child(odd)) {
-  background-color: rgba(255, 255, 255, 0.05);
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  min-width: 24px;
+  justify-content: center;
 }
 </style>
