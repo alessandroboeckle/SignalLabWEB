@@ -69,7 +69,7 @@
                 title="Messtool"
                 rounded="lg"
                 class="nav-item"
-                @click="expandIfRailed"
+                @click="expandIfRailed('messtool')"
               ></v-list-item>
             </template>
 
@@ -99,7 +99,7 @@
                 title="Generier-Tool"
                 rounded="lg"
                 class="nav-item"
-                @click="expandIfRailed"
+                @click="expandIfRailed('generiertool')"
               ></v-list-item>
             </template>
 
@@ -213,7 +213,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { useTheme, useDisplay } from "vuetify";
 import { useSignalStore } from "./stores/signalStore";
 import { useAuthStore } from "./stores/authStore";
@@ -273,8 +273,18 @@ function selectTab(value) {
 // invisible while railed, since sub-items are hidden then anyway (see the
 // rail CSS below). Un-rail instead, so the user can actually see and pick
 // a sub-item.
-function expandIfRailed() {
-  if (!mobile.value && rail.value) rail.value = false;
+//
+// The group's own built-in click-to-toggle handler *also* fires on this
+// same click (it was already open, so toggling closes it) — racing
+// against the un-rail. Force it back open a tick later so it reliably
+// ends up expanded, whatever the toggle just did.
+async function expandIfRailed(groupName) {
+  if (mobile.value || !rail.value) return;
+  rail.value = false;
+  await nextTick();
+  if (!openGroups.value.includes(groupName)) {
+    openGroups.value = [...openGroups.value, groupName];
+  }
 }
 const logoHover = ref(false);
 
