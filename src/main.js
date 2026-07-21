@@ -60,6 +60,19 @@ const vuetify = createVuetify({
 const app = createApp(App);
 const pinia = createPinia();
 
+// Last-resort safety net: ErrorBoundary.vue catches and contains errors
+// within whatever it wraps (shows a friendly fallback there). This global
+// handler is for anything that somehow isn't caught by a boundary —
+// logs it instead of leaving a silent blank page.
+app.config.errorHandler = (err, instance, info) => {
+  // eslint-disable-next-line no-console
+  console.error("[Global error handler]", err, info);
+};
+window.addEventListener("unhandledrejection", (event) => {
+  // eslint-disable-next-line no-console
+  console.error("[Unhandled promise rejection]", event.reason);
+});
+
 app.use(pinia);
 app.use(vuetify);
 

@@ -157,7 +157,8 @@
 
       <!-- Main content -->
       <v-main class="main-area">
-        <v-window v-model="activeTab" class="tab-content">
+        <ErrorBoundary>
+          <v-window v-model="activeTab" class="tab-content">
           <v-window-item value="start">
             <v-container fluid class="pa-6 pa-md-10 start-page">
               <div class="text-center mb-8">
@@ -230,6 +231,7 @@
             <MtSessions @navigate="activeTab = $event" />
           </v-window-item>
         </v-window>
+        </ErrorBoundary>
       </v-main>
 
       <v-dialog v-model="showAbout" max-width="500">
@@ -301,6 +303,7 @@ import MtVerarbeitung from "./views/messtool/MtVerarbeitung.vue";
 import MtFilter from "./views/messtool/MtFilter.vue";
 import MtExport from "./views/messtool/MtExport.vue";
 import MtVergleich from "./views/messtool/MtVergleich.vue";
+import ErrorBoundary from "./components/ErrorBoundary.vue";
 import MtSessions from "./views/messtool/MtSessions.vue";
 
 const theme = useTheme();

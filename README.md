@@ -164,10 +164,6 @@ SignalLabWEB/
 - Abtastrate sollte ≥ 2× der höchsten interessanten Signalfrequenz sein (Nyquist)
 - Ein Fenster (Hann/Hamming/Blackman) reduziert meist Leck-Effekte
 
-## 📄 Lizenz
-
-MIT
-
 ---
 
 Ursprüngliches Python/PySide-Desktoptool als Vorlage; Web-Port und Weiterentwicklung
