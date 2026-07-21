@@ -19,7 +19,15 @@
           <v-icon>mdi-menu</v-icon>
         </v-app-bar-nav-icon>
 
-        <div class="app-logo" @mouseenter="logoHover = true" @mouseleave="logoHover = false">
+        <div
+          class="app-logo"
+          role="button"
+          tabindex="0"
+          @click="selectTab('start')"
+          @keyup.enter="selectTab('start')"
+          @mouseenter="logoHover = true"
+          @mouseleave="logoHover = false"
+        >
           <svg class="logo-svg" :class="{ wiggle: logoHover }" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="3" />
             <path d="M 18 50 Q 30 24 42 50 T 66 50 T 84 50" stroke="white" stroke-width="5"
@@ -60,6 +68,18 @@
         width="240"
       >
         <v-list v-model:opened="openGroups" nav density="comfortable" class="nav-list">
+          <!-- Start (always visible top-level) — lets you jump straight to
+               either tool without guessing which group it lives in. -->
+          <v-list-item
+            value="start"
+            :active="activeTab === 'start'"
+            prepend-icon="mdi-home-outline"
+            title="Start"
+            rounded="lg"
+            class="nav-item"
+            @click="selectTab('start')"
+          ></v-list-item>
+
           <!-- Messtool group (expandable) — the actively used tool, shown first -->
           <v-list-group value="messtool">
             <template #activator="{ props }">
@@ -133,6 +153,47 @@
       <!-- Main content -->
       <v-main class="main-area">
         <v-window v-model="activeTab" class="tab-content">
+          <v-window-item value="start">
+            <v-container fluid class="pa-6 pa-md-10 start-page">
+              <div class="text-center mb-8">
+                <h1 class="text-h4 font-weight-bold mb-2">Womit möchtest du arbeiten?</h1>
+                <p class="text-medium-emphasis">Signal Lab bündelt zwei eigenständige Werkzeuge.</p>
+              </div>
+              <v-row justify="center">
+                <v-col cols="12" sm="8" md="5">
+                  <v-card
+                    variant="outlined"
+                    rounded="xl"
+                    link
+                    class="start-card pa-8 text-center h-100"
+                    @click="selectTab('mt-import')"
+                  >
+                    <v-icon size="56" color="primary" class="mb-4">mdi-tools</v-icon>
+                    <h2 class="text-h5 font-weight-bold mb-2">Messtool</h2>
+                    <p class="text-medium-emphasis">
+                      LOGDATA-Messdateien importieren, filtern, analysieren, vergleichen und exportieren.
+                    </p>
+                  </v-card>
+                </v-col>
+                <v-col cols="12" sm="8" md="5">
+                  <v-card
+                    variant="outlined"
+                    rounded="xl"
+                    link
+                    class="start-card pa-8 text-center h-100"
+                    @click="selectTab('overview')"
+                  >
+                    <v-icon size="56" color="secondary" class="mb-4">mdi-waveform</v-icon>
+                    <h2 class="text-h5 font-weight-bold mb-2">Generier-Tool</h2>
+                    <p class="text-medium-emphasis">
+                      Eigene Testsignale erzeugen, berechnen und als Sessions verwalten.
+                    </p>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-window-item>
+
           <v-window-item value="overview"><OverviewTab @navigate="activeTab = $event" /></v-window-item>
           <v-window-item value="signal"><SignalCreationTab /></v-window-item>
           <v-window-item value="calculator"><CalculatorTab /></v-window-item>
@@ -241,7 +302,7 @@ const store = useSignalStore();
 const auth = useAuthStore();
 const { toast } = useToast();
 
-const activeTab = ref("overview");
+const activeTab = ref("start");
 const showAbout = ref(false);
 const { mobile } = useDisplay();
 const drawer = ref(true);
@@ -310,12 +371,17 @@ const messtoolItems = [
 // Whichever group contains the currently active tab should be expanded —
 // otherwise switching tabs (e.g. via a quick-nav link or session restore)
 // could leave the highlighted item hidden inside a collapsed group.
-const openGroups = ref(
-  messtoolItems.some((i) => i.value === activeTab.value) ? ["messtool"] : ["generiertool"],
-);
+function groupFor(value) {
+  if (messtoolItems.some((i) => i.value === value)) return "messtool";
+  if (generierToolItems.some((i) => i.value === value)) return "generiertool";
+  return null; // top-level items like 'start' or 'admin' don't belong to either group
+}
+const openGroups = ref(groupFor(activeTab.value) ? [groupFor(activeTab.value)] : []);
 function ensureGroupOpenFor(value) {
-  const group = messtoolItems.some((i) => i.value === value) ? "messtool" : "generiertool";
-  if (!openGroups.value.includes(group)) openGroups.value = [...openGroups.value, group];
+  const group = groupFor(value);
+  if (group && !openGroups.value.includes(group)) {
+    openGroups.value = [...openGroups.value, group];
+  }
 }
 
 const isDark = computed({
@@ -478,5 +544,18 @@ watch(
 
 .tab-content {
   min-height: calc(100vh - 64px);
+}
+
+.start-page {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.start-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.start-card:hover {
+  transform: translateY(-4px);
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 </style>
