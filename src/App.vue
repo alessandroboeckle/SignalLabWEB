@@ -43,18 +43,18 @@
         <v-btn icon variant="text" @click="toggleTheme">
           <v-icon color="white">{{ isDark ? 'mdi-white-balance-sunny' : 'mdi-weather-night' }}</v-icon>
           <v-tooltip activator="parent" location="bottom">
-            {{ isDark ? 'Light Mode' : 'Dark Mode' }}
+            {{ isDark ? 'Heller Modus' : 'Dunkler Modus' }}
           </v-tooltip>
         </v-btn>
 
         <v-btn icon variant="text" @click="selectTab('settings')">
           <v-icon color="white">mdi-cog</v-icon>
-          <v-tooltip activator="parent" location="bottom">Settings</v-tooltip>
+          <v-tooltip activator="parent" location="bottom">Einstellungen</v-tooltip>
         </v-btn>
 
         <v-btn icon variant="text" @click="showAbout = true">
           <v-icon color="white">mdi-information-outline</v-icon>
-          <v-tooltip activator="parent" location="bottom">About</v-tooltip>
+          <v-tooltip activator="parent" location="bottom">Über</v-tooltip>
         </v-btn>
 
         <v-btn icon variant="text" @click="auth.signOut()">
@@ -240,15 +240,16 @@
               <h2 class="text-h4 font-weight-bold mt-3">Signal Lab</h2>
             </div>
             <p class="text-body-1 text-center mb-6 text-medium-emphasis">
-              Professional signal processing and analysis tool
+              Werkzeug für Signalgenerierung und Messdatenanalyse
             </p>
             <v-divider class="my-4"></v-divider>
             <v-list density="compact">
-              <v-list-item prepend-icon="mdi-check-circle" title="Signal Generation (5 waveforms)"></v-list-item>
-              <v-list-item prepend-icon="mdi-check-circle" title="FFT Analysis & Visualization"></v-list-item>
-              <v-list-item prepend-icon="mdi-check-circle" title="Signal Comparison"></v-list-item>
-              <v-list-item prepend-icon="mdi-check-circle" title="Cloud Sessions (shared)"></v-list-item>
+              <v-list-item prepend-icon="mdi-check-circle" title="Signalgenerierung (5 Kurvenformen)"></v-list-item>
+              <v-list-item prepend-icon="mdi-check-circle" title="FFT-Analyse & Visualisierung"></v-list-item>
+              <v-list-item prepend-icon="mdi-check-circle" title="Signal-Vergleich"></v-list-item>
+              <v-list-item prepend-icon="mdi-check-circle" title="Cloud-Sessions (geteilt)"></v-list-item>
               <v-list-item prepend-icon="mdi-check-circle" title="Export (JSON/CSV)"></v-list-item>
+              <v-list-item prepend-icon="mdi-check-circle" title="Messtool: Import, Filter, Analyse, Anzeige, Export"></v-list-item>
             </v-list>
             <v-divider class="my-4"></v-divider>
             <p class="text-caption text-center text-medium-emphasis">
@@ -257,7 +258,7 @@
           </v-card-text>
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn color="primary" variant="flat" @click="showAbout = false">Close</v-btn>
+            <v-btn color="primary" variant="flat" @click="showAbout = false">Schliessen</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -357,8 +358,8 @@ const logoHover = ref(false);
 const generierToolItems = [
   { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
   { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
-  { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
-  { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
+  { value: "calculator", label: "Rechner", icon: "mdi-calculator" },
+  { value: "comparison", label: "Signal-Vergleich", icon: "mdi-chart-multiple" },
   { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
 ];
 

@@ -11,7 +11,7 @@
       <v-col cols="12" sm="6" md="3">
         <v-card class="elevation-2">
           <v-card-text>
-            <div class="text-disabled text-caption mb-2">Total Sessions</div>
+            <div class="text-disabled text-caption mb-2">Sessions gesamt</div>
             <div class="text-h4 font-weight-bold">
               {{ store.allSessions.length }}
             </div>
@@ -22,7 +22,7 @@
       <v-col cols="12" sm="6" md="3">
         <v-card class="elevation-2">
           <v-card-text>
-            <div class="text-disabled text-caption mb-2">Total Signals</div>
+            <div class="text-disabled text-caption mb-2">Signale gesamt</div>
             <div class="text-h4 font-weight-bold">{{ totalSignals }}</div>
           </v-card-text>
         </v-card>
@@ -31,7 +31,7 @@
       <v-col cols="12" sm="6" md="3">
         <v-card class="elevation-2">
           <v-card-text>
-            <div class="text-disabled text-caption mb-2">Current Session</div>
+            <div class="text-disabled text-caption mb-2">Aktuelle Session</div>
             <div class="text-h6 font-weight-bold text-truncate">
               {{ store.currentSession.name }}
             </div>
@@ -42,7 +42,7 @@
       <v-col cols="12" sm="6" md="3">
         <v-card class="elevation-2">
           <v-card-text>
-            <div class="text-disabled text-caption mb-2">Storage Usage</div>
+            <div class="text-disabled text-caption mb-2">Speichernutzung</div>
             <div class="text-h6 font-weight-bold">
               {{ storageInfo.storageUsage }}
             </div>
@@ -54,7 +54,7 @@
     <v-row class="mt-4">
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Recent Signals</v-card-title>
+          <v-card-title>Letzte Signale</v-card-title>
           <v-card-text>
             <v-list v-if="recentSignals.length > 0" density="compact">
               <v-list-item v-for="signal in recentSignals" :key="signal.id">
@@ -73,7 +73,7 @@
               </v-list-item>
             </v-list>
             <div v-else class="text-center text-disabled py-4">
-              No signals yet. Create one to get started!
+              Noch keine Signale. Erstelle eins, um loszulegen!
             </div>
           </v-card-text>
         </v-card>
@@ -81,10 +81,10 @@
 
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Quick Actions</v-card-title>
+          <v-card-title>Schnellzugriff</v-card-title>
           <v-card-text>
             <v-btn class="mb-2 w-100" color="primary" prepend-icon="mdi-plus" @click="quickNewSession">
-              New Session
+              Neue Session
             </v-btn>
             <v-btn
               class="mb-2 w-100"
@@ -93,7 +93,7 @@
               prepend-icon="mdi-sine-wave"
               @click="emit('navigate', 'signal')"
             >
-              Generate Signal
+              Signal generieren
             </v-btn>
             <v-btn
               class="mb-2 w-100"
@@ -102,7 +102,7 @@
               prepend-icon="mdi-download"
               @click="emit('navigate', 'settings')"
             >
-              Export Data
+              Daten exportieren
             </v-btn>
             <v-btn
               class="w-100"
@@ -111,7 +111,7 @@
               prepend-icon="mdi-delete"
               @click="emit('navigate', 'settings')"
             >
-              Clear All
+              Alles löschen
             </v-btn>
           </v-card-text>
         </v-card>
@@ -122,7 +122,7 @@
     <v-row v-if="store.currentSignal.timeData.length > 0" class="mt-4">
       <v-col cols="12">
         <v-card class="elevation-2">
-          <v-card-title>Signal Preview</v-card-title>
+          <v-card-title>Signal-Vorschau</v-card-title>
           <v-card-text>
             <canvas id="previewChart"></canvas>
           </v-card-text>

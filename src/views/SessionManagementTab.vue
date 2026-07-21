@@ -3,13 +3,13 @@
     <v-row>
       <v-col cols="12">
         <div class="d-flex justify-space-between align-center mb-4">
-          <h2 class="text-h5 font-weight-bold">Session Management</h2>
+          <h2 class="text-h5 font-weight-bold">Session-Verwaltung</h2>
           <v-btn
             color="primary"
             @click="showNewSessionDialog = true"
             prepend-icon="mdi-plus"
           >
-            New Session
+            Neue Session
           </v-btn>
         </div>
       </v-col>
@@ -48,14 +48,14 @@
                         @click.stop="renameSession(session.id, session.name)"
                       >
                         <v-list-item-title class="text-caption"
-                          >Rename</v-list-item-title
+                          >Umbenennen</v-list-item-title
                         >
                       </v-list-item>
                       <v-list-item
                         @click.stop="deleteSessionConfirm(session.id)"
                       >
                         <v-list-item-title class="text-caption text-error"
-                          >Delete</v-list-item-title
+                          >Löschen</v-list-item-title
                         >
                       </v-list-item>
                     </v-list>
@@ -68,7 +68,7 @@
               v-if="store.allSessions.length === 0"
               class="text-center text-disabled py-4 text-caption"
             >
-              No sessions yet
+              Noch keine Sessions
             </div>
           </v-card-text>
         </v-card>
@@ -82,22 +82,22 @@
             <!-- Session Info -->
             <v-row class="mb-4">
               <v-col cols="12" sm="6">
-                <div class="text-caption text-disabled">Created</div>
+                <div class="text-caption text-disabled">Erstellt</div>
                 <div class="text-body2">
                   {{ new Date(store.currentSession.created).toLocaleString() }}
                 </div>
               </v-col>
               <v-col cols="12" sm="6">
-                <div class="text-caption text-disabled">Signals</div>
+                <div class="text-caption text-disabled">Signale</div>
                 <div class="text-body2">
-                  {{ store.currentSession.signals.length }} signals
+                  {{ store.currentSession.signals.length }} Signale
                 </div>
               </v-col>
             </v-row>
 
             <!-- Session Notes -->
             <div class="mb-4">
-              <label class="text-caption font-weight-500">Notes</label>
+              <label class="text-caption font-weight-500">Notizen</label>
               <v-textarea
                 v-model="editingNotes"
                 outlined
@@ -105,7 +105,7 @@
                 rows="4"
               ></v-textarea>
               <v-btn size="small" color="primary" @click="saveNotes"
-                >Save Notes</v-btn
+                >Notizen speichern</v-btn
               >
             </div>
 
@@ -113,7 +113,7 @@
 
             <!-- Signals in Session -->
             <h3 class="text-subtitle2 font-weight-bold mb-3">
-              Signals in This Session
+              Signale in dieser Session
             </h3>
             <v-list dense>
               <v-list-item
@@ -152,7 +152,7 @@
               v-if="store.currentSession.signals.length === 0"
               class="text-center text-disabled py-4 text-caption"
             >
-              No signals in this session yet
+              Noch keine Signale in dieser Session
             </div>
           </v-card-text>
         </v-card>
@@ -162,11 +162,11 @@
     <!-- New Session Dialog -->
     <v-dialog v-model="showNewSessionDialog" max-width="400">
       <v-card>
-        <v-card-title>Create New Session</v-card-title>
+        <v-card-title>Neue Session erstellen</v-card-title>
         <v-card-text>
           <v-text-field
             v-model="newSessionName"
-            label="Session Name"
+            label="Session-Name"
             outlined
             dense
             class="mt-4"
@@ -174,8 +174,8 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn @click="showNewSessionDialog = false">Cancel</v-btn>
-          <v-btn color="primary" @click="createNewSession">Create</v-btn>
+          <v-btn @click="showNewSessionDialog = false">Abbrechen</v-btn>
+          <v-btn color="primary" @click="createNewSession">Erstellen</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -183,11 +183,11 @@
     <!-- Rename Session Dialog -->
     <v-dialog v-model="showRenameDialog" max-width="400">
       <v-card>
-        <v-card-title>Rename Session</v-card-title>
+        <v-card-title>Session umbenennen</v-card-title>
         <v-card-text>
           <v-text-field
             v-model="renamingSessionName"
-            label="New Name"
+            label="Neuer Name"
             outlined
             dense
             class="mt-4"
@@ -195,8 +195,8 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn @click="showRenameDialog = false">Cancel</v-btn>
-          <v-btn color="primary" @click="confirmRename">Rename</v-btn>
+          <v-btn @click="showRenameDialog = false">Abbrechen</v-btn>
+          <v-btn color="primary" @click="confirmRename">Umbenennen</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -204,15 +204,15 @@
     <!-- Delete Confirmation Dialog -->
     <v-dialog v-model="showDeleteDialog" max-width="400">
       <v-card>
-        <v-card-title>Delete {{ deleteTarget.type }}?</v-card-title>
+        <v-card-title>{{ deleteTarget.type === 'session' ? 'Session' : 'Signal' }} löschen?</v-card-title>
         <v-card-text>
-          Are you sure you want to delete this {{ deleteTarget.type }}? This
-          action cannot be undone.
+          Möchtest du {{ deleteTarget.type === 'session' ? 'diese Session' : 'dieses Signal' }} wirklich löschen?
+          Das kann nicht rückgängig gemacht werden.
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn @click="showDeleteDialog = false">Cancel</v-btn>
-          <v-btn color="error" @click="confirmDelete">Delete</v-btn>
+          <v-btn @click="showDeleteDialog = false">Abbrechen</v-btn>
+          <v-btn color="error" @click="confirmDelete">Löschen</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -235,7 +235,7 @@ const showRenameDialog = ref(false);
 const showDeleteDialog = ref(false);
 const showSnackbar = ref(false);
 
-const newSessionName = ref("New Session");
+const newSessionName = ref("Neue Session");
 const editingNotes = ref("");
 const renamingSessionName = ref("");
 
@@ -257,9 +257,9 @@ async function createNewSession() {
   if (newSessionName.value.trim()) {
     await store.createSession(newSessionName.value);
     editingNotes.value = "";
-    newSessionName.value = "New Session";
+    newSessionName.value = "Neue Session";
     showNewSessionDialog.value = false;
-    snackbarMessage.value = "Session created!";
+    snackbarMessage.value = "Session erstellt!";
     showSnackbar.value = true;
   }
 }
@@ -274,7 +274,7 @@ async function confirmRename() {
   if (renamingSessionName.value.trim()) {
     await store.updateSession({ name: renamingSessionName.value });
     showRenameDialog.value = false;
-    snackbarMessage.value = "Session renamed!";
+    snackbarMessage.value = "Session umbenannt!";
     showSnackbar.value = true;
   }
 }
@@ -298,10 +298,10 @@ function deleteSignalConfirm(signalId) {
 async function confirmDelete() {
   if (deleteTarget.value.type === "session") {
     await store.deleteSession(deleteTarget.value.id);
-    snackbarMessage.value = "Session deleted!";
+    snackbarMessage.value = "Session gelöscht!";
   } else {
     await store.deleteSignal(deleteTarget.value.id);
-    snackbarMessage.value = "Signal deleted!";
+    snackbarMessage.value = "Signal gelöscht!";
   }
   showDeleteDialog.value = false;
   showSnackbar.value = true;
@@ -309,13 +309,13 @@ async function confirmDelete() {
 
 function loadSignal(signalId) {
   store.loadSignal(signalId);
-  snackbarMessage.value = "Signal loaded!";
+  snackbarMessage.value = "Signal geladen!";
   showSnackbar.value = true;
 }
 
 async function saveNotes() {
   await store.updateSession({ notes: editingNotes.value });
-  snackbarMessage.value = "Notes saved!";
+  snackbarMessage.value = "Notizen gespeichert!";
   showSnackbar.value = true;
 }
 </script>

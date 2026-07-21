@@ -2,25 +2,25 @@
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h2 class="text-h5 font-weight-bold mb-4">Signal Calculator</h2>
+        <h2 class="text-h5 font-weight-bold mb-4">Signal-Rechner</h2>
       </v-col>
     </v-row>
 
     <v-row>
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Frequency Calculator</v-card-title>
+          <v-card-title>Frequenz-Rechner</v-card-title>
           <v-card-text>
             <v-text-field
               v-model.number="freq.frequency"
-              label="Frequency (Hz)"
+              label="Frequenz (Hz)"
               outlined
               dense
               class="mb-4"
             ></v-text-field>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Period:</strong></div>
+              <div class="text-caption mb-1"><strong>Periode:</strong></div>
               <div class="text-body2">
                 {{ formatNumber(1 / freq.frequency) }} s
               </div>
@@ -28,7 +28,7 @@
 
             <div class="mb-4">
               <div class="text-caption mb-1">
-                <strong>Angular Frequency:</strong>
+                <strong>Kreisfrequenz:</strong>
               </div>
               <div class="text-body2">
                 {{ formatNumber(2 * Math.PI * freq.frequency) }} rad/s
@@ -37,7 +37,7 @@
 
             <div class="mb-4">
               <div class="text-caption mb-1">
-                <strong>Wavelength (in air):</strong>
+                <strong>Wellenlänge (in Luft):</strong>
               </div>
               <div class="text-body2">
                 {{ formatNumber(343 / freq.frequency) }} m
@@ -49,27 +49,26 @@
 
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>RMS & Peak Calculator</v-card-title>
+          <v-card-title>RMS- & Spitzenwert-Rechner</v-card-title>
           <v-card-text>
             <v-text-field
               v-model.number="amplitude.peakValue"
-              label="Peak Amplitude"
+              label="Spitzenamplitude"
               outlined
               dense
               class="mb-4"
             ></v-text-field>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>RMS Value:</strong></div>
+              <div class="text-caption mb-1"><strong>RMS-Wert:</strong></div>
               <div class="text-body2">
-                {{ formatNumber(amplitude.peakValue / Math.sqrt(2)) }} (for sine
-                wave)
+                {{ formatNumber(amplitude.peakValue / Math.sqrt(2)) }} (für Sinuskurve)
               </div>
             </div>
 
             <div class="mb-4">
               <div class="text-caption mb-1">
-                <strong>Peak-to-Peak:</strong>
+                <strong>Spitze-Spitze:</strong>
               </div>
               <div class="text-body2">
                 {{ formatNumber(2 * amplitude.peakValue) }}
@@ -78,7 +77,7 @@
 
             <div class="mb-4">
               <div class="text-caption mb-1">
-                <strong>Crest Factor:</strong>
+                <strong>Scheitelfaktor:</strong>
               </div>
               <div class="text-body2">
                 {{
@@ -86,7 +85,7 @@
                     amplitude.peakValue / (amplitude.peakValue / Math.sqrt(2)),
                   )
                 }}
-                (for sine wave)
+                (für Sinuskurve)
               </div>
             </div>
           </v-card-text>
@@ -97,11 +96,11 @@
     <v-row class="mt-4">
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Sampling Theorem Calculator</v-card-title>
+          <v-card-title>Abtasttheorem-Rechner</v-card-title>
           <v-card-text>
             <v-text-field
               v-model.number="sampling.frequency"
-              label="Signal Frequency (Hz)"
+              label="Signalfrequenz (Hz)"
               outlined
               dense
               class="mb-4"
@@ -109,27 +108,25 @@
 
             <div class="mb-4">
               <div class="text-caption mb-1">
-                <strong>Nyquist Frequency:</strong>
+                <strong>Nyquist-Frequenz:</strong>
               </div>
               <div class="text-body2 text-success">
-                {{ formatNumber(2 * sampling.frequency) }} Hz (minimum sampling
-                rate)
+                {{ formatNumber(2 * sampling.frequency) }} Hz (Mindest-Abtastrate)
               </div>
             </div>
 
             <div class="mb-4">
               <div class="text-caption mb-1">
-                <strong>Recommended Sampling Rate:</strong>
+                <strong>Empfohlene Abtastrate:</strong>
               </div>
               <div class="text-body2">
-                {{ formatNumber(10 * sampling.frequency) }} Hz (10x signal
-                frequency)
+                {{ formatNumber(10 * sampling.frequency) }} Hz (10-fache Signalfrequenz)
               </div>
             </div>
 
             <v-text-field
               v-model.number="sampling.samplingRate"
-              label="Your Sampling Rate (Hz)"
+              label="Deine Abtastrate (Hz)"
               outlined
               dense
               class="mb-4"
@@ -147,8 +144,8 @@
               >
                 {{
                   sampling.samplingRate >= 2 * sampling.frequency
-                    ? "✓ Sufficient sampling rate"
-                    : "✗ Aliasing will occur"
+                    ? "✓ Ausreichende Abtastrate"
+                    : "✗ Aliasing tritt auf"
                 }}
               </div>
             </div>
@@ -158,11 +155,11 @@
 
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Energy Calculator</v-card-title>
+          <v-card-title>Energie-Rechner</v-card-title>
           <v-card-text>
             <v-text-field
               v-model.number="energy.voltage"
-              label="RMS Voltage (V)"
+              label="RMS-Spannung (V)"
               outlined
               dense
               class="mb-4"
@@ -170,14 +167,14 @@
 
             <v-text-field
               v-model.number="energy.resistance"
-              label="Impedance (Ω)"
+              label="Impedanz (Ω)"
               outlined
               dense
               class="mb-4"
             ></v-text-field>
 
             <div class="mb-4">
-              <div class="text-caption mb-1"><strong>Power (RMS):</strong></div>
+              <div class="text-caption mb-1"><strong>Leistung (RMS):</strong></div>
               <div class="text-body2">
                 {{
                   formatNumber(
@@ -190,7 +187,7 @@
 
             <div class="mb-4">
               <div class="text-caption mb-1">
-                <strong>Current (RMS):</strong>
+                <strong>Strom (RMS):</strong>
               </div>
               <div class="text-body2">
                 {{ formatNumber(energy.voltage / energy.resistance) }} A
@@ -199,7 +196,7 @@
 
             <div class="mb-4">
               <div class="text-caption mb-1">
-                <strong>dB (referenced to 1V):</strong>
+                <strong>dB (bezogen auf 1V):</strong>
               </div>
               <div class="text-body2">
                 {{ formatNumber(20 * Math.log10(energy.voltage)) }} dB
@@ -213,13 +210,13 @@
     <v-row class="mt-4">
       <v-col cols="12">
         <v-card class="elevation-2">
-          <v-card-title>FFT Resolution Calculator</v-card-title>
+          <v-card-title>FFT-Auflösungs-Rechner</v-card-title>
           <v-card-text>
             <v-row>
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="fft.samplingRate"
-                  label="Sampling Rate (Hz)"
+                  label="Abtastrate (Hz)"
                   outlined
                   dense
                   class="mb-4"
@@ -228,7 +225,7 @@
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model.number="fft.fftSize"
-                  label="FFT Size (samples)"
+                  label="FFT-Grösse (Abtastwerte)"
                   outlined
                   dense
                   class="mb-4"
@@ -240,7 +237,7 @@
               <v-col cols="12" md="6">
                 <div class="mb-4">
                   <div class="text-caption mb-1">
-                    <strong>Frequency Resolution:</strong>
+                    <strong>Frequenzauflösung:</strong>
                   </div>
                   <div class="text-body2">
                     {{ formatNumber(fft.samplingRate / fft.fftSize) }} Hz/bin
@@ -250,7 +247,7 @@
               <v-col cols="12" md="6">
                 <div class="mb-4">
                   <div class="text-caption mb-1">
-                    <strong>Analysis Time:</strong>
+                    <strong>Analysezeit:</strong>
                   </div>
                   <div class="text-body2">
                     {{ formatNumber(fft.fftSize / fft.samplingRate) }} s

@@ -2,7 +2,7 @@
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h2 class="text-h5 font-weight-bold mb-4">Signal Generator</h2>
+        <h2 class="text-h5 font-weight-bold mb-4">Signal-Generator</h2>
       </v-col>
     </v-row>
 
@@ -10,12 +10,12 @@
       <!-- Controls Sidebar -->
       <v-col cols="12" md="3">
         <v-card class="elevation-2 sticky" style="top: 20px">
-          <v-card-title>Parameters</v-card-title>
+          <v-card-title>Parameter</v-card-title>
           <v-card-text>
             <!-- Signal Name -->
             <v-text-field
               v-model="params.name"
-              label="Signal Name"
+              label="Signalname"
               outlined
               dense
               class="mb-4"
@@ -24,7 +24,7 @@
             <!-- Wave Type -->
             <v-select
               v-model="params.waveType"
-              label="Wave Type"
+              label="Kurvenform"
               :items="waveTypes"
               outlined
               dense
@@ -35,7 +35,7 @@
             <!-- Frequency -->
             <div class="mb-4">
               <label class="text-caption font-weight-500"
-                >Frequency: {{ params.frequency }} Hz</label
+                >Frequenz: {{ params.frequency }} Hz</label
               >
               <v-slider
                 v-model="params.frequency"
@@ -46,7 +46,7 @@
               ></v-slider>
               <v-text-field
                 v-model.number="params.frequency"
-                label="Frequency (Hz)"
+                label="Frequenz (Hz)"
                 type="number"
                 outlined
                 dense
@@ -103,7 +103,7 @@
             <!-- Duration -->
             <div class="mb-4">
               <label class="text-caption font-weight-500"
-                >Duration: {{ params.duration }}s</label
+                >Dauer: {{ params.duration }}s</label
               >
               <v-slider
                 v-model="params.duration"
@@ -114,7 +114,7 @@
               ></v-slider>
               <v-text-field
                 v-model.number="params.duration"
-                label="Duration (s)"
+                label="Dauer (s)"
                 type="number"
                 outlined
                 dense
@@ -125,11 +125,11 @@
             <!-- Sampling Rate -->
             <div class="mb-4">
               <label class="text-caption font-weight-500"
-                >Sampling Rate: {{ params.samplingRate }} Hz</label
+                >Abtastrate: {{ params.samplingRate }} Hz</label
               >
               <v-select
                 v-model="params.samplingRate"
-                label="Sampling Rate"
+                label="Abtastrate"
                 :items="samplingRates"
                 outlined
                 dense
@@ -143,15 +143,15 @@
             <div class="mb-4">
               <v-checkbox
                 v-model="options.enableFFT"
-                label="Enable FFT Analysis"
+                label="FFT-Analyse aktivieren"
               ></v-checkbox>
               <v-checkbox
                 v-model="options.enableWindow"
-                label="Apply Hann Window"
+                label="Hann-Fenster anwenden"
               ></v-checkbox>
               <v-checkbox
                 v-model="options.logScale"
-                label="Log Scale"
+                label="Logarithmische Skala"
               ></v-checkbox>
             </div>
 
@@ -163,7 +163,7 @@
               @click="saveSignal"
               prepend-icon="mdi-save"
             >
-              Save Signal
+              Signal speichern
             </v-btn>
             <v-btn
               block
@@ -173,7 +173,7 @@
               @click="exportSignal"
               prepend-icon="mdi-download"
             >
-              Export
+              Exportieren
             </v-btn>
             <v-btn
               block
@@ -182,7 +182,7 @@
               @click="resetParameters"
               prepend-icon="mdi-refresh"
             >
-              Reset
+              Zurücksetzen
             </v-btn>
           </v-card-text>
         </v-card>
@@ -194,7 +194,7 @@
           <!-- Time Domain Plot -->
           <v-col cols="12">
             <v-card class="elevation-2">
-              <v-card-title>Time Domain</v-card-title>
+              <v-card-title>Zeitbereich</v-card-title>
               <v-card-text>
                 <canvas id="timeDomainChart"></canvas>
               </v-card-text>
@@ -204,7 +204,7 @@
           <!-- FFT Plot -->
           <v-col v-if="options.enableFFT" cols="12">
             <v-card class="elevation-2">
-              <v-card-title>Frequency Domain (FFT)</v-card-title>
+              <v-card-title>Frequenzbereich (FFT)</v-card-title>
               <v-card-text>
                 <canvas id="fftChart"></canvas>
               </v-card-text>
@@ -215,23 +215,23 @@
           <v-col cols="12" sm="6" md="4">
             <v-card class="elevation-2">
               <v-card-title class="text-subtitle2"
-                >Signal Statistics</v-card-title
+                >Signal-Statistik</v-card-title
               >
               <v-card-text>
                 <div class="text-caption mb-2">
-                  <strong>RMS Value:</strong>
+                  <strong>RMS-Wert:</strong>
                   {{ formatNumber(store.currentSignal.meta.rms) }}
                 </div>
                 <div class="text-caption mb-2">
-                  <strong>Peak Value:</strong>
+                  <strong>Spitzenwert:</strong>
                   {{ formatNumber(store.currentSignal.meta.peak) }}
                 </div>
                 <div class="text-caption mb-2">
-                  <strong>Peak-to-Peak:</strong>
+                  <strong>Spitze-Spitze:</strong>
                   {{ formatNumber(store.currentSignal.meta.peakToPeak) }}
                 </div>
                 <div class="text-caption">
-                  <strong>Samples:</strong>
+                  <strong>Abtastwerte:</strong>
                   {{ store.currentSignal.timeData.length }}
                 </div>
               </v-card-text>
@@ -241,19 +241,19 @@
           <!-- Signal Info -->
           <v-col cols="12" sm="6" md="4">
             <v-card class="elevation-2">
-              <v-card-title class="text-subtitle2">Signal Info</v-card-title>
+              <v-card-title class="text-subtitle2">Signal-Info</v-card-title>
               <v-card-text>
                 <div class="text-caption mb-2">
-                  <strong>Type:</strong> {{ params.waveType }}
+                  <strong>Typ:</strong> {{ params.waveType }}
                 </div>
                 <div class="text-caption mb-2">
-                  <strong>Frequency:</strong> {{ params.frequency }} Hz
+                  <strong>Frequenz:</strong> {{ params.frequency }} Hz
                 </div>
                 <div class="text-caption mb-2">
-                  <strong>Duration:</strong> {{ params.duration }} s
+                  <strong>Dauer:</strong> {{ params.duration }} s
                 </div>
                 <div class="text-caption">
-                  <strong>Sample Rate:</strong> {{ params.samplingRate }} Hz
+                  <strong>Abtastrate:</strong> {{ params.samplingRate }} Hz
                 </div>
               </v-card-text>
             </v-card>
@@ -262,7 +262,7 @@
           <!-- Code Preview -->
           <v-col cols="12" sm="6" md="4">
             <v-card class="elevation-2">
-              <v-card-title class="text-subtitle2">Generated Code</v-card-title>
+              <v-card-title class="text-subtitle2">Generierter Code</v-card-title>
               <v-card-text>
                 <v-btn
                   size="small"
@@ -271,7 +271,7 @@
                   class="mb-2"
                 >
                   <v-icon small left>mdi-content-copy</v-icon>
-                  Copy
+                  Kopieren
                 </v-btn>
                 <pre
                   class="text-caption"
@@ -511,7 +511,7 @@ function generateSignal() {
 async function saveSignal() {
   try {
     const saved = await store.saveCurrentSignal();
-    snackbarMessage.value = `Signal "${saved.name}" saved!`;
+    snackbarMessage.value = `Signal "${saved.name}" gespeichert!`;
   } catch (e) {
     snackbarMessage.value = "Fehler beim Speichern: " + (e.message || e);
   }
@@ -521,7 +521,7 @@ async function saveSignal() {
 function exportSignal() {
   const format = "json";
   store.exportSignal(store.currentSignal.id, format);
-  snackbarMessage.value = "Signal exported!";
+  snackbarMessage.value = "Signal exportiert!";
   showSnackbar.value = true;
 }
 
@@ -540,7 +540,7 @@ function resetParameters() {
 
 function copyCode() {
   navigator.clipboard.writeText(generatedCode.value);
-  snackbarMessage.value = "Code copied to clipboard!";
+  snackbarMessage.value = "Code in Zwischenablage kopiert!";
   showSnackbar.value = true;
 }
 

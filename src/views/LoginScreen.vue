@@ -15,7 +15,7 @@
                 fill="none" stroke-linecap="round" />
         </svg>
         <h1 class="brand-title">Signal Lab</h1>
-        <p class="brand-sub">Signal processing & analysis</p>
+        <p class="brand-sub">Signalverarbeitung & Analyse</p>
       </div>
 
       <div class="tab-switch">

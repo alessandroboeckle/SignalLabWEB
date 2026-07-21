@@ -2,14 +2,14 @@
   <v-container fluid class="pa-4">
     <v-row>
       <v-col cols="12">
-        <h2 class="text-h5 font-weight-bold mb-4">Signal Comparison</h2>
+        <h2 class="text-h5 font-weight-bold mb-4">Signal-Vergleich</h2>
       </v-col>
     </v-row>
 
     <v-row>
       <v-col cols="12" md="3">
         <v-card class="elevation-2">
-          <v-card-title class="text-h6">Select Signals</v-card-title>
+          <v-card-title class="text-h6">Signale auswählen</v-card-title>
           <v-card-text>
             <v-list dense>
               <v-list-item
@@ -40,7 +40,7 @@
               v-if="availableSignals.length === 0"
               class="text-center text-disabled py-4 text-caption"
             >
-              No signals to compare. Create signals first!
+              Keine Signale zum Vergleichen vorhanden. Zuerst welche erstellen!
             </div>
 
             <v-btn
@@ -50,7 +50,7 @@
               :disabled="selectedSignals.length === 0"
               @click="compareSelected"
             >
-              Compare Selected
+              Ausgewählte vergleichen
             </v-btn>
           </v-card-text>
         </v-card>
@@ -58,7 +58,7 @@
 
       <v-col cols="12" md="9">
         <v-card v-if="comparisonData.length > 0" class="elevation-2">
-          <v-card-title>Comparison Results</v-card-title>
+          <v-card-title>Vergleichsergebnisse</v-card-title>
           <v-card-text>
             <canvas id="comparisonChart"></canvas>
           </v-card-text>
@@ -66,23 +66,23 @@
 
         <v-card v-else class="elevation-2">
           <v-card-text class="text-center text-disabled py-8">
-            Select signals and click "Compare Selected" to see results
+            Signale auswählen und auf "Ausgewählte vergleichen" klicken, um Ergebnisse zu sehen
           </v-card-text>
         </v-card>
 
         <!-- Statistics Table -->
         <v-card v-if="selectedSignals.length > 0" class="elevation-2 mt-4">
-          <v-card-title>Statistics</v-card-title>
+          <v-card-title>Statistik</v-card-title>
           <v-card-text>
             <v-table>
               <thead>
                 <tr>
-                  <th>Signal Name</th>
-                  <th>Type</th>
-                  <th>Frequency (Hz)</th>
+                  <th>Signalname</th>
+                  <th>Typ</th>
+                  <th>Frequenz (Hz)</th>
                   <th>RMS</th>
-                  <th>Peak</th>
-                  <th>Peak-to-Peak</th>
+                  <th>Spitzenwert</th>
+                  <th>Spitze-Spitze</th>
                 </tr>
               </thead>
               <tbody>
@@ -205,7 +205,7 @@ function drawComparisonChart() {
         x: {
           title: {
             display: true,
-            text: "Time (s)",
+            text: "Zeit (s)",
           },
         },
       },
