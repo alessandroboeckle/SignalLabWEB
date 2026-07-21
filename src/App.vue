@@ -69,6 +69,7 @@
                 title="Messtool"
                 rounded="lg"
                 class="nav-item"
+                @click="expandIfRailed"
               ></v-list-item>
             </template>
 
@@ -98,6 +99,7 @@
                 title="Generier-Tool"
                 rounded="lg"
                 class="nav-item"
+                @click="expandIfRailed"
               ></v-list-item>
             </template>
 
@@ -264,6 +266,15 @@ function selectTab(value) {
   activeTab.value = value;
   ensureGroupOpenFor(value);
   if (mobile.value) drawer.value = false;
+}
+
+// Clicking a group's own icon while the sidebar is railed (collapsed to a
+// narrow strip) used to just toggle its open/closed state internally —
+// invisible while railed, since sub-items are hidden then anyway (see the
+// rail CSS below). Un-rail instead, so the user can actually see and pick
+// a sub-item.
+function expandIfRailed() {
+  if (!mobile.value && rail.value) rail.value = false;
 }
 const logoHover = ref(false);
 
@@ -438,13 +449,15 @@ watch(
   font-size: 18px;
 }
 
-/* In rail mode the drawer narrows to an icon-only strip — the 20px
-   left-padding above is meant for the full-width view and pushes
-   sub-item icons off-center once railed, unlike the top-level items.
-   Reset it here so sub-items line up the same centered way. */
+/* Rail mode narrows the drawer to an icon-only strip. A group's
+   sub-items still technically render then (Vuetify doesn't hide them on
+   its own) — as a long flat, unlabeled icon stack with no visual
+   hierarchy, easy to mistake for more top-level items. Hide them
+   entirely while railed; clicking a group's own icon (see
+   expandIfRailed) un-rails the drawer instead, so you can actually see
+   and pick a specific sub-item. */
 :deep(.v-navigation-drawer--rail) .nav-sub {
-  padding-inline-start: 0 !important;
-  justify-content: center;
+  display: none;
 }
 
 /* Group activator (e.g. "Messtool") row itself — same left edge as the
