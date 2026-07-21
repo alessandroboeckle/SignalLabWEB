@@ -59,44 +59,8 @@
         class="side-nav"
         width="240"
       >
-        <v-list nav density="comfortable" class="nav-list">
-          <!-- Dashboard (always visible top-level) -->
-          <v-list-item
-            value="overview"
-            :active="activeTab === 'overview'"
-            prepend-icon="mdi-view-dashboard"
-            title="Dashboard"
-            rounded="lg"
-            class="nav-item"
-            @click="selectTab('overview')"
-          ></v-list-item>
-
-          <!-- Generier-Tool group (expandable) -->
-          <v-list-group value="generiertool">
-            <template #activator="{ props }">
-              <v-list-item
-                v-bind="props"
-                prepend-icon="mdi-waveform"
-                title="Generier-Tool"
-                rounded="lg"
-                class="nav-item"
-              ></v-list-item>
-            </template>
-
-            <v-list-item
-              v-for="sub in generierToolItems"
-              :key="sub.value"
-              :value="sub.value"
-              :active="activeTab === sub.value"
-              :prepend-icon="sub.icon"
-              :title="sub.label"
-              rounded="lg"
-              class="nav-item nav-sub"
-              @click="selectTab(sub.value)"
-            ></v-list-item>
-          </v-list-group>
-
-          <!-- Messtool group (expandable) -->
+        <v-list v-model:opened="openGroups" nav density="comfortable" class="nav-list">
+          <!-- Messtool group (expandable) — the actively used tool, shown first -->
           <v-list-group value="messtool">
             <template #activator="{ props }">
               <v-list-item
@@ -121,18 +85,34 @@
             ></v-list-item>
           </v-list-group>
 
-          <!-- Sessions & Settings (always visible top-level) -->
-          <v-list-item
-            v-for="item in bottomItems"
-            :key="item.value"
-            :value="item.value"
-            :active="activeTab === item.value"
-            :prepend-icon="item.icon"
-            :title="item.label"
-            rounded="lg"
-            class="nav-item"
-            @click="selectTab(item.value)"
-          ></v-list-item>
+          <!-- Generier-Tool group (expandable) — the original signal-generator
+               tool. Dashboard/Sessions/Settings live in here too now (they're
+               specifically the generator's own, not the Messtool's) so there's
+               no more ambiguous top-level items or a duplicate "Sessions"
+               label next to the Messtool's own Sessions. -->
+          <v-list-group value="generiertool">
+            <template #activator="{ props }">
+              <v-list-item
+                v-bind="props"
+                prepend-icon="mdi-waveform"
+                title="Generier-Tool"
+                rounded="lg"
+                class="nav-item"
+              ></v-list-item>
+            </template>
+
+            <v-list-item
+              v-for="sub in generierToolItems"
+              :key="sub.value"
+              :value="sub.value"
+              :active="activeTab === sub.value"
+              :prepend-icon="sub.icon"
+              :title="sub.label"
+              rounded="lg"
+              class="nav-item nav-sub"
+              @click="selectTab(sub.value)"
+            ></v-list-item>
+          </v-list-group>
 
           <!-- Admin (only for admins) -->
           <v-list-item
@@ -282,17 +262,16 @@ function toggleDrawer() {
 
 function selectTab(value) {
   activeTab.value = value;
+  ensureGroupOpenFor(value);
   if (mobile.value) drawer.value = false;
 }
 const logoHover = ref(false);
 
 const generierToolItems = [
+  { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
   { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
   { value: "calculator", label: "Calculator", icon: "mdi-calculator" },
   { value: "comparison", label: "Compare", icon: "mdi-chart-multiple" },
-];
-
-const bottomItems = [
   { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
   { value: "settings", label: "Settings", icon: "mdi-cog" },
 ];
@@ -306,6 +285,17 @@ const messtoolItems = [
   { value: "mt-export", label: "Export", icon: "mdi-file-export" },
   { value: "mt-sessions", label: "Sessions", icon: "mdi-content-save-cog-outline" },
 ];
+
+// Whichever group contains the currently active tab should be expanded —
+// otherwise switching tabs (e.g. via a quick-nav link or session restore)
+// could leave the highlighted item hidden inside a collapsed group.
+const openGroups = ref(
+  messtoolItems.some((i) => i.value === activeTab.value) ? ["messtool"] : ["generiertool"],
+);
+function ensureGroupOpenFor(value) {
+  const group = messtoolItems.some((i) => i.value === value) ? "messtool" : "generiertool";
+  if (!openGroups.value.includes(group)) openGroups.value = [...openGroups.value, group];
+}
 
 const isDark = computed({
   get: () => theme.global.current.value.dark,
