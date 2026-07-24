@@ -297,6 +297,23 @@
           Alle gross anzeigen
         </v-btn>
 
+        <template v-if="displayMode === 'stacked'">
+          <v-switch
+            v-model="syncCursors"
+            color="primary"
+            density="compact"
+            hide-details
+            label="Cursor über alle Plots"
+          ></v-switch>
+          <v-switch
+            v-model="syncZoom"
+            color="primary"
+            density="compact"
+            hide-details
+            label="Zoom über alle Plots"
+          ></v-switch>
+        </template>
+
         <span class="text-caption text-medium-emphasis">
           {{ displayMode === "overlay" ? "Alle Signale in einem Chart übereinander" : "Jedes Signal als eigenes Chart untereinander" }}
           <template v-if="xAxisMode === 'uhrzeit' && displayMode === 'overlay' && mtStore.compareFiles.length > 1">
@@ -316,7 +333,8 @@
           :title="item.title"
           :config="item.config"
           :height="bigMode ? 600 : 260"
-          sync-group="vergleich-gestapelt"
+          :sync-group="syncZoom ? 'vergleich-gestapelt' : null"
+          :cursor-sync-group="syncCursors ? 'vergleich-gestapelt' : null"
           class="mb-4"
         />
         <p v-if="mtStore.compareSeries.length === 0" class="text-medium-emphasis text-center pa-6">
@@ -450,6 +468,8 @@ const errorMsg = ref("");
 const displayMode = ref("overlay"); // 'overlay' | 'stacked'
 const xAxisMode = ref("zeit"); // 'zeit' (elapsed seconds) | 'uhrzeit' (real clock time)
 const bigMode = ref(false); // show every chart bigger, one page's worth at a time
+const syncCursors = ref(false); // cursors placed on one Gestapelt chart appear on all of them
+const syncZoom = ref(true); // zoom/pan on one Gestapelt chart applies to all of them (existing default behavior)
 
 // Elapsed-time-to-clock offset for a series: clockSec[i] ≈ time[i] +
 // clockOffset, assuming a steady sample rate (reasonable — big gaps are

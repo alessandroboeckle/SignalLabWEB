@@ -126,7 +126,9 @@
       </div>
 
       <!-- Cursorbox: one row per cursor (checkbox to activate/deactivate,
-           x-value, delete), each showing every series' value at that x. -->
+           x-value, delete), each showing every series' value at that x.
+           Click a cursor's label to add it to the comparison selection
+           below — works for any number of cursors, not just two. -->
       <v-card v-if="cursorMode && cursors.length" variant="tonal" rounded="lg" class="mb-2 pa-2">
         <div class="d-flex align-center justify-space-between mb-1">
           <span class="text-caption font-weight-medium">Cursor</span>
@@ -141,7 +143,15 @@
               @update:model-value="toggleCursorActive(c.id)"
             ></v-checkbox-btn>
             <v-icon size="10" :color="CURSOR_COLORS[i % CURSOR_COLORS.length]">mdi-circle</v-icon>
-            <span class="text-caption font-weight-medium">C{{ i + 1 }}</span>
+            <v-chip
+              size="x-small"
+              :variant="compareSelection.includes(c.id) ? 'flat' : 'text'"
+              :color="compareSelection.includes(c.id) ? 'primary' : 'default'"
+              class="font-weight-medium"
+              @click="toggleCompareSelect(c.id)"
+            >
+              C{{ i + 1 }}
+            </v-chip>
             <span class="text-caption text-medium-emphasis">x = {{ c.x.toFixed(3) }}</span>
             <v-spacer></v-spacer>
             <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
@@ -154,6 +164,19 @@
         </div>
         <div v-if="cursorDelta" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
           Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}
+        </div>
+
+        <div v-if="compareSelection.length > 0" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
+          <span class="text-medium-emphasis">
+            Zum Vergleichen anklicken: C-Label antippen (aktuell {{ compareSelection.length }} ausgewählt)
+          </span>
+          <div v-for="(cmp, i) in cursorComparisons" :key="i" class="mt-1">
+            <strong>C{{ cmp.aLabel }} → C{{ cmp.bLabel }}:</strong>
+            Δx = {{ cmp.dx.toFixed(4) }}
+            <span v-for="s in cmp.perSeries" :key="s.label" class="ml-2">
+              · Δ({{ s.label }}) = {{ s.dy.toFixed(4) }}
+            </span>
+          </div>
         </div>
       </v-card>
 
@@ -214,7 +237,15 @@
                   @update:model-value="toggleCursorActive(c.id)"
                 ></v-checkbox-btn>
                 <v-icon size="10" :color="CURSOR_COLORS[i % CURSOR_COLORS.length]">mdi-circle</v-icon>
-                <span class="text-caption font-weight-medium">C{{ i + 1 }}</span>
+                <v-chip
+                  size="x-small"
+                  :variant="compareSelection.includes(c.id) ? 'flat' : 'text'"
+                  :color="compareSelection.includes(c.id) ? 'primary' : 'default'"
+                  class="font-weight-medium"
+                  @click="toggleCompareSelect(c.id)"
+                >
+                  C{{ i + 1 }}
+                </v-chip>
                 <span class="text-caption text-medium-emphasis">x = {{ c.x.toFixed(3) }}</span>
                 <v-spacer></v-spacer>
                 <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
@@ -227,6 +258,18 @@
             </div>
             <div v-if="cursorDelta" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
               Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}
+            </div>
+            <div v-if="compareSelection.length > 0" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
+              <span class="text-medium-emphasis">
+                Zum Vergleichen anklicken: C-Label antippen (aktuell {{ compareSelection.length }} ausgewählt)
+              </span>
+              <div v-for="(cmp, i) in cursorComparisons" :key="i" class="mt-1">
+                <strong>C{{ cmp.aLabel }} → C{{ cmp.bLabel }}:</strong>
+                Δx = {{ cmp.dx.toFixed(4) }}
+                <span v-for="s in cmp.perSeries" :key="s.label" class="ml-2">
+                  · Δ({{ s.label }}) = {{ s.dy.toFixed(4) }}
+                </span>
+              </div>
             </div>
           </v-card>
           <canvas ref="fsCanvas" @click="onCanvasClick($event, 'fs')"></canvas>
@@ -244,6 +287,7 @@ import zoomPlugin from "chartjs-plugin-zoom";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { findOutlierIndices } from "../../utils/outlierDetection.js";
 import { subscribeZoomSync, broadcastZoomSync } from "../../composables/useChartZoomSync.js";
+import { subscribeCursorSync, broadcastCursorSync } from "../../composables/useChartCursorSync.js";
 import { formatClockTime } from "../../utils/messtoolParser.js";
 
 Chart.register(zoomPlugin);
@@ -259,6 +303,11 @@ const props = defineProps({
   // their x-axis (e.g. Analyse's two time-domain charts) — matches the
   // original tool's "Synchroner Zoom" checkbox.
   syncGroup: { type: String, default: null },
+  // Same idea, but for cursor placement — click a cursor on one chart,
+  // it appears at the same x on every other chart sharing this group.
+  // Separate from syncGroup so cursor-sync and zoom-sync can be toggled
+  // independently.
+  cursorSyncGroup: { type: String, default: null },
 });
 
 const inlineCanvas = ref(null);
@@ -327,6 +376,38 @@ const cursorDelta = computed(() => {
     dy: bSeries.value - aSeries.value,
     label: commonLabel,
   };
+});
+
+// Click any cursor's label (not its checkbox/delete button) to add it to
+// a comparison selection — works for any number of cursors, not just
+// two. Shows the sequential difference between each consecutively
+// selected pair, in the order they were picked.
+const compareSelection = ref([]); // [cursorId, ...] in the order clicked
+
+function toggleCompareSelect(id) {
+  compareSelection.value = compareSelection.value.includes(id)
+    ? compareSelection.value.filter((cid) => cid !== id)
+    : [...compareSelection.value, id];
+}
+
+const cursorComparisons = computed(() => {
+  const ids = compareSelection.value.filter((id) => cursors.value.some((c) => c.id === id && c.active));
+  if (ids.length < 2) return [];
+  const rowsById = new Map(cursorRows.value.map((r) => [r.id, r]));
+  const results = [];
+  for (let i = 1; i < ids.length; i++) {
+    const a = rowsById.get(ids[i - 1]);
+    const b = rowsById.get(ids[i]);
+    if (!a || !b) continue;
+    const aLabel = cursors.value.findIndex((c) => c.id === ids[i - 1]) + 1;
+    const bLabel = cursors.value.findIndex((c) => c.id === ids[i]) + 1;
+    const perSeries = a.series.map((aSeries) => {
+      const bSeries = b.series.find((s) => s.label === aSeries.label);
+      return bSeries ? { label: aSeries.label, dy: bSeries.value - aSeries.value } : null;
+    }).filter(Boolean);
+    results.push({ aLabel, bLabel, dx: b.x - a.x, perSeries });
+  }
+  return results;
 });
 
 function toggleCursorMode() {
@@ -474,10 +555,9 @@ function onCanvasClick(evt, which) {
   const x = xValueAtEvent(chart, evt);
   if (x == null || Number.isNaN(x)) return;
 
-  cursors.value = [
-    ...cursors.value,
-    { id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, x, active: true },
-  ];
+  const newId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  cursors.value = [...cursors.value, { id: newId, x, active: true }];
+  broadcastCursorAction({ type: "add", id: newId, x });
 
   buildInline();
   if (fullscreen.value) buildFullscreen();
@@ -485,7 +565,10 @@ function onCanvasClick(evt, which) {
 }
 
 function toggleCursorActive(id) {
-  cursors.value = cursors.value.map((c) => (c.id === id ? { ...c, active: !c.active } : c));
+  const target = cursors.value.find((c) => c.id === id);
+  const newActive = target ? !target.active : true;
+  cursors.value = cursors.value.map((c) => (c.id === id ? { ...c, active: newActive } : c));
+  broadcastCursorAction({ type: "toggle", id, active: newActive });
   buildInline();
   if (fullscreen.value) buildFullscreen();
   buildCursorRows();
@@ -493,6 +576,8 @@ function toggleCursorActive(id) {
 
 function removeCursor(id) {
   cursors.value = cursors.value.filter((c) => c.id !== id);
+  compareSelection.value = compareSelection.value.filter((cid) => cid !== id);
+  broadcastCursorAction({ type: "remove", id });
   buildInline();
   if (fullscreen.value) buildFullscreen();
   buildCursorRows();
@@ -500,6 +585,8 @@ function removeCursor(id) {
 
 function clearAllCursors() {
   cursors.value = [];
+  compareSelection.value = [];
+  broadcastCursorAction({ type: "clear" });
   buildInline();
   if (fullscreen.value) buildFullscreen();
   buildCursorRows();
@@ -880,6 +967,38 @@ function onIncomingSyncedRange(range, sourceId) {
 
 let unsubscribeZoomSync = null;
 
+// --- synchronized cursors across charts sharing props.cursorSyncGroup ---
+const cursorSyncInstanceId = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+let applyingSyncedCursorAction = false;
+
+function broadcastCursorAction(action) {
+  if (!props.cursorSyncGroup || applyingSyncedCursorAction) return;
+  broadcastCursorSync(props.cursorSyncGroup, action, cursorSyncInstanceId);
+}
+
+function onIncomingCursorAction(action, sourceId) {
+  if (sourceId === cursorSyncInstanceId) return; // ignore our own broadcast
+  applyingSyncedCursorAction = true;
+  try {
+    if (action.type === "add") {
+      cursors.value = [...cursors.value, { id: action.id, x: action.x, active: true }];
+    } else if (action.type === "toggle") {
+      cursors.value = cursors.value.map((c) => (c.id === action.id ? { ...c, active: action.active } : c));
+    } else if (action.type === "remove") {
+      cursors.value = cursors.value.filter((c) => c.id !== action.id);
+    } else if (action.type === "clear") {
+      cursors.value = [];
+    }
+    buildInline();
+    if (fullscreen.value) buildFullscreen();
+    buildCursorRows();
+  } finally {
+    applyingSyncedCursorAction = false;
+  }
+}
+
+let unsubscribeCursorSync = null;
+
 function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
@@ -924,10 +1043,14 @@ onMounted(async () => {
   if (props.syncGroup) {
     unsubscribeZoomSync = subscribeZoomSync(props.syncGroup, onIncomingSyncedRange);
   }
+  if (props.cursorSyncGroup) {
+    unsubscribeCursorSync = subscribeCursorSync(props.cursorSyncGroup, onIncomingCursorAction);
+  }
 });
 onBeforeUnmount(() => {
   if (playRafId) cancelAnimationFrame(playRafId);
   if (unsubscribeZoomSync) unsubscribeZoomSync();
+  if (unsubscribeCursorSync) unsubscribeCursorSync();
   if (inlineChart) inlineChart.destroy();
   if (fsChart) fsChart.destroy();
 });
