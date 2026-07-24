@@ -172,7 +172,7 @@
         <v-card-text>
           <v-text-field
             v-model="markerNoteInput"
-            label="Notiz"
+            label="Notiz (optional)"
             variant="outlined"
             density="comfortable"
             autofocus
@@ -275,11 +275,12 @@ const markerDialogX = ref(null);
 const markerNoteInput = ref("");
 
 function confirmMarker() {
-  if (markerDialogX.value == null || !markerNoteInput.value.trim()) {
+  if (markerDialogX.value == null) {
     markerDialogOpen.value = false;
     return;
   }
-  mtStore.addMarker(markerDialogX.value, markerNoteInput.value.trim());
+  const note = markerNoteInput.value.trim() || `Marker bei ${markerDialogX.value.toFixed(2)}s`;
+  mtStore.addMarker(markerDialogX.value, note);
   markerDialogOpen.value = false;
   buildInline();
   if (fullscreen.value) buildFullscreen();
@@ -428,13 +429,32 @@ function stepPlay(ts) {
 // Works for both scale types ChartCard is used with: category scale with
 // numeric-string labels (Analyse/Filter/Verarbeitung/Export), and a linear
 // scale with raw {x,y} points and parsing:false (Vergleich).
+// Reads the clicked x-value directly from the click's pixel position via
+// the x-scale itself — not by finding "the nearest data point" (the old
+// approach), which depends on there actually being a point close by and
+// can silently come up empty (e.g. clicking a gap, a sparse chart, or
+// just an unlucky spot), making clicks seem to do nothing at all.
+// Reading straight off the scale always works anywhere inside the chart
+// area, regardless of the data.
 function xValueAtEvent(chart, evt) {
-  const points = chart.getElementsAtEventForMode(evt, "nearest", { intersect: false }, true);
-  if (!points.length) return null;
-  const p = points[0];
-  const ds = chart.data.datasets[p.datasetIndex];
-  const rawX = chart.data.labels ? chart.data.labels[p.index] : ds.data[p.index]?.x;
-  return typeof rawX === "number" ? rawX : parseFloat(rawX);
+  const xScale = chart.scales?.x;
+  if (!xScale) return null;
+
+  const rect = chart.canvas.getBoundingClientRect();
+  const pixelX = evt.clientX - rect.left;
+  if (pixelX < chart.chartArea.left || pixelX > chart.chartArea.right) return null;
+
+  const rawValue = xScale.getValueForPixel(pixelX);
+  if (rawValue == null || Number.isNaN(rawValue)) return null;
+
+  if (chart.data.labels && chart.data.labels.length) {
+    // Category scale: getValueForPixel returns a (possibly fractional)
+    // index, not the real label value — round to the nearest label.
+    const idx = Math.max(0, Math.min(chart.data.labels.length - 1, Math.round(rawValue)));
+    const label = chart.data.labels[idx];
+    return typeof label === "number" ? label : parseFloat(label);
+  }
+  return rawValue;
 }
 
 function onCanvasClick(evt, which) {
