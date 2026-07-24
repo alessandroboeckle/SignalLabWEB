@@ -162,6 +162,32 @@
       </div>
     </v-card-text>
 
+    <!-- Marker note dialog (replaces the old native window.prompt, which
+         some browsers/contexts silently suppress) -->
+    <v-dialog v-model="markerDialogOpen" max-width="380">
+      <v-card>
+        <v-card-title class="text-subtitle-1">
+          Notiz für Marker bei t = {{ markerDialogX?.toFixed(2) }}s
+        </v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="markerNoteInput"
+            label="Notiz"
+            variant="outlined"
+            density="comfortable"
+            autofocus
+            hide-details
+            @keyup.enter="confirmMarker"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn @click="markerDialogOpen = false">Abbrechen</v-btn>
+          <v-btn color="primary" variant="flat" @click="confirmMarker">Speichern</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Fullscreen overlay -->
     <v-dialog v-model="fullscreen" fullscreen transition="dialog-bottom-transition">
       <v-card>
@@ -244,6 +270,20 @@ const markerMode = ref(false);
 const outlierMode = ref(false);
 const yLogMode = ref(false);
 const cursors = ref([]); // [{id, x, active}] — click adds a new one, unlimited, each toggleable
+const markerDialogOpen = ref(false);
+const markerDialogX = ref(null);
+const markerNoteInput = ref("");
+
+function confirmMarker() {
+  if (markerDialogX.value == null || !markerNoteInput.value.trim()) {
+    markerDialogOpen.value = false;
+    return;
+  }
+  mtStore.addMarker(markerDialogX.value, markerNoteInput.value.trim());
+  markerDialogOpen.value = false;
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+}
 let inlineChart = null;
 let fsChart = null;
 
@@ -404,12 +444,9 @@ function onCanvasClick(evt, which) {
   if (markerMode.value) {
     const x = xValueAtEvent(chart, evt);
     if (x == null || Number.isNaN(x)) return;
-    const note = window.prompt(`Notiz für Marker bei t = ${x.toFixed(2)}s:`);
-    if (note && note.trim()) {
-      mtStore.addMarker(x, note.trim());
-      buildInline();
-      if (fullscreen.value) buildFullscreen();
-    }
+    markerDialogX.value = x;
+    markerNoteInput.value = "";
+    markerDialogOpen.value = true;
     return;
   }
 
