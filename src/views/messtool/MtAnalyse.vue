@@ -99,6 +99,85 @@
         </v-col>
       </v-row>
 
+      <v-card variant="outlined" rounded="lg" class="mb-4">
+        <v-card-title class="d-flex align-center ga-2">
+          <v-icon size="20">mdi-target</v-icon>
+          Automatische Ereignis-Erkennung
+        </v-card-title>
+        <v-divider></v-divider>
+        <v-card-text>
+          <v-row dense align="center">
+            <v-col cols="6" sm="3">
+              <v-text-field
+                v-model.number="eventThreshold"
+                type="number"
+                label="Schwellwert"
+                variant="outlined"
+                density="compact"
+                hide-details
+              ></v-text-field>
+            </v-col>
+            <v-col cols="6" sm="3">
+              <v-select
+                v-model="eventMode"
+                :items="[
+                  { title: 'Betrag über', value: 'abs' },
+                  { title: 'Über', value: 'above' },
+                  { title: 'Unter', value: 'below' },
+                ]"
+                label="Modus"
+                variant="outlined"
+                density="compact"
+                hide-details
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-btn color="primary" variant="tonal" prepend-icon="mdi-magnify-scan" @click="runEventDetection">
+                Ereignisse finden
+              </v-btn>
+              <v-btn
+                v-if="foundEvents.length"
+                variant="text"
+                prepend-icon="mdi-map-marker-multiple-outline"
+                class="ml-2"
+                @click="markAllEvents"
+              >
+                Alle als Marker setzen
+              </v-btn>
+            </v-col>
+          </v-row>
+
+          <v-alert v-if="eventSearchDone && foundEvents.length === 0" type="info" variant="tonal" density="compact" class="mt-3">
+            Keine Ereignisse über diesem Schwellwert gefunden.
+          </v-alert>
+
+          <v-table v-if="foundEvents.length" density="compact" class="mt-3">
+            <thead>
+              <tr>
+                <th>Start [s]</th>
+                <th>Ende [s]</th>
+                <th>Dauer [s]</th>
+                <th>Spitzenwert</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ev, i) in foundEvents" :key="i">
+                <td>{{ ev.startTime.toFixed(2) }}</td>
+                <td>{{ ev.endTime.toFixed(2) }}</td>
+                <td>{{ ev.durationSec.toFixed(2) }}</td>
+                <td>{{ ev.peakValue.toFixed(3) }}</td>
+                <td>
+                  <v-btn size="x-small" variant="text" prepend-icon="mdi-map-marker-outline" @click="markEvent(ev, i)">
+                    Marker
+                  </v-btn>
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+      </v-card>
+
       <v-row class="mb-4">
         <v-col v-for="stat in stats" :key="stat.label" cols="6" sm="4" md="2">
           <v-card variant="tonal" color="primary" class="pa-3 text-center">
@@ -156,6 +235,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { findWindowBounds } from "../../utils/timeWindow.js";
+import { findEvents } from "../../utils/eventDetection.js";
 import ChartCard from "./ChartCard.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 import { downsample } from "../../utils/downsample.js";
@@ -237,6 +317,27 @@ const zeitbereichEnd = ref(null);
 const showAvgLine = ref(false);
 const showRmsLine = ref(false);
 const showStdBand = ref(false);
+
+const eventThreshold = ref(null);
+const eventMode = ref("abs");
+const foundEvents = ref([]);
+const eventSearchDone = ref(false);
+
+function runEventDetection() {
+  eventSearchDone.value = true;
+  foundEvents.value = [];
+  if (!sig.value || eventThreshold.value == null) return;
+  const { y, t } = windowedYT(sig.value, time.value);
+  foundEvents.value = findEvents(y, t, eventThreshold.value, { mode: eventMode.value });
+}
+
+function markEvent(ev, i) {
+  mtStore.addMarker(ev.peakTime, `Ereignis ${i + 1}: Spitze ${ev.peakValue.toFixed(2)}`);
+}
+
+function markAllEvents() {
+  foundEvents.value.forEach((ev, i) => markEvent(ev, i));
+}
 
 // Slices a signal's data + the shared time array down to the current
 // Zeitbereich window (or returns them unchanged if no window is set).

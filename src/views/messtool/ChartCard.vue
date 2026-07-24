@@ -14,7 +14,7 @@
       >
         <v-icon>mdi-ruler</v-icon>
         <v-tooltip activator="parent" location="bottom">
-          Cursor {{ cursorMode ? "AN" : "AUS" }} — zwei Punkte anklicken, um Δt und ΔWert zu messen
+          Cursor {{ cursorMode ? "AN" : "AUS" }} — Klicken setzt einen Cursor, mehrere möglich, per Checkbox einzeln ein-/ausschaltbar
         </v-tooltip>
       </v-btn>
       <v-btn
@@ -106,7 +106,7 @@
     <v-card-text>
       <div class="hint text-caption text-medium-emphasis mb-1">
         Mausrad = Zoom · Rechteck ziehen = Bereich · Ziehen mit gedrückter Umschalt = verschieben
-        <span v-if="cursorMode"> · Cursor-Modus: 2 Punkte anklicken</span>
+        <span v-if="cursorMode"> · Cursor-Modus: Klicken setzt weiteren Cursor</span>
         <span v-if="markerMode"> · Marker-Modus: Stelle anklicken für Notiz</span>
       </div>
 
@@ -125,15 +125,37 @@
         </v-chip>
       </div>
 
-      <v-alert
-        v-if="cursorMode && cursorInfo"
-        type="info"
-        variant="tonal"
-        density="compact"
-        class="mb-2 text-caption"
-      >
-        {{ cursorInfo }}
-      </v-alert>
+      <!-- Cursorbox: one row per cursor (checkbox to activate/deactivate,
+           x-value, delete), each showing every series' value at that x. -->
+      <v-card v-if="cursorMode && cursors.length" variant="tonal" rounded="lg" class="mb-2 pa-2">
+        <div class="d-flex align-center justify-space-between mb-1">
+          <span class="text-caption font-weight-medium">Cursor</span>
+          <v-btn size="x-small" variant="text" @click="clearAllCursors">Alle löschen</v-btn>
+        </div>
+        <div v-for="(c, i) in cursors" :key="c.id" class="cursor-row mb-1">
+          <div class="d-flex align-center ga-1">
+            <v-checkbox-btn
+              :model-value="c.active"
+              :aria-label="`Cursor ${i + 1} ${c.active ? 'deaktivieren' : 'aktivieren'}`"
+              density="compact"
+              @update:model-value="toggleCursorActive(c.id)"
+            ></v-checkbox-btn>
+            <v-icon size="10" :color="CURSOR_COLORS[i % CURSOR_COLORS.length]">mdi-circle</v-icon>
+            <span class="text-caption font-weight-medium">C{{ i + 1 }}</span>
+            <span class="text-caption text-medium-emphasis">x = {{ c.x.toFixed(3) }}</span>
+            <v-spacer></v-spacer>
+            <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
+          </div>
+          <div v-if="c.active" class="cursor-values text-caption text-medium-emphasis ml-6">
+            <span v-for="s in (cursorRows.find((r) => r.id === c.id)?.series || [])" :key="s.label" class="mr-3">
+              {{ s.label }}: <strong>{{ s.value.toFixed(3) }}</strong>
+            </span>
+          </div>
+        </div>
+        <div v-if="cursorDelta" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
+          Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}
+        </div>
+      </v-card>
 
       <div :style="{ height: height + 'px' }">
         <canvas ref="inlineCanvas" @click="onCanvasClick($event, 'inline')"></canvas>
@@ -152,15 +174,35 @@
           </v-btn>
         </v-toolbar>
         <v-card-text class="pa-4" style="height: calc(100vh - 64px)">
-          <v-alert
-            v-if="cursorMode && cursorInfo"
-            type="info"
-            variant="tonal"
-            density="compact"
-            class="mb-2 text-caption"
-          >
-            {{ cursorInfo }}
-          </v-alert>
+          <v-card v-if="cursorMode && cursors.length" variant="tonal" rounded="lg" class="mb-2 pa-2">
+            <div class="d-flex align-center justify-space-between mb-1">
+              <span class="text-caption font-weight-medium">Cursor</span>
+              <v-btn size="x-small" variant="text" @click="clearAllCursors">Alle löschen</v-btn>
+            </div>
+            <div v-for="(c, i) in cursors" :key="c.id" class="cursor-row mb-1">
+              <div class="d-flex align-center ga-1">
+                <v-checkbox-btn
+                  :model-value="c.active"
+                  :aria-label="`Cursor ${i + 1} ${c.active ? 'deaktivieren' : 'aktivieren'}`"
+                  density="compact"
+                  @update:model-value="toggleCursorActive(c.id)"
+                ></v-checkbox-btn>
+                <v-icon size="10" :color="CURSOR_COLORS[i % CURSOR_COLORS.length]">mdi-circle</v-icon>
+                <span class="text-caption font-weight-medium">C{{ i + 1 }}</span>
+                <span class="text-caption text-medium-emphasis">x = {{ c.x.toFixed(3) }}</span>
+                <v-spacer></v-spacer>
+                <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
+              </div>
+              <div v-if="c.active" class="cursor-values text-caption text-medium-emphasis ml-6">
+                <span v-for="s in (cursorRows.find((r) => r.id === c.id)?.series || [])" :key="s.label" class="mr-3">
+                  {{ s.label }}: <strong>{{ s.value.toFixed(3) }}</strong>
+                </span>
+              </div>
+            </div>
+            <div v-if="cursorDelta" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
+              Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}
+            </div>
+          </v-card>
           <canvas ref="fsCanvas" @click="onCanvasClick($event, 'fs')"></canvas>
         </v-card-text>
       </v-card>
@@ -201,18 +243,49 @@ const cursorMode = ref(false);
 const markerMode = ref(false);
 const outlierMode = ref(false);
 const yLogMode = ref(false);
-const cursors = ref([]); // up to 2 points: {x, y, label}
+const cursors = ref([]); // [{id, x, active}] — click adds a new one, unlimited, each toggleable
 let inlineChart = null;
 let fsChart = null;
 
-const cursorInfo = computed(() => {
-  if (cursors.value.length < 2) return cursors.value.length === 1
-    ? "Erster Punkt gesetzt – zweiten Punkt anklicken."
-    : "";
-  const [a, b] = cursors.value;
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  return `Δx = ${dx.toFixed(4)}  ·  Δy = ${dy.toFixed(4)}  (P1: x=${a.x.toFixed(3)}, y=${a.y.toFixed(3)} · P2: x=${b.x.toFixed(3)}, y=${b.y.toFixed(3)})`;
+// One row per active cursor, each carrying every series' interpolated
+// value at that x — this is the "Cursorbox" the values panel is built
+// from. Needs a live chart instance, so it's computed lazily by
+// buildCursorRows() (called after each (re)build) rather than as a
+// reactive computed — Chart.js instances aren't reactive-friendly data.
+const cursorRows = ref([]);
+
+function buildCursorRows() {
+  const chart = fullscreen.value ? fsChart : inlineChart;
+  if (!chart || !cursorMode.value) {
+    cursorRows.value = [];
+    return;
+  }
+  cursorRows.value = cursors.value
+    .filter((c) => c.active)
+    .map((c) => ({
+      id: c.id,
+      x: c.x,
+      series: interpolateDatasetsAtX(chart, c.x),
+    }));
+}
+
+// If exactly two cursors are active, also show the classic Δx/Δy between
+// them for the first series they share — keeps the original "measure the
+// distance between two points" use case working alongside the richer
+// per-cursor, all-series view.
+const cursorDelta = computed(() => {
+  const rows = cursorRows.value;
+  if (rows.length !== 2) return null;
+  const [a, b] = rows;
+  const commonLabel = a.series[0]?.label;
+  const bSeries = b.series.find((s) => s.label === commonLabel) || b.series[0];
+  const aSeries = a.series[0];
+  if (!aSeries || !bSeries) return null;
+  return {
+    dx: b.x - a.x,
+    dy: bSeries.value - aSeries.value,
+    label: commonLabel,
+  };
 });
 
 function toggleCursorMode() {
@@ -221,6 +294,7 @@ function toggleCursorMode() {
   cursors.value = [];
   buildInline();
   if (fullscreen.value) buildFullscreen();
+  buildCursorRows();
 }
 
 function toggleMarkerMode() {
@@ -340,20 +414,38 @@ function onCanvasClick(evt, which) {
   }
 
   if (!cursorMode.value) return;
-  const points = chart.getElementsAtEventForMode(evt, "nearest", { intersect: false }, true);
-  if (!points.length) return;
-  const p = points[0];
-  const ds = chart.data.datasets[p.datasetIndex];
-  const rawX = chart.data.labels ? chart.data.labels[p.index] : ds.data[p.index]?.x;
-  const rawY = chart.data.labels ? ds.data[p.index] : ds.data[p.index]?.y;
-  const x = typeof rawX === "number" ? rawX : parseFloat(rawX);
-  const y = typeof rawY === "number" ? rawY : parseFloat(rawY);
+  const x = xValueAtEvent(chart, evt);
+  if (x == null || Number.isNaN(x)) return;
 
-  if (cursors.value.length >= 2) cursors.value = [];
-  cursors.value = [...cursors.value, { x, y }];
+  cursors.value = [
+    ...cursors.value,
+    { id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, x, active: true },
+  ];
 
   buildInline();
   if (fullscreen.value) buildFullscreen();
+  buildCursorRows();
+}
+
+function toggleCursorActive(id) {
+  cursors.value = cursors.value.map((c) => (c.id === id ? { ...c, active: !c.active } : c));
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+  buildCursorRows();
+}
+
+function removeCursor(id) {
+  cursors.value = cursors.value.filter((c) => c.id !== id);
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+  buildCursorRows();
+}
+
+function clearAllCursors() {
+  cursors.value = [];
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+  buildCursorRows();
 }
 
 // Custom plugin: draws vertical lines + dots at cursor positions.
@@ -383,16 +475,22 @@ function xValueToPixel(chart, value) {
   return xScale.getPixelForValue(0);
 }
 
+const CURSOR_COLORS = ["#DC2626", "#059669", "#7C3AED", "#DB2777", "#D97706", "#0891B2"];
+
 const cursorPlugin = {
   id: "cursorMarkers",
   afterDraw(chart) {
-    if (!cursorMode.value || cursors.value.length === 0) return;
+    if (!cursorMode.value) return;
+    const active = cursors.value.filter((c) => c.active);
+    if (!active.length) return;
     const { ctx, chartArea } = chart;
     ctx.save();
-    cursors.value.forEach((c, i) => {
+    active.forEach((c, i) => {
+      const color = CURSOR_COLORS[i % CURSOR_COLORS.length];
       const px = xValueToPixel(chart, c.x);
       if (px < chartArea.left || px > chartArea.right) return;
-      ctx.strokeStyle = i === 0 ? "#DC2626" : "#059669";
+
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -400,9 +498,22 @@ const cursorPlugin = {
       ctx.lineTo(px, chartArea.bottom);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = i === 0 ? "#DC2626" : "#059669";
+      ctx.fillStyle = color;
       ctx.font = "11px sans-serif";
-      ctx.fillText(`P${i + 1}`, px + 3, chartArea.top + 12);
+      ctx.fillText(`C${i + 1}`, px + 3, chartArea.top + 12);
+
+      // A small dot on every series at this cursor's x — the actual
+      // numbers live in the Cursorbox panel below the chart, this is
+      // just a visual anchor for where each line sits at that moment.
+      for (const point of interpolateDatasetsAtX(chart, c.x)) {
+        const yScale = chart.scales[point.yAxisID];
+        if (!yScale) continue;
+        const y = yScale.getPixelForValue(point.value);
+        ctx.fillStyle = point.color;
+        ctx.beginPath();
+        ctx.arc(px, y, 3, 0, 2 * Math.PI);
+        ctx.fill();
+      }
     });
     ctx.restore();
   },
@@ -474,6 +585,55 @@ const outlierPlugin = {
 // dataset's current value at the playhead with a dot + live number, so
 // it's more than just a bar sliding across — you actually see what's
 // happening at that moment, like scrubbing through a video.
+// Interpolates every dataset's y-value at an exact x position (linear
+// interpolation between the two bracketing points, not just snapping to
+// the "nearest" point — matters on steep slopes). Shared by the playhead
+// and the cursor system below, since both need "what's every series
+// doing at this exact x" rather than just whichever point a click
+// happened to land nearest to.
+function interpolateDatasetsAtX(chart, x) {
+  const results = [];
+  chart.data.datasets.forEach((ds, dsIndex) => {
+    if (!ds.data.length) return;
+    // Each dataset can have its own independent x-values (e.g. Vergleich's
+    // overlay, where every file/series has its own time array plus its
+    // own offset) — using one shared xs array for all of them would find
+    // the wrong nearest point and land the value off the actual line.
+    const dsXs = chart.data.labels
+      ? chart.data.labels.map(Number)
+      : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
+
+    let lo = -1;
+    for (let i = 0; i < dsXs.length - 1; i++) {
+      if (dsXs[i] <= x && dsXs[i + 1] >= x) {
+        lo = i;
+        break;
+      }
+    }
+    if (lo === -1) return; // x is outside this dataset's own x-range
+
+    const rawLo = ds.data[lo];
+    const rawHi = ds.data[lo + 1];
+    const yLo = rawLo && typeof rawLo === "object" ? rawLo.y : rawLo;
+    const yHi = rawHi && typeof rawHi === "object" ? rawHi.y : rawHi;
+    if (yLo == null || yHi == null || !Number.isFinite(yLo) || !Number.isFinite(yHi)) return;
+
+    const xLo = dsXs[lo];
+    const xHi = dsXs[lo + 1];
+    const frac = xHi > xLo ? (x - xLo) / (xHi - xLo) : 0;
+    const yVal = yLo + (yHi - yLo) * frac;
+
+    results.push({
+      dsIndex,
+      label: ds.label || `Serie ${dsIndex + 1}`,
+      color: ds.borderColor || "#059669",
+      yAxisID: ds.yAxisID || "y",
+      value: yVal,
+    });
+  });
+  return results;
+}
+
 const playheadPlugin = {
   id: "playhead",
   afterDraw(chart) {
@@ -490,56 +650,21 @@ const playheadPlugin = {
     ctx.lineTo(px, chartArea.bottom);
     ctx.stroke();
 
-    chart.data.datasets.forEach((ds, dsIndex) => {
-      if (!ds.data.length) return;
-      // Each dataset can have its own independent x-values (e.g. Vergleich's
-      // overlay, where every file/series has its own time array plus its
-      // own offset) — using one shared xs array for all of them would find
-      // the wrong nearest point and land the dot off the actual line.
-      const dsXs = chart.data.labels
-        ? chart.data.labels.map(Number)
-        : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
+    for (const point of interpolateDatasetsAtX(chart, playheadX.value)) {
+      const yScale = chart.scales[point.yAxisID];
+      if (!yScale) continue;
+      const y = yScale.getPixelForValue(point.value);
 
-      // Find the two points bracketing the exact playhead x and linearly
-      // interpolate between them, rather than snapping to whichever single
-      // point is "nearest" — on a steep slope the nearest point's y can
-      // sit noticeably off the line at this exact x, making the dot look
-      // like it's floating above/below the curve instead of on it.
-      let lo = -1;
-      for (let i = 0; i < dsXs.length - 1; i++) {
-        if (dsXs[i] <= playheadX.value && dsXs[i + 1] >= playheadX.value) {
-          lo = i;
-          break;
-        }
-      }
-      if (lo === -1) return; // playhead is outside this dataset's own x-range
-
-      const rawLo = ds.data[lo];
-      const rawHi = ds.data[lo + 1];
-      const yLo = rawLo && typeof rawLo === "object" ? rawLo.y : rawLo;
-      const yHi = rawHi && typeof rawHi === "object" ? rawHi.y : rawHi;
-      if (yLo == null || yHi == null || !Number.isFinite(yLo) || !Number.isFinite(yHi)) return;
-
-      const xLo = dsXs[lo];
-      const xHi = dsXs[lo + 1];
-      const frac = xHi > xLo ? (playheadX.value - xLo) / (xHi - xLo) : 0;
-      const yVal = yLo + (yHi - yLo) * frac;
-
-      const yScale = chart.scales[ds.yAxisID || "y"];
-      if (!yScale) return;
-      const y = yScale.getPixelForValue(yVal);
-
-      const color = ds.borderColor || "#059669";
-      ctx.fillStyle = color;
+      ctx.fillStyle = point.color;
       ctx.beginPath();
       ctx.arc(px, y, 4, 0, 2 * Math.PI);
       ctx.fill();
 
       ctx.font = "11px sans-serif";
-      const label = yVal.toFixed(2);
+      const label = point.value.toFixed(2);
       const labelY = y - 8 < chartArea.top + 10 ? y + 16 : y - 8;
       ctx.fillText(label, px + 6, labelY);
-    });
+    }
 
     ctx.restore();
   },
@@ -724,12 +849,12 @@ function resetZoom(which) {
 async function openFullscreen() {
   fullscreen.value = true;
   await nextTick();
-  setTimeout(buildFullscreen, 150);
+  setTimeout(() => { buildFullscreen(); buildCursorRows(); }, 150);
 }
 
-watch(() => props.config, async () => { await nextTick(); buildInline(); });
-watch(peakMode, async () => { await nextTick(); buildInline(); if (fullscreen.value) buildFullscreen(); });
-watch(() => theme.global.name.value, () => { buildInline(); if (fullscreen.value) buildFullscreen(); });
+watch(() => props.config, async () => { await nextTick(); buildInline(); buildCursorRows(); });
+watch(peakMode, async () => { await nextTick(); buildInline(); if (fullscreen.value) buildFullscreen(); buildCursorRows(); });
+watch(() => theme.global.name.value, () => { buildInline(); if (fullscreen.value) buildFullscreen(); buildCursorRows(); });
 
 watch(fullscreen, (open) => {
   if (!open && fsChart) { fsChart.destroy(); fsChart = null; }
@@ -738,6 +863,7 @@ watch(fullscreen, (open) => {
 onMounted(async () => {
   await nextTick();
   buildInline();
+  buildCursorRows();
   if (props.syncGroup) {
     unsubscribeZoomSync = subscribeZoomSync(props.syncGroup, onIncomingSyncedRange);
   }

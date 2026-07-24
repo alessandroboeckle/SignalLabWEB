@@ -261,6 +261,17 @@ function onKeydown(e) {
   }
 }
 
+// The processing chain lives only in memory/the Pinia store — unlike
+// parsed/markers/etc it isn't part of the IndexedDB auto-save, so closing
+// or refreshing the tab without having saved a Session would silently
+// lose it. Warn in that specific case.
+function handleBeforeUnload(e) {
+  if (ops.value.length > 0) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+}
+
 onMounted(() => {
   // Pick up whatever chain is already shared (kept alive across page
   // switches, or just loaded from a Session) instead of always starting empty.
@@ -270,9 +281,11 @@ onMounted(() => {
   history.value = [snapshotOps()];
   historyIndex.value = 0;
   window.addEventListener("keydown", onKeydown);
+  window.addEventListener("beforeunload", handleBeforeUnload);
 });
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
+  window.removeEventListener("beforeunload", handleBeforeUnload);
   clearTimeout(historyTimer);
 });
 

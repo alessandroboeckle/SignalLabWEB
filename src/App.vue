@@ -264,6 +264,45 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
+
+      <!-- Keyboard shortcuts overlay (press '?' anywhere) -->
+      <v-dialog v-model="showShortcuts" max-width="640">
+        <v-card>
+          <v-card-title class="d-flex align-center ga-2">
+            <v-icon size="20">mdi-keyboard-outline</v-icon>
+            Tastatur-Kürzel
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-table density="comfortable">
+            <thead>
+              <tr>
+                <th>Kürzel</th>
+                <th>Wirkung</th>
+                <th>Gilt auf</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in keyboardShortcuts" :key="row.effect">
+                <td class="py-2">
+                  <span v-for="(k, i) in row.keys" :key="i" class="d-inline-flex align-center">
+                    <kbd class="key-badge">
+                      <v-icon v-if="k.icon" size="14">{{ k.icon }}</v-icon>
+                      <span v-else>{{ k.text }}</span>
+                    </kbd>
+                    <span v-if="i < row.keys.length - 1" class="mx-1 text-medium-emphasis">{{ row.keySep || "+" }}</span>
+                  </span>
+                </td>
+                <td>{{ row.effect }}</td>
+                <td class="text-medium-emphasis">{{ row.scope }}</td>
+              </tr>
+            </tbody>
+          </v-table>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="primary" variant="flat" @click="showShortcuts = false">Schliessen</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </template>
 
     <!-- Global toast notifications (src/composables/useToast.js) -->
@@ -282,7 +321,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import { keyboardShortcuts } from "./utils/keyboardShortcuts.js";
 import { useTheme, useDisplay } from "vuetify";
 import { useSignalStore } from "./stores/signalStore";
 import { useAuthStore } from "./stores/authStore";
@@ -313,6 +353,22 @@ const { toast } = useToast();
 
 const activeTab = ref("start");
 const showAbout = ref(false);
+const showShortcuts = ref(false);
+
+function isEditableTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+}
+
+function onGlobalKeydown(e) {
+  if (e.key !== "?" || isEditableTarget(e.target)) return;
+  e.preventDefault();
+  showShortcuts.value = true;
+}
+
+onMounted(() => window.addEventListener("keydown", onGlobalKeydown));
+onBeforeUnmount(() => window.removeEventListener("keydown", onGlobalKeydown));
 const { mobile } = useDisplay();
 const drawer = ref(true);
 const rail = ref(false);
@@ -552,6 +608,19 @@ watch(
 
 .tab-content {
   min-height: calc(100vh - 64px);
+}
+
+.key-badge {
+  background-color: rgba(var(--v-theme-on-surface), 0.06);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  min-width: 24px;
+  justify-content: center;
 }
 
 .start-page {

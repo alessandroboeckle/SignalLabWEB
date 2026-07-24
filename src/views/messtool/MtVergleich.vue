@@ -181,6 +181,94 @@
                     — unsicher, Signale wirken nicht ähnlich
                   </template>
                 </span>
+                <v-chip
+                  v-if="idx > 0 && correlationFor(f) !== null"
+                  size="small"
+                  variant="tonal"
+                  :color="Math.abs(correlationFor(f)) > 0.7 ? 'success' : Math.abs(correlationFor(f)) > 0.3 ? 'warning' : 'default'"
+                >
+                  Korrelation zu Datei 1: {{ correlationFor(f).toFixed(2) }}
+                </v-chip>
+              </v-col>
+
+              <v-col v-if="displayMode === 'stacked'" cols="12" class="pt-0">
+                <v-switch
+                  v-model="f.useFilter"
+                  color="secondary"
+                  density="compact"
+                  hide-details
+                  label="Filter anwenden (nur Gestapelt-Ansicht)"
+                ></v-switch>
+                <v-row v-if="f.useFilter" dense align="center" class="mt-1 ml-1">
+                  <v-col cols="6" sm="2">
+                    <v-select
+                      v-model="f.filterSettings.characteristic"
+                      :items="[
+                        { title: 'Butterworth', value: 'butterworth' },
+                        { title: 'Chebyshev I', value: 'cheby1' },
+                        { title: 'Bessel', value: 'bessel' },
+                        { title: 'Elliptic', value: 'elliptic' },
+                      ]"
+                      label="Typ"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    ></v-select>
+                  </v-col>
+                  <v-col cols="6" sm="2">
+                    <v-select
+                      v-model="f.filterSettings.btype"
+                      :items="[
+                        { title: 'Tiefpass', value: 'low' },
+                        { title: 'Hochpass', value: 'high' },
+                        { title: 'Bandpass', value: 'band' },
+                      ]"
+                      label="Art"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    ></v-select>
+                  </v-col>
+                  <v-col cols="6" sm="2">
+                    <v-select
+                      v-model="f.filterSettings.order"
+                      :items="[1,2,3,4,5,6,7,8,9,10]"
+                      label="Ordnung"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    ></v-select>
+                  </v-col>
+                  <v-col cols="6" sm="2">
+                    <v-text-field
+                      v-model.number="f.filterSettings.cutoff"
+                      type="number"
+                      label="Grenzfrequenz [Hz]"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    ></v-text-field>
+                  </v-col>
+                  <v-col v-if="f.filterSettings.btype === 'band'" cols="6" sm="2">
+                    <v-text-field
+                      v-model.number="f.filterSettings.cutoff2"
+                      type="number"
+                      label="Grenzfreq. 2 [Hz]"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="2">
+                    <v-switch
+                      v-model="f.filterOnly"
+                      color="secondary"
+                      density="compact"
+                      hide-details
+                      label="Nur gefiltert"
+                    ></v-switch>
+                  </v-col>
+                </v-row>
               </v-col>
             </v-row>
           </v-list-item>
@@ -198,6 +286,17 @@
           <v-btn value="zeit" size="small" prepend-icon="mdi-timer-outline">Zeit</v-btn>
           <v-btn value="uhrzeit" size="small" prepend-icon="mdi-clock-outline">Uhrzeit</v-btn>
         </v-btn-toggle>
+
+        <v-btn
+          size="small"
+          :variant="bigMode ? 'flat' : 'outlined'"
+          :color="bigMode ? 'primary' : 'default'"
+          prepend-icon="mdi-arrow-expand-all"
+          @click="bigMode = !bigMode"
+        >
+          Alle gross anzeigen
+        </v-btn>
+
         <span class="text-caption text-medium-emphasis">
           {{ displayMode === "overlay" ? "Alle Signale in einem Chart übereinander" : "Jedes Signal als eigenes Chart untereinander" }}
           <template v-if="xAxisMode === 'uhrzeit' && displayMode === 'overlay' && mtStore.compareFiles.length > 1">
@@ -207,16 +306,16 @@
       </div>
 
       <!-- Overlay chart -->
-      <ChartCard v-if="displayMode === 'overlay'" title="Überlagerte Signale" :config="overlayConfig" :height="380" />
+      <ChartCard v-if="displayMode === 'overlay'" title="Überlagerte Signale" :config="overlayConfig" :height="bigMode ? 700 : 380" />
 
       <!-- Stacked individual charts -->
       <template v-else>
         <ChartCard
-          v-for="s in mtStore.compareSeries"
-          :key="s.key"
-          :title="`${s.fileName} — ${s.signal.name} [${s.signal.unit || '-'}]`"
-          :config="stackedConfig(s)"
-          :height="260"
+          v-for="item in stackedRenderItems"
+          :key="item.key"
+          :title="item.title"
+          :config="item.config"
+          :height="bigMode ? 600 : 260"
           sync-group="vergleich-gestapelt"
           class="mb-4"
         />
@@ -331,9 +430,12 @@
 import { ref, computed, onBeforeUnmount } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import * as A from "../../utils/messtoolAnalysis.js";
-import { parseMesstoolCsv, formatClockTime } from "../../utils/messtoolParser.js";
+import { formatClockTime } from "../../utils/messtoolParser.js";
+import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { downsample } from "../../utils/downsample.js";
+import { applyFilter } from "../../utils/messtoolFilter.js";
 import { findBestOffset } from "../../utils/crossCorrelate.js";
+import { correlateSeries } from "../../utils/correlation.js";
 import * as groupsApi from "../../utils/messtoolSignalGroups.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import ChartCard from "./ChartCard.vue";
@@ -347,6 +449,7 @@ const fileInput = ref(null);
 const errorMsg = ref("");
 const displayMode = ref("overlay"); // 'overlay' | 'stacked'
 const xAxisMode = ref("zeit"); // 'zeit' (elapsed seconds) | 'uhrzeit' (real clock time)
+const bigMode = ref(false); // show every chart bigger, one page's worth at a time
 
 // Elapsed-time-to-clock offset for a series: clockSec[i] ≈ time[i] +
 // clockOffset, assuming a steady sample rate (reasonable — big gaps are
@@ -363,6 +466,110 @@ function clockOffsetFor(s) {
 
 // One config per series for the "Gestapelt" view — same data as the
 // overlay, just one signal per chart instead of superimposed. Points
+// Sample rate for filtering — prefer the file's own detected rate (from
+// its timestamp analysis at import time), falling back to computing it
+// from the time array's average spacing if that's not available.
+function sampleRateFor(f) {
+  const info = f.parsed.meta?.sampleRateInfo;
+  if (info?.detectedFs) return info.detectedFs;
+  const t = f.parsed.time;
+  if (t.length > 1) {
+    const dt = (t[t.length - 1] - t[0]) / (t.length - 1);
+    return dt > 0 ? 1 / dt : 100;
+  }
+  return 100;
+}
+
+// The in-place filter option for Gestapelt (see the per-file "Filter
+// anwenden" switch) — applies the file's own filter settings to this
+// series and renders it as its own chart, same shape as stackedConfig.
+function filteredStackedConfig(s, f) {
+  return (peakMode) => {
+    const rawY = s.signal.data.map((v) => (v == null ? 0 : v));
+    let filtered;
+    try {
+      filtered = applyFilter(rawY, {
+        order: f.filterSettings.order,
+        cutoffHz: f.filterSettings.cutoff,
+        cutoff2Hz: f.filterSettings.cutoff2,
+        sampleRate: sampleRateFor(f),
+        btype: f.filterSettings.btype,
+        characteristic: f.filterSettings.characteristic,
+      });
+    } catch {
+      filtered = rawY;
+    }
+    const d = downsample(filtered, s.time, peakMode ? "minmax" : "simple", 800);
+    const off = s.offsetSec || 0;
+    const points = d.rx.map((x, i) => ({
+      x: x + off,
+      y: d.ry[i],
+      clock: s.clockSec ? s.clockSec[d.indices[i]] : null,
+    }));
+
+    const useClock = xAxisMode.value === "uhrzeit";
+    const clockOffset = useClock ? clockOffsetFor(s) : null;
+
+    return {
+      type: "line",
+      data: {
+        datasets: [{
+          label: `${s.signal.name} gefiltert [${s.signal.unit || "-"}]`,
+          data: points,
+          borderColor: "#FF6B35",
+          backgroundColor: "#FF6B35",
+          borderWidth: 1.5,
+          pointRadius: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        parsing: false,
+        scales: {
+          x: {
+            type: "linear",
+            title: { display: true, text: useClock ? "Uhrzeit" : "Zeit [s]" },
+            ticks: clockOffset != null
+              ? { callback: (val) => formatClockTime(val + clockOffset) }
+              : {},
+          },
+          y: { title: { display: true, text: s.signal.unit || "Wert" } },
+        },
+      },
+    };
+  };
+}
+
+// Expands each selected series into one or two charts for the Gestapelt
+// view, depending on that file's "Filter anwenden" / "Nur gefiltert"
+// settings: original only (default, filter off), both stacked (filter
+// on, default), or filtered only.
+const stackedRenderItems = computed(() => {
+  const items = [];
+  for (const s of mtStore.compareSeries) {
+    const f = mtStore.compareFiles.find((cf) => cf.id === s.fileId);
+    const useFilter = !!f?.useFilter;
+    const filterOnly = !!f?.filterOnly;
+
+    if (!useFilter || !filterOnly) {
+      items.push({
+        key: `${s.key}:orig`,
+        title: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
+        config: stackedConfig(s),
+      });
+    }
+    if (useFilter) {
+      items.push({
+        key: `${s.key}:filtered`,
+        title: `${s.fileName} — ${s.signal.name} (gefiltert)`,
+        config: filteredStackedConfig(s, f),
+      });
+    }
+  }
+  return items;
+});
+
 // carry the file's real clock time (see messtoolParser's clockSec)
 // alongside elapsed seconds, so ChartCard's tooltip can show both.
 function stackedConfig(s) {
@@ -472,7 +679,7 @@ async function onFileSelect(e) {
   try {
     const buffer = await file.arrayBuffer();
     const text = decodeLatin1(buffer);
-    const result = await parseMesstoolCsv(text, {});
+    const result = await parseCsvOffMainThread(text, {});
     if (result.signals.length === 0) throw new Error("Keine Signale gefunden.");
     const added = mtStore.addCompareFile(file.name, result);
     if (!added) errorMsg.value = `"${file.name}" ist bereits in der Liste.`;
@@ -495,7 +702,7 @@ async function addFromCloud(f) {
   try {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
     const text = decodeLatin1(buffer);
-    const result = await parseMesstoolCsv(text, {});
+    const result = await parseCsvOffMainThread(text, {});
     mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
   } catch (err) {
     errorMsg.value = err.message || "Datei konnte nicht geladen werden.";
@@ -526,6 +733,23 @@ function autoAlignFile(f) {
 
 function signalOptions(f) {
   return f.parsed.signals.map((s, i) => ({ title: `${s.name} [${s.unit || "-"}]`, value: i }));
+}
+
+// How similar is this file's (first selected) signal to the first file's,
+// as an actual number rather than just "looks similar overlaid" — takes
+// the current offsetSec into account, same as what's actually plotted.
+function correlationFor(f) {
+  const ref = mtStore.compareFiles[0];
+  if (!ref || ref.id === f.id) return null;
+  const refSig = ref.parsed.signals[ref.selectedIndices[0]];
+  const targetSig = f.parsed.signals[f.selectedIndices[0]];
+  if (!refSig || !targetSig) return null;
+  const off = f.offsetSec || 0;
+  const targetTimeShifted = f.parsed.time.map((t) => t + off);
+  return correlateSeries(
+    ref.parsed.time, refSig.data.map((v) => v ?? 0),
+    targetTimeShifted, targetSig.data.map((v) => v ?? 0),
+  );
 }
 
 // Looks up the color a given (file, signal-index) pair got assigned in

@@ -6,6 +6,22 @@
     </div>
     <p class="text-medium-emphasis mb-6">Messdatei laden (LOGDATA / CSV)</p>
 
+    <div v-if="recentFiles.some((f) => f.storagePath)" class="mb-4">
+      <div class="text-caption text-medium-emphasis mb-1">Zuletzt geöffnet</div>
+      <div class="d-flex flex-wrap ga-2">
+        <v-chip
+          v-for="f in recentFiles.filter((r) => r.storagePath)"
+          :key="f.name"
+          variant="outlined"
+          prepend-icon="mdi-history"
+          :disabled="busyId === f.messfileId"
+          @click="openRecentFile(f)"
+        >
+          {{ f.name }}
+        </v-chip>
+      </div>
+    </div>
+
     <v-alert
       v-if="mtStore.sessionRestored"
       type="info"
@@ -483,11 +499,13 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue";
-import { parseMesstoolCsv, decodeLatin1 } from "../../utils/messtoolParser.js";
+import { decodeLatin1 } from "../../utils/messtoolParser.js";
+import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { showToast } from "../../composables/useToast.js";
+import { listRecentFiles, addRecentFile } from "../../utils/recentFiles.js";
 import ChartCard from "./ChartCard.vue";
 import { downsample } from "../../utils/downsample.js";
 
@@ -534,6 +552,12 @@ function buildParseOptions() {
 
 // cloud state
 const cloudFiles = ref([]);
+const recentFiles = ref(listRecentFiles());
+
+function openRecentFile(entry) {
+  if (!entry.storagePath) return; // raw local upload, never saved — nothing to re-fetch
+  openCloudFile({ id: entry.messfileId, storage_path: entry.storagePath, name: entry.name });
+}
 const loadingList = ref(false);
 const uploading = ref(false);
 const busyId = ref(null);
@@ -628,7 +652,7 @@ async function uploadExtraFiles(files) {
     try {
       const buffer = await file.arrayBuffer();
       const text = decodeLatin1(buffer);
-      const result = await parseMesstoolCsv(text, buildParseOptions());
+      const result = await parseCsvOffMainThread(text, buildParseOptions());
       const row = await mtStorage.uploadMessfile(file, result.meta);
       batchUpload.uploadedFiles.push({
         name: file.name,
@@ -734,7 +758,7 @@ async function addSelectedToCompare() {
     try {
       const buffer = await mtStorage.downloadMessfile(f.storage_path);
       const text = decodeLatin1(buffer);
-      const result = await parseMesstoolCsv(text, {});
+      const result = await parseCsvOffMainThread(text, {});
       mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
     } catch {
       failed.push(f.name);
@@ -759,7 +783,7 @@ async function addCloudFileToCompare(f) {
   try {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
     const text = decodeLatin1(buffer);
-    const result = await parseMesstoolCsv(text, {});
+    const result = await parseCsvOffMainThread(text, {});
     mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
   } catch (e) {
     errorMsg.value = `"${f.name}" konnte nicht zur Anzeige hinzugefügt werden: ` + (e.message || e);
@@ -794,9 +818,8 @@ async function handleFile(file) {
     const buffer = await file.arrayBuffer();
     const text = decodeLatin1(buffer);
     await new Promise((r) => setTimeout(r, 20));
-    const result = await parseMesstoolCsv(text, {
-      ...buildParseOptions(),
-      onProgress: (f) => { importProgress.value = Math.round(f * 100); },
+    const result = await parseCsvOffMainThread(text, buildParseOptions(), (f) => {
+      importProgress.value = Math.round(f * 100);
     });
     if (result.signals.length === 0) {
       throw new Error("Keine Signale in der Datei gefunden.");
@@ -805,6 +828,7 @@ async function handleFile(file) {
     mtStore.setData(result, file.name);
     mtStore.fftWindowDefault = advancedMode.value ? windowTypeImport.value : null;
     selectedIdx.value = 0;
+    recentFiles.value = addRecentFile({ name: file.name });
   } catch (err) {
     errorMsg.value = "Konnte Datei nicht parsen: " + (err.message || err);
   } finally {
@@ -832,6 +856,7 @@ async function saveToCloud() {
     const row = await mtStorage.uploadMessfile(lastFile.value, parsed.value.meta);
     mtStore.setCloudRef(row.id, row.storage_path);
     await loadList();
+    recentFiles.value = addRecentFile({ name: fileName.value, messfileId: row.id, storagePath: row.storage_path });
     showToast(`${fileName.value} in die Cloud gespeichert.`);
   } catch (e) {
     errorMsg.value = "Upload fehlgeschlagen: " + (e.message || e);
@@ -846,9 +871,8 @@ async function openCloudFile(f) {
   try {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
     const text = decodeLatin1(buffer);
-    const result = await parseMesstoolCsv(text, {
-      ...buildParseOptions(),
-      onProgress: (frac) => { importProgress.value = Math.round(frac * 100); },
+    const result = await parseCsvOffMainThread(text, buildParseOptions(), (frac) => {
+      importProgress.value = Math.round(frac * 100);
     });
     parsed.value = result;
     mtStore.setData(result, f.name);
@@ -857,6 +881,7 @@ async function openCloudFile(f) {
     fileName.value = f.name;
     lastFile.value = null; // came from cloud, no re-upload
     selectedIdx.value = 0;
+    recentFiles.value = addRecentFile({ name: f.name, messfileId: f.id, storagePath: f.storage_path });
   } catch (e) {
     errorMsg.value = "Öffnen fehlgeschlagen: " + (e.message || e);
   }

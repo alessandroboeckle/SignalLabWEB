@@ -217,7 +217,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useAuthStore } from "../../stores/authStore.js";
 import * as sessionsApi from "../../utils/messtoolSessionStorage.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
-import { parseMesstoolCsv } from "../../utils/messtoolParser.js";
+import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { showToast } from "../../composables/useToast.js";
 
 const emit = defineEmits(["navigate"]);
@@ -334,7 +334,7 @@ async function loadSession(s) {
   try {
     const buffer = await mtStorage.downloadMessfile(s.messfile_storage_path);
     const text = decodeLatin1(buffer);
-    const result = await parseMesstoolCsv(text, {});
+    const result = await parseCsvOffMainThread(text, {});
     mtStore.setData(result, s.messfile_name || "");
     mtStore.setCloudRef(s.messfile_id, s.messfile_storage_path);
     mtStore.selectedSignalIdx = s.selected_signal_idx || 0;
@@ -352,7 +352,7 @@ async function loadSession(s) {
       try {
         const cBuffer = await mtStorage.downloadMessfile(entry.messfileStoragePath);
         const cText = decodeLatin1(cBuffer);
-        const cResult = await parseMesstoolCsv(cText, {});
+        const cResult = await parseCsvOffMainThread(cText, {});
         const added = mtStore.addCompareFile(entry.name, cResult, {
           messfileId: entry.messfileId,
           storagePath: entry.messfileStoragePath,

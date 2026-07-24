@@ -263,6 +263,7 @@ import { useSignalStore } from "../stores/signalStore";
 import { useAuthStore } from "../stores/authStore";
 import * as storage from "../utils/storage";
 import * as groupsApi from "../utils/messtoolSignalGroups.js";
+import { keyboardShortcuts as shortcuts } from "../utils/keyboardShortcuts.js";
 
 const theme = useTheme();
 const store = useSignalStore();
@@ -293,40 +294,6 @@ const signalGroups = ref(groupsApi.listGroups());
 function removeGroup(name) {
   signalGroups.value = groupsApi.deleteGroup(name);
 }
-
-const shortcuts = [
-  {
-    keys: [{ icon: "mdi-arrow-up" }, { icon: "mdi-arrow-down" }],
-    keySep: "/",
-    effect: "Durchs Signal blättern",
-    scope: "Messtool: Analyse, Filter, Verarbeitung, Export",
-  },
-  {
-    keys: [{ text: "Strg" }, { text: "Z" }],
-    effect: "Verarbeitungsschritt rückgängig",
-    scope: "Messtool: Verarbeitung",
-  },
-  {
-    keys: [{ text: "Strg" }, { text: "Y" }],
-    effect: "Verarbeitungsschritt wiederholen",
-    scope: "Messtool: Verarbeitung",
-  },
-  {
-    keys: [{ text: "Umschalt" }, { icon: "mdi-cursor-move" }],
-    effect: "Chart verschieben (pan)",
-    scope: "Messtool: alle Diagramme",
-  },
-  {
-    keys: [{ icon: "mdi-mouse-outline" }],
-    effect: "Chart zoomen",
-    scope: "Messtool: alle Diagramme",
-  },
-  {
-    keys: [{ icon: "mdi-vector-square" }],
-    effect: "Rechteck ziehen → in Bereich hineinzoomen",
-    scope: "Messtool: alle Diagramme",
-  },
-];
 
 function exportAllData() {
   const data = {

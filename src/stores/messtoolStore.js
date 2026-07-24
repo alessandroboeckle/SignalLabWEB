@@ -217,6 +217,11 @@ export const useMesstoolStore = defineStore("messtool", () => {
       // Feature toggles — each one opt-in per file, off by default:
       useSecondAxis: false, // plot against a separate right-hand y-axis
       autoAlign: false, // keep offsetSec continuously re-computed via cross-correlation against the first file
+      useFilter: false, // apply a filter in-place (Gestapelt view), instead of only on the dedicated Filter page
+      filterOnly: false, // when useFilter is on: show only the filtered chart, not original+filtered stacked
+      filterSettings: {
+        characteristic: "butterworth", btype: "low", order: 4, cutoff: 10, cutoff2: 20,
+      },
     };
     compareFiles.value.push(entry);
     return entry;
