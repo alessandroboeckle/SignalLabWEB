@@ -186,7 +186,10 @@
         </div>
       </v-card>
 
-      <div :style="{ height: height + 'px' }">
+      <v-alert v-if="buildError" type="error" variant="tonal" density="compact" class="mb-2">
+        Diagramm konnte nicht erstellt werden: {{ buildError }}
+      </v-alert>
+      <div v-if="!buildError" :style="{ height: height + 'px' }">
         <canvas ref="inlineCanvas" @click="onCanvasClick($event, 'inline')"></canvas>
       </div>
     </v-card-text>
@@ -284,7 +287,10 @@
               </div>
             </div>
           </v-card>
-          <canvas ref="fsCanvas" @click="onCanvasClick($event, 'fs')"></canvas>
+          <v-alert v-if="buildError" type="error" variant="tonal" density="compact" class="mb-2">
+            Diagramm konnte nicht erstellt werden: {{ buildError }}
+          </v-alert>
+          <canvas v-if="!buildError" ref="fsCanvas" @click="onCanvasClick($event, 'fs')"></canvas>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -968,22 +974,41 @@ function onIncomingCursorAction(action, sourceId) {
 
 let unsubscribeCursorSync = null;
 
+const buildError = ref(null);
+
 function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
-  const cfg = withInteractions(props.config(peakMode.value));
-  cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
-  inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
-  applyZoomLimits(inlineChart);
+  try {
+    const cfg = withInteractions(props.config(peakMode.value));
+    cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
+    inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
+    applyZoomLimits(inlineChart);
+    buildError.value = null;
+  } catch (err) {
+    // A single bad chart (malformed data, a config bug) shouldn't take
+    // down the rest of the page — fail locally, visibly, and recoverably
+    // instead of letting it bubble up to the app-wide error boundary.
+    // eslint-disable-next-line no-console
+    console.error("[ChartCard] failed to build chart:", err);
+    buildError.value = err?.message || String(err);
+  }
 }
 
 function buildFullscreen() {
   if (fsChart) { fsChart.destroy(); fsChart = null; }
   if (!fsCanvas.value) return;
-  const cfg = withInteractions(props.config(peakMode.value));
-  cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
-  fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
-  applyZoomLimits(fsChart);
+  try {
+    const cfg = withInteractions(props.config(peakMode.value));
+    cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
+    fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
+    applyZoomLimits(fsChart);
+    buildError.value = null;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[ChartCard] failed to build fullscreen chart:", err);
+    buildError.value = err?.message || String(err);
+  }
 }
 
 function resetZoom(which) {
@@ -1009,13 +1034,22 @@ onMounted(async () => {
   await nextTick();
   buildInline();
   buildCursorRows();
-  if (props.syncGroup) {
-    unsubscribeZoomSync = subscribeZoomSync(props.syncGroup, onIncomingSyncedRange);
-  }
-  if (props.cursorSyncGroup) {
-    unsubscribeCursorSync = subscribeCursorSync(props.cursorSyncGroup, onIncomingCursorAction);
-  }
 });
+
+// Re-subscribe whenever these props change, not just once at mount —
+// the toggle switches on the Anzeige page are flipped *after* the charts
+// are already showing, so a mount-only subscription would silently never
+// take effect for existing charts (only for ones created fresh afterward).
+watch(() => props.syncGroup, (group) => {
+  if (unsubscribeZoomSync) { unsubscribeZoomSync(); unsubscribeZoomSync = null; }
+  if (group) unsubscribeZoomSync = subscribeZoomSync(group, onIncomingSyncedRange);
+}, { immediate: true });
+
+watch(() => props.cursorSyncGroup, (group) => {
+  if (unsubscribeCursorSync) { unsubscribeCursorSync(); unsubscribeCursorSync = null; }
+  if (group) unsubscribeCursorSync = subscribeCursorSync(group, onIncomingCursorAction);
+}, { immediate: true });
+
 onBeforeUnmount(() => {
   if (playRafId) cancelAnimationFrame(playRafId);
   if (unsubscribeZoomSync) unsubscribeZoomSync();
