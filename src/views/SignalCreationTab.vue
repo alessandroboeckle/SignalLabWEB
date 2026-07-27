@@ -177,6 +177,19 @@
             </v-btn>
             <v-btn
               block
+              color="secondary"
+              variant="outlined"
+              class="mb-2"
+              @click="exportAsMesstoolFile"
+              prepend-icon="mdi-file-chart-outline"
+            >
+              Als Messtool-Datei exportieren
+              <v-tooltip activator="parent" location="bottom">
+                Exportiert im selben LOGDATA-Format wie die Messtool-Testdatei — direkt im Messtool importierbar
+              </v-tooltip>
+            </v-btn>
+            <v-btn
+              block
               color="primary"
               variant="outlined"
               @click="resetParameters"
@@ -399,6 +412,7 @@
 import { ref, computed, onMounted, watch, reactive } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as signalProcessing from "../utils/signalProcessing";
+import { buildLogDataFromSignal } from "../utils/generatorToLogdata.js";
 import Chart from "chart.js/auto";
 import { generateBrakeTestCsv, downloadBrakeTestCsv } from "../utils/messtoolTestGenerator.js";
 
@@ -522,6 +536,22 @@ function exportSignal() {
   const format = "json";
   store.exportSignal(store.currentSignal.id, format);
   snackbarMessage.value = "Signal exportiert!";
+  showSnackbar.value = true;
+}
+
+function exportAsMesstoolFile() {
+  try {
+    const csv = buildLogDataFromSignal({
+      name: store.currentSignal.name,
+      data: store.currentSignal.amplitudeData,
+      samplingRate: store.currentSignal.samplingRate,
+    });
+    const safeName = (store.currentSignal.name || "Signal").replace(/[^\w.-]+/g, "_");
+    downloadBrakeTestCsv(csv, `${safeName}_LOGDATA.csv`);
+    snackbarMessage.value = "Als Messtool-Datei exportiert!";
+  } catch (e) {
+    snackbarMessage.value = "Export fehlgeschlagen: " + (e.message || e);
+  }
   showSnackbar.value = true;
 }
 

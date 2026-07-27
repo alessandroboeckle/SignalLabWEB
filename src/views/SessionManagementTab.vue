@@ -52,6 +52,13 @@
                         >
                       </v-list-item>
                       <v-list-item
+                        @click.stop="exportSessionAsMesstoolFile(session.id)"
+                      >
+                        <v-list-item-title class="text-caption"
+                          >Als Messtool-Datei exportieren</v-list-item-title
+                        >
+                      </v-list-item>
+                      <v-list-item
                         @click.stop="deleteSessionConfirm(session.id)"
                       >
                         <v-list-item-title class="text-caption text-error"
@@ -227,6 +234,9 @@
 <script setup>
 import { ref } from "vue";
 import { useSignalStore } from "../stores/signalStore";
+import * as storage from "../utils/storage.js";
+import { buildLogDataFromSignals } from "../utils/generatorToLogdata.js";
+import { downloadBrakeTestCsv } from "../utils/messtoolTestGenerator.js";
 
 const store = useSignalStore();
 
@@ -262,6 +272,22 @@ async function createNewSession() {
     snackbarMessage.value = "Session erstellt!";
     showSnackbar.value = true;
   }
+}
+
+function exportSessionAsMesstoolFile(sessionId) {
+  const signals = storage.loadSessionSignals(sessionId);
+  const session = store.allSessions.find((s) => s.id === sessionId) || store.currentSession;
+  try {
+    const csv = buildLogDataFromSignals({
+      signals: signals.map((s) => ({ name: s.name, data: s.amplitudeData, samplingRate: s.samplingRate })),
+    });
+    const safeName = (session?.name || "Session").replace(/[^\w.-]+/g, "_");
+    downloadBrakeTestCsv(csv, `${safeName}_LOGDATA.csv`);
+    snackbarMessage.value = `Session "${session?.name}" als Messtool-Datei exportiert!`;
+  } catch (e) {
+    snackbarMessage.value = "Export fehlgeschlagen: " + (e.message || e);
+  }
+  showSnackbar.value = true;
 }
 
 function renameSession(sessionId, currentName) {
