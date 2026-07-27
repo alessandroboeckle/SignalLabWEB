@@ -157,13 +157,19 @@
             <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
           </div>
           <div v-if="c.active" class="cursor-values text-caption text-medium-emphasis ml-6">
-            <span v-for="s in (cursorRows.find((r) => r.id === c.id)?.series || [])" :key="s.label" class="mr-3">
-              {{ s.label }}: <strong>{{ s.value.toFixed(3) }}</strong>
-            </span>
+            <template v-if="(cursorRows.find((r) => r.id === c.id)?.series || []).length">
+              <span v-for="s in cursorRows.find((r) => r.id === c.id).series" :key="s.label" class="mr-3">
+                {{ s.label }}: <strong>{{ s.value.toFixed(3) }}</strong>
+              </span>
+            </template>
+            <span v-else class="text-disabled">(keine Werte an dieser Stelle gefunden)</span>
           </div>
         </div>
         <div v-if="cursorDelta" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
           Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}
+        </div>
+        <div v-else-if="cursors.filter((c) => c.active).length === 2" class="text-caption text-disabled mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
+          (Δ konnte für diese zwei Cursor nicht berechnet werden)
         </div>
 
         <div v-if="compareSelection.length > 0" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
@@ -251,13 +257,19 @@
                 <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
               </div>
               <div v-if="c.active" class="cursor-values text-caption text-medium-emphasis ml-6">
-                <span v-for="s in (cursorRows.find((r) => r.id === c.id)?.series || [])" :key="s.label" class="mr-3">
-                  {{ s.label }}: <strong>{{ s.value.toFixed(3) }}</strong>
-                </span>
+                <template v-if="(cursorRows.find((r) => r.id === c.id)?.series || []).length">
+                  <span v-for="s in cursorRows.find((r) => r.id === c.id).series" :key="s.label" class="mr-3">
+                    {{ s.label }}: <strong>{{ s.value.toFixed(3) }}</strong>
+                  </span>
+                </template>
+                <span v-else class="text-disabled">(keine Werte an dieser Stelle gefunden)</span>
               </div>
             </div>
             <div v-if="cursorDelta" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
               Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}
+            </div>
+            <div v-else-if="cursors.filter((c) => c.active).length === 2" class="text-caption text-disabled mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
+              (Δ konnte für diese zwei Cursor nicht berechnet werden)
             </div>
             <div v-if="compareSelection.length > 0" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
               <span class="text-medium-emphasis">
@@ -289,6 +301,7 @@ import { findOutlierIndices } from "../../utils/outlierDetection.js";
 import { subscribeZoomSync, broadcastZoomSync } from "../../composables/useChartZoomSync.js";
 import { subscribeCursorSync, broadcastCursorSync } from "../../composables/useChartCursorSync.js";
 import { formatClockTime } from "../../utils/messtoolParser.js";
+import { interpolateDatasetsAtX } from "../../utils/interpolateDatasetsAtX.js";
 
 Chart.register(zoomPlugin);
 
@@ -729,54 +742,10 @@ const outlierPlugin = {
 // dataset's current value at the playhead with a dot + live number, so
 // it's more than just a bar sliding across — you actually see what's
 // happening at that moment, like scrubbing through a video.
-// Interpolates every dataset's y-value at an exact x position (linear
-// interpolation between the two bracketing points, not just snapping to
-// the "nearest" point — matters on steep slopes). Shared by the playhead
-// and the cursor system below, since both need "what's every series
-// doing at this exact x" rather than just whichever point a click
-// happened to land nearest to.
-function interpolateDatasetsAtX(chart, x) {
-  const results = [];
-  chart.data.datasets.forEach((ds, dsIndex) => {
-    if (!ds.data.length) return;
-    // Each dataset can have its own independent x-values (e.g. Vergleich's
-    // overlay, where every file/series has its own time array plus its
-    // own offset) — using one shared xs array for all of them would find
-    // the wrong nearest point and land the value off the actual line.
-    const dsXs = chart.data.labels
-      ? chart.data.labels.map(Number)
-      : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
+// Interpolates every dataset's y-value at an exact x position — imported
+// from utils/interpolateDatasetsAtX.js so this exact logic is covered by
+// real unit tests (see that file's __tests__), not just read-through.
 
-    let lo = -1;
-    for (let i = 0; i < dsXs.length - 1; i++) {
-      if (dsXs[i] <= x && dsXs[i + 1] >= x) {
-        lo = i;
-        break;
-      }
-    }
-    if (lo === -1) return; // x is outside this dataset's own x-range
-
-    const rawLo = ds.data[lo];
-    const rawHi = ds.data[lo + 1];
-    const yLo = rawLo && typeof rawLo === "object" ? rawLo.y : rawLo;
-    const yHi = rawHi && typeof rawHi === "object" ? rawHi.y : rawHi;
-    if (yLo == null || yHi == null || !Number.isFinite(yLo) || !Number.isFinite(yHi)) return;
-
-    const xLo = dsXs[lo];
-    const xHi = dsXs[lo + 1];
-    const frac = xHi > xLo ? (x - xLo) / (xHi - xLo) : 0;
-    const yVal = yLo + (yHi - yLo) * frac;
-
-    results.push({
-      dsIndex,
-      label: ds.label || `Serie ${dsIndex + 1}`,
-      color: ds.borderColor || "#059669",
-      yAxisID: ds.yAxisID || "y",
-      value: yVal,
-    });
-  });
-  return results;
-}
 
 const playheadPlugin = {
   id: "playhead",
