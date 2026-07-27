@@ -84,3 +84,53 @@ describe("interpolateDatasetsAtX", () => {
     expect(result.find((r) => r.label === "A").value).toBeCloseTo(10 + 10 * (52.5 / 100), 3);
   });
 });
+
+describe("interpolateDatasetsAtX — robustness fallback", () => {
+  it("still finds a value via the nearest-point fallback when a NaN x sits right where x would normally bracket", () => {
+    const chart = {
+      data: {
+        datasets: [{
+          label: "Signal",
+          data: [
+            { x: 600, y: 5 },
+            { x: 650, y: 40 }, // this is what we click near
+            { x: NaN, y: 42 }, // a corrupt/stray point right after it
+            { x: 700, y: 10 },
+          ],
+        }],
+      },
+    };
+    const result = interpolateDatasetsAtX(chart, 654.95);
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBeGreaterThan(0);
+  });
+
+  it("finds a value near a real downsampled peak even with large gaps elsewhere in the series", () => {
+    // Mimics minmax-downsampled real field data: long flat/quiet stretches
+    // (big x gaps) punctuated by dense little bursts around actual events.
+    const data = [
+      { x: 0, y: 0 },
+      { x: 300, y: 0.1 },
+      { x: 640, y: 2 },
+      { x: 650, y: 55 }, // the peak someone would click on
+      { x: 660, y: 3 },
+      { x: 780, y: 32 },
+      { x: 790, y: 1 },
+      { x: 2000, y: 0.05 },
+      { x: 2077, y: 100 },
+      { x: 2100, y: 1 },
+      { x: 2500, y: 0 },
+    ];
+    const chart = { data: { datasets: [{ label: "Signal", data }] } };
+
+    const atPeak1 = interpolateDatasetsAtX(chart, 654.95);
+    const atPeak2 = interpolateDatasetsAtX(chart, 779.413);
+    expect(atPeak1[0].value).toBeGreaterThan(0);
+    expect(atPeak2[0].value).toBeGreaterThan(0);
+  });
+
+  it("does NOT fabricate a value when x is genuinely far from all of this dataset's points", () => {
+    const chart = { data: { datasets: [{ label: "Signal", data: [{ x: 0, y: 1 }, { x: 10, y: 2 }] }] } };
+    expect(interpolateDatasetsAtX(chart, 5000)).toEqual([]);
+  });
+});

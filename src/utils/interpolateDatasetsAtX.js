@@ -17,6 +17,10 @@ export function interpolateDatasetsAtX(chartLike, x) {
       ? labels.map(Number)
       : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
 
+    const getY = (raw) => (raw && typeof raw === "object" ? raw.y : raw);
+
+    // Primary: find the two points bracketing x and linearly interpolate
+    // between them — precise, and correct even on a steep slope.
     let lo = -1;
     for (let i = 0; i < dsXs.length - 1; i++) {
       if (dsXs[i] <= x && dsXs[i + 1] >= x) {
@@ -24,18 +28,55 @@ export function interpolateDatasetsAtX(chartLike, x) {
         break;
       }
     }
-    if (lo === -1) return;
 
-    const rawLo = ds.data[lo];
-    const rawHi = ds.data[lo + 1];
-    const yLo = rawLo && typeof rawLo === "object" ? rawLo.y : rawLo;
-    const yHi = rawHi && typeof rawHi === "object" ? rawHi.y : rawHi;
-    if (yLo == null || yHi == null || !Number.isFinite(yLo) || !Number.isFinite(yHi)) return;
+    let yVal = null;
+    if (lo !== -1) {
+      const yLo = getY(ds.data[lo]);
+      const yHi = getY(ds.data[lo + 1]);
+      if (yLo != null && yHi != null && Number.isFinite(yLo) && Number.isFinite(yHi)) {
+        const xLo = dsXs[lo];
+        const xHi = dsXs[lo + 1];
+        const frac = xHi > xLo ? (x - xLo) / (xHi - xLo) : 0;
+        yVal = yLo + (yHi - yLo) * frac;
+      }
+    }
 
-    const xLo = dsXs[lo];
-    const xHi = dsXs[lo + 1];
-    const frac = xHi > xLo ? (x - xLo) / (xHi - xLo) : 0;
-    const yVal = yLo + (yHi - yLo) * frac;
+    // Fallback: the strict bracket search can come up empty in edge cases
+    // (a stray NaN x, floating-point ties, or anything else that isn't a
+    // clean ascending sweep) even though there's clearly data nearby —
+    // rather than silently showing nothing, fall back to whichever point
+    // is nearest to x by plain distance. Only reject it if x sits outside
+    // this dataset's overall time span entirely (checking against a
+    // per-point distance instead would misfire on sparsely/unevenly
+    // downsampled real data, where consecutive points can legitimately be
+    // many seconds apart).
+    if (yVal == null) {
+      const validXs = dsXs.filter((v) => v != null && Number.isFinite(v));
+      if (validXs.length) {
+        const dsMin = Math.min(...validXs);
+        const dsMax = Math.max(...validXs);
+        const margin = Math.max((dsMax - dsMin) * 0.01, 1e-6);
+        if (x >= dsMin - margin && x <= dsMax + margin) {
+          let nearestIdx = -1;
+          let nearestDist = Infinity;
+          for (let i = 0; i < dsXs.length; i++) {
+            const xi = dsXs[i];
+            if (xi == null || !Number.isFinite(xi)) continue;
+            const d = Math.abs(xi - x);
+            if (d < nearestDist) {
+              nearestDist = d;
+              nearestIdx = i;
+            }
+          }
+          if (nearestIdx !== -1) {
+            const y = getY(ds.data[nearestIdx]);
+            if (y != null && Number.isFinite(y)) yVal = y;
+          }
+        }
+      }
+    }
+
+    if (yVal == null) return;
 
     results.push({
       dsIndex,
