@@ -24,22 +24,43 @@ export function parseCsvOffMainThread(text, options = {}, onProgress) {
     }
 
     let settled = false;
+
+    // Safety net: some hosting setups (module workers can be picky about
+    // MIME types) can make a worker silently fail to start — neither
+    // onmessage nor onerror ever fires, leaving the promise (and whatever
+    // UI is waiting on it, e.g. a loading spinner) hanging forever. If we
+    // haven't heard anything back after a while, give up on the worker
+    // and fall back to parsing on the main thread instead.
+    const timeoutMs = 20000;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      worker.terminate();
+      parseMesstoolCsv(text, { ...options, onProgress }).then(resolve, reject);
+    }, timeoutMs);
+
+    function finish(fn, arg) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      worker.terminate();
+      fn(arg);
+    }
+
     worker.onmessage = (e) => {
       const msg = e.data;
       if (msg.type === "progress") {
         onProgress?.(msg.frac);
       } else if (msg.type === "done") {
-        settled = true;
-        resolve(msg.result);
-        worker.terminate();
+        finish(resolve, msg.result);
       } else if (msg.type === "error") {
-        settled = true;
-        reject(new Error(msg.message));
-        worker.terminate();
+        finish(reject, new Error(msg.message));
       }
     };
     worker.onerror = () => {
       if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
       // Something went wrong in the worker itself (not a parse error) —
       // fall back to parsing on the main thread rather than failing.
       worker.terminate();
