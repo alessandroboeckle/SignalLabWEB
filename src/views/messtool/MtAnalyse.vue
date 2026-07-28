@@ -28,22 +28,42 @@
         <v-menu :close-on-content-click="false">
           <template #activator="{ props: menuProps }">
             <v-btn v-bind="menuProps" size="small" variant="outlined" prepend-icon="mdi-tune-variant">
-              Abschnitte
+              Anzeige-Optionen
             </v-btn>
           </template>
-          <v-card min-width="280" class="pa-2">
-            <div class="text-caption font-weight-medium px-2 pt-1 pb-2">Was soll angezeigt werden?</div>
-            <v-checkbox v-model="sectionsVisible.stats" label="Statistik-Kacheln" density="compact" hide-details></v-checkbox>
-            <v-checkbox v-model="sectionsVisible.overview" label="Signal-Übersicht (alle Signale)" density="compact" hide-details></v-checkbox>
-            <v-checkbox v-model="sectionsVisible.events" label="Automatische Ereignis-Erkennung" density="compact" hide-details></v-checkbox>
-            <v-checkbox v-model="sectionsVisible.derivative" label="Signal & Ableitung" density="compact" hide-details></v-checkbox>
-            <v-checkbox v-model="sectionsVisible.integral" label="Integral" density="compact" hide-details></v-checkbox>
-            <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="compact" hide-details></v-checkbox>
-            <v-divider class="my-2"></v-divider>
-            <div class="d-flex ga-2 px-2 pb-1">
+          <v-card min-width="340" max-width="360" class="pa-4">
+            <div class="text-subtitle-2 font-weight-bold mb-2">Abschnitte auf der Seite</div>
+            <v-checkbox v-model="sectionsVisible.stats" label="Statistik-Kacheln" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.overview" label="Signal-Übersicht (alle Signale)" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.events" label="Automatische Ereignis-Erkennung" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.derivative" label="Signal & Ableitung" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.integral" label="Integral" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="comfortable" hide-details></v-checkbox>
+
+            <div class="d-flex ga-2 mt-3 mb-4">
               <v-btn size="small" variant="tonal" block @click="showOnlyStats">Nur Statistik</v-btn>
               <v-btn size="small" variant="text" block @click="showAllSections">Alles zeigen</v-btn>
             </div>
+
+            <v-divider class="mb-4"></v-divider>
+
+            <div class="text-subtitle-2 font-weight-bold mb-2">Linien im Signal-Chart</div>
+            <v-checkbox v-model="showAvgLine" label="Mittelwert-Linie" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="showRmsLine" label="RMS-Linie" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="showStdBand" label="±1σ-Band" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="showDerivativeLine" label="Ableitung im Chart zeigen" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="smoothDeriv" label="Ableitung glätten" density="comfortable" hide-details></v-checkbox>
+            <v-text-field
+              v-if="smoothDeriv"
+              v-model.number="smoothDerivWindow"
+              type="number"
+              label="Glättungs-Fensterlänge"
+              variant="outlined"
+              density="compact"
+              hide-details
+              min="3"
+              class="mt-2"
+            ></v-text-field>
           </v-card>
         </v-menu>
       </div>
@@ -108,35 +128,6 @@
           <span v-if="zeitbereichStart != null || zeitbereichEnd != null" class="text-caption text-medium-emphasis">
             Statistik/Ableitung/Integral/FFT gelten nur für diesen Zeitbereich
           </span>
-        </v-col>
-      </v-row>
-
-      <v-row dense class="mb-2">
-        <v-col cols="auto">
-          <v-switch v-model="showAvgLine" color="success" density="compact" hide-details label="Mittelwert-Linie"></v-switch>
-        </v-col>
-        <v-col cols="auto">
-          <v-switch v-model="showRmsLine" color="secondary" density="compact" hide-details label="RMS-Linie"></v-switch>
-        </v-col>
-        <v-col cols="auto">
-          <v-switch v-model="showStdBand" color="primary" density="compact" hide-details label="±1σ-Band"></v-switch>
-        </v-col>
-        <v-col cols="auto">
-          <v-switch v-model="showDerivativeLine" color="secondary" density="compact" hide-details label="Ableitung im Chart zeigen"></v-switch>
-        </v-col>
-        <v-col cols="auto">
-          <v-switch v-model="smoothDeriv" color="secondary" density="compact" hide-details label="Ableitung glätten"></v-switch>
-        </v-col>
-        <v-col v-if="smoothDeriv" cols="auto" style="max-width: 140px">
-          <v-text-field
-            v-model.number="smoothDerivWindow"
-            type="number"
-            label="Fensterlänge"
-            variant="outlined"
-            density="compact"
-            hide-details
-            min="3"
-          ></v-text-field>
         </v-col>
       </v-row>
 
