@@ -27,11 +27,11 @@
         <v-spacer></v-spacer>
         <v-menu :close-on-content-click="false">
           <template #activator="{ props: menuProps }">
-            <v-btn v-bind="menuProps" size="small" variant="outlined" prepend-icon="mdi-tune-variant">
-              Anzeige-Optionen
+            <v-btn v-bind="menuProps" size="small" variant="outlined" prepend-icon="mdi-view-grid-outline">
+              Abschnitte
             </v-btn>
           </template>
-          <v-card min-width="340" max-width="360" class="pa-4">
+          <v-card min-width="300" class="pa-4">
             <div class="text-subtitle-2 font-weight-bold mb-2">Abschnitte auf der Seite</div>
             <v-checkbox v-model="sectionsVisible.stats" label="Statistik-Kacheln" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.overview" label="Signal-Übersicht (alle Signale)" density="comfortable" hide-details class="mb-1"></v-checkbox>
@@ -39,31 +39,10 @@
             <v-checkbox v-model="sectionsVisible.derivative" label="Signal & Ableitung" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.integral" label="Integral" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="comfortable" hide-details></v-checkbox>
-
-            <div class="d-flex ga-2 mt-3 mb-4">
+            <div class="d-flex ga-2 mt-3">
               <v-btn size="small" variant="tonal" block @click="showOnlyStats">Nur Statistik</v-btn>
               <v-btn size="small" variant="text" block @click="showAllSections">Alles zeigen</v-btn>
             </div>
-
-            <v-divider class="mb-4"></v-divider>
-
-            <div class="text-subtitle-2 font-weight-bold mb-2">Linien im Signal-Chart</div>
-            <v-checkbox v-model="showAvgLine" label="Mittelwert-Linie" density="comfortable" hide-details class="mb-1"></v-checkbox>
-            <v-checkbox v-model="showRmsLine" label="RMS-Linie" density="comfortable" hide-details class="mb-1"></v-checkbox>
-            <v-checkbox v-model="showStdBand" label="±1σ-Band" density="comfortable" hide-details class="mb-1"></v-checkbox>
-            <v-checkbox v-model="showDerivativeLine" label="Ableitung im Chart zeigen" density="comfortable" hide-details class="mb-1"></v-checkbox>
-            <v-checkbox v-model="smoothDeriv" label="Ableitung glätten" density="comfortable" hide-details></v-checkbox>
-            <v-text-field
-              v-if="smoothDeriv"
-              v-model.number="smoothDerivWindow"
-              type="number"
-              label="Glättungs-Fensterlänge"
-              variant="outlined"
-              density="compact"
-              hide-details
-              min="3"
-              class="mt-2"
-            ></v-text-field>
           </v-card>
         </v-menu>
       </div>
@@ -251,6 +230,34 @@
 
       <v-row>
         <v-col v-if="sectionsVisible.derivative" cols="12" md="6">
+          <div class="d-flex justify-end mb-1">
+            <v-menu :close-on-content-click="false">
+              <template #activator="{ props: lineMenuProps }">
+                <v-btn v-bind="lineMenuProps" size="small" variant="text" prepend-icon="mdi-tune-variant">
+                  Linien-Optionen
+                </v-btn>
+              </template>
+              <v-card min-width="280" class="pa-4">
+                <div class="text-subtitle-2 font-weight-bold mb-2">Linien im Signal-Chart</div>
+                <v-checkbox v-model="showAvgLine" label="Mittelwert-Linie" density="comfortable" hide-details class="mb-1"></v-checkbox>
+                <v-checkbox v-model="showRmsLine" label="RMS-Linie" density="comfortable" hide-details class="mb-1"></v-checkbox>
+                <v-checkbox v-model="showStdBand" label="±1σ-Band" density="comfortable" hide-details class="mb-1"></v-checkbox>
+                <v-checkbox v-model="showDerivativeLine" label="Ableitung im Chart zeigen" density="comfortable" hide-details class="mb-1"></v-checkbox>
+                <v-checkbox v-model="smoothDeriv" label="Ableitung glätten" density="comfortable" hide-details></v-checkbox>
+                <v-text-field
+                  v-if="smoothDeriv"
+                  v-model.number="smoothDerivWindow"
+                  type="number"
+                  label="Glättungs-Fensterlänge"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  min="3"
+                  class="mt-2"
+                ></v-text-field>
+              </v-card>
+            </v-menu>
+          </div>
           <ChartCard title="Signal & Ableitung" :config="derivConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
         <v-col v-if="sectionsVisible.integral" cols="12" md="6">
