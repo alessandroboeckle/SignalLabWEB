@@ -58,8 +58,17 @@
 
       <v-col cols="12" md="9">
         <v-card v-if="comparisonData.length > 0" class="elevation-2">
-          <v-card-title>Vergleichsergebnisse</v-card-title>
+          <v-card-title class="d-flex align-center">
+            Vergleichsergebnisse
+            <v-spacer></v-spacer>
+            <v-btn size="small" variant="text" prepend-icon="mdi-restore" @click="resetZoomComparison">
+              Zoom zurücksetzen
+            </v-btn>
+          </v-card-title>
           <v-card-text>
+            <p class="text-caption text-medium-emphasis mb-2">
+              Mausrad = Zoom · Rechteck ziehen = Bereich · Ziehen mit gedrückter Umschalt = verschieben
+            </p>
             <canvas id="comparisonChart"></canvas>
           </v-card-text>
         </v-card>
@@ -110,6 +119,9 @@ import { ref, computed, watch } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as storage from "../utils/storage";
 import Chart from "chart.js/auto";
+import zoomPlugin from "chartjs-plugin-zoom";
+
+Chart.register(zoomPlugin);
 
 const store = useSignalStore();
 const selectedSignals = ref([]);
@@ -171,7 +183,7 @@ function drawComparisonChart() {
     );
     return {
       label: signal.name,
-      data: sampledAmplitude,
+      data: sampledTime.map((t, i) => ({ x: t, y: sampledAmplitude[i] })),
       borderColor: colors[idx % colors.length],
       backgroundColor: "transparent",
       borderWidth: 2,
@@ -182,17 +194,26 @@ function drawComparisonChart() {
 
   comparisonChart = new Chart(canvas, {
     type: "line",
-    data: {
-      labels: sampledTime.map((t) => t.toFixed(3)),
-      datasets,
-    },
+    data: { datasets },
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      animation: false,
+      parsing: false,
       plugins: {
         legend: {
           display: true,
           labels: { usePointStyle: true },
+        },
+        zoom: {
+          wheel: { enabled: true },
+          drag: { enabled: true, backgroundColor: "rgba(37,99,235,0.15)" },
+          mode: "x",
+        },
+        pan: {
+          enabled: true,
+          mode: "x",
+          modifierKey: "shift",
         },
       },
       scales: {
@@ -203,14 +224,32 @@ function drawComparisonChart() {
           },
         },
         x: {
+          type: "linear",
           title: {
             display: true,
-            text: "Zeit (s)",
+            text: "Zeit [s]",
           },
         },
       },
     },
   });
+  applyZoomLimits(comparisonChart);
+}
+
+function resetZoomComparison() {
+  if (comparisonChart) comparisonChart.resetZoom();
+}
+
+function applyZoomLimits(chart) {
+  const xScale = chart.scales?.x;
+  if (!xScale || typeof xScale.min !== "number" || typeof xScale.max !== "number") return;
+  const span = xScale.max - xScale.min;
+  if (!(span > 0)) return;
+  chart.options.plugins.zoom.limits.x = {
+    min: xScale.min,
+    max: xScale.max,
+    minRange: span * 0.01,
+  };
 }
 
 function formatNumber(num) {

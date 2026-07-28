@@ -207,8 +207,17 @@
           <!-- Time Domain Plot -->
           <v-col cols="12">
             <v-card class="elevation-2">
-              <v-card-title>Zeitbereich</v-card-title>
+              <v-card-title class="d-flex align-center">
+                Zeitbereich
+                <v-spacer></v-spacer>
+                <v-btn size="small" variant="text" prepend-icon="mdi-restore" @click="resetZoomTime">
+                  Zoom zurücksetzen
+                </v-btn>
+              </v-card-title>
               <v-card-text>
+                <p class="text-caption text-medium-emphasis mb-2">
+                  Mausrad = Zoom · Rechteck ziehen = Bereich · Ziehen mit gedrückter Umschalt = verschieben
+                </p>
                 <canvas id="timeDomainChart"></canvas>
               </v-card-text>
             </v-card>
@@ -217,8 +226,17 @@
           <!-- FFT Plot -->
           <v-col v-if="options.enableFFT" cols="12">
             <v-card class="elevation-2">
-              <v-card-title>Frequenzbereich (FFT)</v-card-title>
+              <v-card-title class="d-flex align-center">
+                Frequenzbereich (FFT)
+                <v-spacer></v-spacer>
+                <v-btn size="small" variant="text" prepend-icon="mdi-restore" @click="resetZoomFFT">
+                  Zoom zurücksetzen
+                </v-btn>
+              </v-card-title>
               <v-card-text>
+                <p class="text-caption text-medium-emphasis mb-2">
+                  Mausrad = Zoom · Rechteck ziehen = Bereich · Ziehen mit gedrückter Umschalt = verschieben
+                </p>
                 <canvas id="fftChart"></canvas>
               </v-card-text>
             </v-card>
@@ -414,6 +432,9 @@ import { useSignalStore } from "../stores/signalStore";
 import * as signalProcessing from "../utils/signalProcessing";
 import { buildLogDataFromSignal } from "../utils/generatorToLogdata.js";
 import Chart from "chart.js/auto";
+import zoomPlugin from "chartjs-plugin-zoom";
+
+Chart.register(zoomPlugin);
 import { generateBrakeTestCsv, downloadBrakeTestCsv } from "../utils/messtoolTestGenerator.js";
 
 const brakeGen = reactive({
@@ -581,6 +602,21 @@ function updateCharts() {
   }
 }
 
+// Without a minRange, chartjs-plugin-zoom lets the wheel zoom in until the
+// visible x-range shrinks to nothing and the chart appears to just vanish.
+// Cap how far in you can go, same as the Messtool's charts.
+function applyZoomLimits(chart) {
+  const xScale = chart.scales?.x;
+  if (!xScale || typeof xScale.min !== "number" || typeof xScale.max !== "number") return;
+  const span = xScale.max - xScale.min;
+  if (!(span > 0)) return;
+  chart.options.plugins.zoom.limits.x = {
+    min: xScale.min,
+    max: xScale.max,
+    minRange: span * 0.01,
+  };
+}
+
 function drawTimeDomainChart() {
   const canvas = document.getElementById("timeDomainChart");
   if (!canvas) return;
@@ -598,15 +634,19 @@ function drawTimeDomainChart() {
   const sampledAmplitude = signal.amplitudeData.filter(
     (_, i) => i % sampleRate === 0,
   );
+  // {x, y} points on a real linear scale (not category/labels) — zoom and
+  // pan behave correctly and predictably this way, same as the Messtool's
+  // charts; a category scale has its own set of quirks around pixel<->value
+  // conversion that aren't worth re-fighting here.
+  const points = sampledTime.map((t, i) => ({ x: t, y: sampledAmplitude[i] }));
 
   timeDomainChart = new Chart(canvas, {
     type: "line",
     data: {
-      labels: sampledTime.map((t) => t.toFixed(3)),
       datasets: [
         {
           label: params.value.name,
-          data: sampledAmplitude,
+          data: points,
           borderColor: "#2563EB",
           backgroundColor: "rgba(37, 99, 235, 0.1)",
           borderWidth: 2,
@@ -619,10 +659,22 @@ function drawTimeDomainChart() {
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      animation: false,
+      parsing: false,
       plugins: {
         legend: {
           display: true,
           labels: { usePointStyle: true },
+        },
+        zoom: {
+          wheel: { enabled: true },
+          drag: { enabled: true, backgroundColor: "rgba(37,99,235,0.15)" },
+          mode: "x",
+        },
+        pan: {
+          enabled: true,
+          mode: "x",
+          modifierKey: "shift",
         },
       },
       scales: {
@@ -633,14 +685,20 @@ function drawTimeDomainChart() {
           },
         },
         x: {
+          type: "linear",
           title: {
             display: true,
-            text: "Time (s)",
+            text: "Zeit [s]",
           },
         },
       },
     },
   });
+  applyZoomLimits(timeDomainChart);
+}
+
+function resetZoomTime() {
+  if (timeDomainChart) timeDomainChart.resetZoom();
 }
 
 function drawFFTChart() {
@@ -672,15 +730,15 @@ function drawFFTChart() {
   const sampledMag = Array.from(fftResult.magnitude).filter(
     (_, i) => i % sampleRate === 0,
   );
+  const points = sampledFreq.map((f, i) => ({ x: f, y: sampledMag[i] }));
 
   fftChart = new Chart(canvas, {
     type: "line",
     data: {
-      labels: sampledFreq.map((f) => f.toFixed(1)),
       datasets: [
         {
           label: "FFT Magnitude",
-          data: sampledMag,
+          data: points,
           borderColor: "#FF6B35",
           backgroundColor: "rgba(255, 107, 53, 0.1)",
           borderWidth: 2,
@@ -693,10 +751,22 @@ function drawFFTChart() {
     options: {
       responsive: true,
       maintainAspectRatio: true,
+      animation: false,
+      parsing: false,
       plugins: {
         legend: {
           display: true,
           labels: { usePointStyle: true },
+        },
+        zoom: {
+          wheel: { enabled: true },
+          drag: { enabled: true, backgroundColor: "rgba(255,107,53,0.15)" },
+          mode: "x",
+        },
+        pan: {
+          enabled: true,
+          mode: "x",
+          modifierKey: "shift",
         },
       },
       scales: {
@@ -708,14 +778,20 @@ function drawFFTChart() {
           },
         },
         x: {
+          type: "linear",
           title: {
             display: true,
-            text: "Frequency (Hz)",
+            text: "Frequenz [Hz]",
           },
         },
       },
     },
   });
+  applyZoomLimits(fftChart);
+}
+
+function resetZoomFFT() {
+  if (fftChart) fftChart.resetZoom();
 }
 
 onMounted(() => {
