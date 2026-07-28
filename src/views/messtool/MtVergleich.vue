@@ -9,14 +9,19 @@
     <!-- Add files -->
     <v-card variant="outlined" rounded="lg" class="mb-4">
       <v-card-text class="d-flex flex-wrap ga-3 align-center">
-        <v-btn
-          variant="outlined"
-          prepend-icon="mdi-file-plus-outline"
-          :disabled="!mtStore.parsed"
-          @click="addCurrent"
-        >
-          Aktuelle Datei hinzufügen
-        </v-btn>
+        <span>
+          <v-btn
+            variant="outlined"
+            prepend-icon="mdi-file-plus-outline"
+            :disabled="!mtStore.parsed"
+            @click="addCurrent"
+          >
+            Aktuelle Datei hinzufügen
+          </v-btn>
+          <v-tooltip v-if="!mtStore.parsed" activator="parent" location="bottom">
+            Zuerst auf der Import-Seite eine Datei laden
+          </v-tooltip>
+        </span>
         <v-btn variant="outlined" prepend-icon="mdi-upload" @click="fileInput?.click()">
           Datei hochladen
         </v-btn>
@@ -122,8 +127,11 @@
                     ></v-chip>
                   </template>
                 </v-autocomplete>
+                <div v-if="!f.selectedIndices.length" class="text-caption text-warning mt-1">
+                  Noch kein Signal ausgewählt — oben eins wählen, damit diese Datei angezeigt wird.
+                </div>
               </v-col>
-              <v-col cols="12" sm="3">
+              <v-col cols="12" sm="2">
                 <v-text-field
                   v-model.number="f.offsetSec"
                   type="number"
@@ -147,128 +155,143 @@
                   </template>
                 </v-text-field>
               </v-col>
-              <v-col cols="12" sm="1" class="text-right">
-                <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} aus Anzeige entfernen`" @click="mtStore.removeCompareFile(f.id)"></v-btn>
-              </v-col>
-              <v-col cols="12" class="d-flex flex-wrap ga-4 pt-0">
-                <v-switch
-                  v-model="f.useSecondAxis"
-                  color="primary"
-                  density="compact"
-                  hide-details
-                  label="Zweite Y-Achse"
-                ></v-switch>
-                <v-switch
-                  v-if="idx > 0"
-                  v-model="f.autoAlign"
-                  color="primary"
-                  density="compact"
-                  hide-details
-                  label="Automatisch ausrichten (Kreuzkorrelation)"
-                  @update:model-value="(v) => v && autoAlignFile(f)"
-                ></v-switch>
-                <v-btn
-                  v-if="idx > 0 && f.autoAlign"
-                  size="x-small"
-                  variant="text"
-                  icon="mdi-refresh"
-                  aria-label="Ausrichtung neu berechnen"
-                  @click="autoAlignFile(f)"
-                ></v-btn>
-                <span v-if="idx > 0 && f.autoAlign && alignConfidence[f.id] !== undefined" class="text-caption text-medium-emphasis">
-                  Übereinstimmung: {{ (alignConfidence[f.id] * 100).toFixed(0) }}%
-                  <template v-if="alignConfidence[f.id] < 0.2">
-                    — unsicher, Signale wirken nicht ähnlich
+              <v-col cols="12" sm="2" class="d-flex justify-end ga-1">
+                <v-menu :close-on-content-click="false">
+                  <template #activator="{ props: advProps }">
+                    <v-badge
+                      :content="advancedActiveCount(f)"
+                      :model-value="advancedActiveCount(f) > 0"
+                      color="primary"
+                      offset-x="6"
+                      offset-y="6"
+                    >
+                      <v-btn v-bind="advProps" size="small" variant="text" icon="mdi-tune-variant" aria-label="Erweiterte Optionen"></v-btn>
+                    </v-badge>
                   </template>
-                </span>
-                <v-chip
-                  v-if="idx > 0 && correlationFor(f) !== null"
-                  size="small"
-                  variant="tonal"
-                  :color="Math.abs(correlationFor(f)) > 0.7 ? 'success' : Math.abs(correlationFor(f)) > 0.3 ? 'warning' : 'default'"
-                >
-                  Korrelation zu Datei 1: {{ correlationFor(f).toFixed(2) }}
-                </v-chip>
-              </v-col>
-
-              <v-col v-if="displayMode === 'stacked'" cols="12" class="pt-0">
-                <v-switch
-                  v-model="f.useFilter"
-                  color="secondary"
-                  density="compact"
-                  hide-details
-                  label="Filter anwenden (nur Gestapelt-Ansicht)"
-                ></v-switch>
-                <v-row v-if="f.useFilter" dense align="center" class="mt-1 ml-1">
-                  <v-col cols="6" sm="2">
-                    <v-select
-                      v-model="f.filterSettings.characteristic"
-                      :items="[
-                        { title: 'Butterworth', value: 'butterworth' },
-                        { title: 'Chebyshev I', value: 'cheby1' },
-                        { title: 'Bessel', value: 'bessel' },
-                        { title: 'Elliptic', value: 'elliptic' },
-                      ]"
-                      label="Typ"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                    ></v-select>
-                  </v-col>
-                  <v-col cols="6" sm="2">
-                    <v-select
-                      v-model="f.filterSettings.btype"
-                      :items="[
-                        { title: 'Tiefpass', value: 'low' },
-                        { title: 'Hochpass', value: 'high' },
-                        { title: 'Bandpass', value: 'band' },
-                      ]"
-                      label="Art"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                    ></v-select>
-                  </v-col>
-                  <v-col cols="6" sm="2">
-                    <v-select
-                      v-model="f.filterSettings.order"
-                      :items="[1,2,3,4,5,6,7,8,9,10]"
-                      label="Ordnung"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                    ></v-select>
-                  </v-col>
-                  <v-col cols="6" sm="2">
-                    <v-text-field
-                      v-model.number="f.filterSettings.cutoff"
-                      type="number"
-                      label="Grenzfrequenz [Hz]"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                    ></v-text-field>
-                  </v-col>
-                  <v-col v-if="f.filterSettings.btype === 'band'" cols="6" sm="2">
-                    <v-text-field
-                      v-model.number="f.filterSettings.cutoff2"
-                      type="number"
-                      label="Grenzfreq. 2 [Hz]"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="2">
+                  <v-card min-width="320" class="pa-4">
+                    <div class="text-subtitle-2 font-weight-bold mb-2">Erweiterte Optionen — {{ f.name }}</div>
                     <v-switch
-                      v-model="f.filterOnly"
-                      color="secondary"
+                      v-model="f.useSecondAxis"
+                      color="primary"
                       density="compact"
                       hide-details
-                      label="Nur gefiltert"
+                      label="Zweite Y-Achse"
+                      class="mb-1"
                     ></v-switch>
-                  </v-col>
-                </v-row>
+                    <v-switch
+                      v-if="idx > 0"
+                      v-model="f.autoAlign"
+                      color="primary"
+                      density="compact"
+                      hide-details
+                      label="Automatisch ausrichten (Kreuzkorrelation)"
+                      class="mb-1"
+                      @update:model-value="(v) => v && autoAlignFile(f)"
+                    ></v-switch>
+                    <div v-if="idx > 0 && f.autoAlign" class="d-flex align-center ga-2 mb-2 ml-8">
+                      <v-btn size="x-small" variant="text" prepend-icon="mdi-refresh" @click="autoAlignFile(f)">
+                        Neu berechnen
+                      </v-btn>
+                      <span v-if="alignConfidence[f.id] !== undefined" class="text-caption text-medium-emphasis">
+                        Übereinstimmung: {{ (alignConfidence[f.id] * 100).toFixed(0) }}%
+                        <template v-if="alignConfidence[f.id] < 0.2">— unsicher</template>
+                      </span>
+                    </div>
+                    <div v-if="idx > 0 && correlationFor(f) !== null" class="mb-2 ml-8">
+                      <v-chip
+                        size="small"
+                        variant="tonal"
+                        :color="Math.abs(correlationFor(f)) > 0.7 ? 'success' : Math.abs(correlationFor(f)) > 0.3 ? 'warning' : 'default'"
+                      >
+                        Korrelation zu Datei 1: {{ correlationFor(f).toFixed(2) }}
+                      </v-chip>
+                    </div>
+
+                    <v-divider v-if="displayMode === 'stacked'" class="my-3"></v-divider>
+
+                    <template v-if="displayMode === 'stacked'">
+                      <v-switch
+                        v-model="f.useFilter"
+                        color="secondary"
+                        density="compact"
+                        hide-details
+                        label="Filter anwenden (nur Gestapelt-Ansicht)"
+                        class="mb-1"
+                      ></v-switch>
+                      <v-row v-if="f.useFilter" dense align="center" class="mt-1">
+                        <v-col cols="6">
+                          <v-select
+                            v-model="f.filterSettings.characteristic"
+                            :items="[
+                              { title: 'Butterworth', value: 'butterworth' },
+                              { title: 'Chebyshev I', value: 'cheby1' },
+                              { title: 'Bessel', value: 'bessel' },
+                              { title: 'Elliptic', value: 'elliptic' },
+                            ]"
+                            label="Typ"
+                            variant="outlined"
+                            density="compact"
+                            hide-details
+                          ></v-select>
+                        </v-col>
+                        <v-col cols="6">
+                          <v-select
+                            v-model="f.filterSettings.btype"
+                            :items="[
+                              { title: 'Tiefpass', value: 'low' },
+                              { title: 'Hochpass', value: 'high' },
+                              { title: 'Bandpass', value: 'band' },
+                            ]"
+                            label="Art"
+                            variant="outlined"
+                            density="compact"
+                            hide-details
+                          ></v-select>
+                        </v-col>
+                        <v-col cols="6">
+                          <v-select
+                            v-model="f.filterSettings.order"
+                            :items="[1,2,3,4,5,6,7,8,9,10]"
+                            label="Ordnung"
+                            variant="outlined"
+                            density="compact"
+                            hide-details
+                          ></v-select>
+                        </v-col>
+                        <v-col cols="6">
+                          <v-text-field
+                            v-model.number="f.filterSettings.cutoff"
+                            type="number"
+                            label="Grenzfrequenz [Hz]"
+                            variant="outlined"
+                            density="compact"
+                            hide-details
+                          ></v-text-field>
+                        </v-col>
+                        <v-col v-if="f.filterSettings.btype === 'band'" cols="6">
+                          <v-text-field
+                            v-model.number="f.filterSettings.cutoff2"
+                            type="number"
+                            label="Grenzfreq. 2 [Hz]"
+                            variant="outlined"
+                            density="compact"
+                            hide-details
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="12">
+                          <v-switch
+                            v-model="f.filterOnly"
+                            color="secondary"
+                            density="compact"
+                            hide-details
+                            label="Nur gefiltert"
+                          ></v-switch>
+                        </v-col>
+                      </v-row>
+                    </template>
+                  </v-card>
+                </v-menu>
+                <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} aus Anzeige entfernen`" @click="mtStore.removeCompareFile(f.id)"></v-btn>
               </v-col>
             </v-row>
           </v-list-item>
@@ -749,6 +772,17 @@ function autoAlignFile(f) {
   );
   f.offsetSec = +offsetSec.toFixed(2);
   alignConfidence.value = { ...alignConfidence.value, [f.id]: confidence };
+}
+
+// How many "advanced" per-file options are currently switched on — shown
+// as a small badge on the "Erweitert" button so it's obvious at a glance
+// that something in there is active, without having to open the menu.
+function advancedActiveCount(f) {
+  let n = 0;
+  if (f.useSecondAxis) n++;
+  if (f.autoAlign) n++;
+  if (f.useFilter) n++;
+  return n;
 }
 
 function signalOptions(f) {
