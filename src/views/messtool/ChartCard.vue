@@ -99,6 +99,11 @@
         <v-icon>mdi-restore</v-icon>
         <v-tooltip activator="parent" location="bottom">Zoom zurücksetzen</v-tooltip>
       </v-btn>
+      <!-- Extra page-specific controls (e.g. MtAnalyse's "Linien-Optionen")
+           slot in here, in the same toolbar row, instead of needing their
+           own row above the card — which would push just this one chart
+           down relative to any sibling chart next to it. -->
+      <slot name="extra-toolbar"></slot>
       <v-btn size="small" variant="text" icon="mdi-fullscreen" aria-label="Vollbild" @click="openFullscreen">
         <v-icon>mdi-fullscreen</v-icon>
         <v-tooltip activator="parent" location="bottom">Vergrößern</v-tooltip>

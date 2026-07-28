@@ -1,4 +1,5 @@
 // Signal generation and processing utilities
+import { dft } from "./messtoolAnalysis.js";
 
 /**
  * Generate a time array
@@ -144,67 +145,32 @@ export function generateSignal(t, waveType, frequency, amplitude, phase = 0) {
  */
 export function computeFFT(signal) {
   const n = signal.length;
-  if (n <= 1) return signal;
-
-  // Pad to power of 2
-  let powerOf2 = 1;
-  while (powerOf2 < n) powerOf2 *= 2;
-
-  const padded = new Float64Array(powerOf2);
-  for (let i = 0; i < n; i++) {
-    padded[i] = signal[i];
-  }
-
-  return fft(padded);
+  if (n <= 1) return { re: Array.from(signal), im: new Array(n).fill(0) };
+  const reIn = Array.from(signal);
+  const imIn = new Array(n).fill(0);
+  // dft() handles any length exactly (Bluestein's algorithm for non-power-
+  // of-2 sizes) — no zero-padding, and it correctly tracks the imaginary
+  // component throughout, unlike the previous real-only recursive FFT here
+  // (which silently discarded phase information at every recursion level
+  // and gave mathematically wrong results beyond the most trivial inputs).
+  return dft(reIn, imIn);
 }
 
 /**
- * Basic FFT algorithm
- */
-function fft(signal) {
-  const n = signal.length;
-  if (n === 1) return signal;
-
-  const even = new Float64Array(n / 2);
-  const odd = new Float64Array(n / 2);
-
-  for (let i = 0; i < n / 2; i++) {
-    even[i] = signal[2 * i];
-    odd[i] = signal[2 * i + 1];
-  }
-
-  const fftEven = fft(even);
-  const fftOdd = fft(odd);
-
-  const result = new Float64Array(n);
-  for (let k = 0; k < n / 2; k++) {
-    const twiddle = (-2 * Math.PI * k) / n;
-    const cosW = Math.cos(twiddle);
-    const sinW = Math.sin(twiddle);
-    const t = cosW * fftOdd[k] - sinW * fftOdd[k];
-
-    result[k] = fftEven[k] + t;
-    result[k + n / 2] = fftEven[k] - t;
-  }
-
-  return result;
-}
-
-/**
- * Compute FFT magnitude spectrum
+ * Compute FFT magnitude spectrum (single-sided, matches numpy/scipy's
+ * rfft convention: N//2 + 1 bins, amplitude scaled by 2/N).
  */
 export function computeFFTMagnitude(signal, samplingRate) {
   const n = signal.length;
-  const fftResult = computeFFT(signal);
+  const { re, im } = computeFFT(signal);
 
-  const magnitude = new Float64Array(n / 2);
-  const frequency = new Float64Array(n / 2);
-
+  const half = Math.floor(n / 2) + 1;
+  const magnitude = new Float64Array(half);
+  const frequency = new Float64Array(half);
   const freqResolution = samplingRate / n;
 
-  for (let i = 0; i < n / 2; i++) {
-    // Simplified magnitude calculation
-    magnitude[i] = Math.sqrt(fftResult[i] * fftResult[i]);
+  for (let i = 0; i < half; i++) {
+    magnitude[i] = (Math.sqrt(re[i] * re[i] + im[i] * im[i]) * 2) / n;
     frequency[i] = i * freqResolution;
   }
 
