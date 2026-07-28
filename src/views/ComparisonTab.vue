@@ -115,7 +115,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as storage from "../utils/storage";
 import Chart from "chart.js/auto";
@@ -156,9 +156,13 @@ function toggleSignalSelection(signalId) {
   }
 }
 
-function compareSelected() {
+async function compareSelected() {
   const signals = store.compareSignals(selectedSignals.value);
   comparisonData.value = signals;
+  // The canvas only exists once Vue has actually rendered the v-if block
+  // above (which depends on comparisonData) — drawing immediately after
+  // setting the data would find no canvas yet and silently do nothing.
+  await nextTick();
   drawComparisonChart();
 }
 
