@@ -73,26 +73,28 @@
           Y-Log {{ yLogMode ? "AN" : "AUS" }} — logarithmische Y-Achse (Werte ≤ 0 werden dabei nicht angezeigt)
         </v-tooltip>
       </v-btn>
-      <v-btn
-        size="small"
-        :variant="playing ? 'flat' : 'outlined'"
-        :color="playing ? 'success' : 'default'"
-        :icon="playing ? 'mdi-pause' : 'mdi-play'"
-        :aria-label="playing ? 'Pause' : 'Abspielen'"
-        @click="togglePlay"
-      ></v-btn>
-      <span v-if="playheadX !== null" class="text-caption text-medium-emphasis" style="min-width: 60px">
-        t = {{ playheadX.toFixed(1) }}s
-      </span>
-      <v-select
-        v-model="playSpeed"
-        :items="[{title:'1x', value:1},{title:'5x', value:5},{title:'20x', value:20},{title:'60x', value:60}]"
-        density="compact"
-        variant="outlined"
-        hide-details
-        style="max-width: 90px"
-        label="Tempo"
-      ></v-select>
+      <template v-if="!hidePlayback">
+        <v-btn
+          size="small"
+          :variant="playing ? 'flat' : 'outlined'"
+          :color="playing ? 'success' : 'default'"
+          :icon="playing ? 'mdi-pause' : 'mdi-play'"
+          :aria-label="playing ? 'Pause' : 'Abspielen'"
+          @click="togglePlay"
+        ></v-btn>
+        <span v-if="playheadX !== null" class="text-caption text-medium-emphasis" style="min-width: 60px">
+          t = {{ playheadX.toFixed(1) }}s
+        </span>
+        <v-select
+          v-model="playSpeed"
+          :items="[{title:'1x', value:1},{title:'5x', value:5},{title:'20x', value:20},{title:'60x', value:60}]"
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="max-width: 90px"
+          label="Tempo"
+        ></v-select>
+      </template>
       <v-btn size="small" variant="text" icon="mdi-restore" aria-label="Zoom zurücksetzen" @click="resetZoom('inline')">
         <v-icon>mdi-restore</v-icon>
         <v-tooltip activator="parent" location="bottom">Zoom zurücksetzen</v-tooltip>
@@ -327,6 +329,11 @@ const props = defineProps({
   // Separate from syncGroup so cursor-sync and zoom-sync can be toggled
   // independently.
   cursorSyncGroup: { type: String, default: null },
+  // The playback scrubber (play/pause, tempo, "t = ...s") only makes
+  // sense when the x-axis is actually time — set this for charts whose
+  // x-axis is something else (e.g. an FFT's frequency axis), where a
+  // time-labelled playhead would just be misleading.
+  hidePlayback: { type: Boolean, default: false },
 });
 
 const inlineCanvas = ref(null);

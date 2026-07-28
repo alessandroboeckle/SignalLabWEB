@@ -16,13 +16,32 @@
     </v-card>
 
     <template v-else>
-      <MtQuickNav
-        :items="[
-          { target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' },
-          { target: 'mt-filter', label: 'Filter', icon: 'mdi-tune-variant' },
-        ]"
-        @navigate="$emit('navigate', $event)"
-      />
+      <div class="d-flex align-center flex-wrap ga-2 mb-2">
+        <MtQuickNav
+          :items="[
+            { target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' },
+            { target: 'mt-filter', label: 'Filter', icon: 'mdi-tune-variant' },
+          ]"
+          @navigate="$emit('navigate', $event)"
+        />
+        <v-spacer></v-spacer>
+        <v-menu :close-on-content-click="false">
+          <template #activator="{ props: menuProps }">
+            <v-btn v-bind="menuProps" size="small" variant="outlined" prepend-icon="mdi-tune-variant">
+              Abschnitte
+            </v-btn>
+          </template>
+          <v-card min-width="280" class="pa-2">
+            <div class="text-caption font-weight-medium px-2 pt-1 pb-2">Was soll angezeigt werden?</div>
+            <v-checkbox v-model="sectionsVisible.stats" label="Statistik-Kacheln" density="compact" hide-details></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.overview" label="Signal-Übersicht (alle Signale)" density="compact" hide-details></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.events" label="Automatische Ereignis-Erkennung" density="compact" hide-details></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.derivative" label="Signal & Ableitung" density="compact" hide-details></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.integral" label="Integral" density="compact" hide-details></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="compact" hide-details></v-checkbox>
+          </v-card>
+        </v-menu>
+      </div>
       <v-row class="mb-2">
         <v-col cols="12" md="6">
           <v-autocomplete
@@ -97,9 +116,23 @@
         <v-col cols="auto">
           <v-switch v-model="showStdBand" color="primary" density="compact" hide-details label="±1σ-Band"></v-switch>
         </v-col>
+        <v-col cols="auto">
+          <v-switch v-model="smoothDeriv" color="secondary" density="compact" hide-details label="Ableitung glätten"></v-switch>
+        </v-col>
+        <v-col v-if="smoothDeriv" cols="auto" style="max-width: 140px">
+          <v-text-field
+            v-model.number="smoothDerivWindow"
+            type="number"
+            label="Fensterlänge"
+            variant="outlined"
+            density="compact"
+            hide-details
+            min="3"
+          ></v-text-field>
+        </v-col>
       </v-row>
 
-      <v-card variant="outlined" rounded="lg" class="mb-4">
+      <v-card v-if="sectionsVisible.events" variant="outlined" rounded="lg" class="mb-4">
         <v-card-title class="d-flex align-center ga-2">
           <v-icon size="20">mdi-target</v-icon>
           Automatische Ereignis-Erkennung
@@ -147,6 +180,9 @@
             </v-col>
           </v-row>
 
+          <v-alert v-if="eventNoThreshold" type="warning" variant="tonal" density="compact" class="mt-3">
+            Bitte zuerst einen Schwellwert eingeben.
+          </v-alert>
           <v-alert v-if="eventSearchDone && foundEvents.length === 0" type="info" variant="tonal" density="compact" class="mt-3">
             Keine Ereignisse über diesem Schwellwert gefunden.
           </v-alert>
@@ -178,7 +214,7 @@
         </v-card-text>
       </v-card>
 
-      <v-row class="mb-4">
+      <v-row v-if="sectionsVisible.stats" class="mb-4">
         <v-col v-for="stat in stats" :key="stat.label" cols="6" sm="4" md="2">
           <v-card variant="tonal" color="primary" class="pa-3 text-center">
             <div class="text-h6 font-weight-bold">{{ stat.value }}</div>
@@ -187,7 +223,7 @@
         </v-col>
       </v-row>
 
-      <v-expansion-panels class="mb-4" variant="accordion">
+      <v-expansion-panels v-if="sectionsVisible.overview" class="mb-4" variant="accordion">
         <v-expansion-panel>
           <v-expansion-panel-title>
             <v-icon class="mr-2" size="20">mdi-table-eye</v-icon>
@@ -215,14 +251,14 @@
       </v-expansion-panels>
 
       <v-row>
-        <v-col cols="12" md="6">
+        <v-col v-if="sectionsVisible.derivative" cols="12" md="6">
           <ChartCard title="Signal & Ableitung" :config="derivConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
-        <v-col cols="12" md="6">
+        <v-col v-if="sectionsVisible.integral" cols="12" md="6">
           <ChartCard title="Integral" :config="integralConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
-        <v-col cols="12">
-          <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" />
+        <v-col v-if="sectionsVisible.fft" cols="12">
+          <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" hide-playback />
         </v-col>
       </v-row>
     </template>
@@ -230,10 +266,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, reactive } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
+import { SmoothOp } from "../../utils/messtoolProcessing.js";
 import { findWindowBounds } from "../../utils/timeWindow.js";
 import { findEvents } from "../../utils/eventDetection.js";
 import ChartCard from "./ChartCard.vue";
@@ -317,16 +354,34 @@ const zeitbereichEnd = ref(null);
 const showAvgLine = ref(false);
 const showRmsLine = ref(false);
 const showStdBand = ref(false);
+const smoothDeriv = ref(false);
+const smoothDerivWindow = ref(11);
+
+const sectionsVisible = reactive({
+  stats: true,
+  overview: true,
+  events: true,
+  derivative: true,
+  integral: true,
+  fft: true,
+});
 
 const eventThreshold = ref(null);
 const eventMode = ref("abs");
 const foundEvents = ref([]);
 const eventSearchDone = ref(false);
+const eventNoThreshold = ref(false);
 
 function runEventDetection() {
-  eventSearchDone.value = true;
   foundEvents.value = [];
-  if (!sig.value || eventThreshold.value == null) return;
+  if (!sig.value) return;
+  if (eventThreshold.value == null || eventThreshold.value === "") {
+    eventSearchDone.value = false;
+    eventNoThreshold.value = true;
+    return;
+  }
+  eventNoThreshold.value = false;
+  eventSearchDone.value = true;
   const { y, t } = windowedYT(sig.value, time.value);
   foundEvents.value = findEvents(y, t, eventThreshold.value, { mode: eventMode.value });
 }
@@ -377,12 +432,16 @@ const derivConfig = computed(() => {
   // the Zeitbereich actually triggers ChartCard to rebuild
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void showAvgLine.value; void showRmsLine.value; void showStdBand.value;
+  void smoothDeriv.value; void smoothDerivWindow.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const deriv = A.derivative(y, wt);
-    const sD = down(y, wt, peakMode), dD = down(deriv, wt, peakMode);
+    const derivForDisplay = smoothDeriv.value
+      ? new SmoothOp({ windowLen: smoothDerivWindow.value }).apply(deriv)
+      : deriv;
+    const sD = down(y, wt, peakMode), dD = down(derivForDisplay, wt, peakMode);
 
     const validY = y.filter((v) => Number.isFinite(v));
     const meanVal = A.mean(validY);
