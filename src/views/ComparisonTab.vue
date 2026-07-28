@@ -209,6 +209,7 @@ function drawComparisonChart() {
           wheel: { enabled: true },
           drag: { enabled: true, backgroundColor: "rgba(37,99,235,0.15)" },
           mode: "x",
+          limits: { x: {} },
         },
         pan: {
           enabled: true,
