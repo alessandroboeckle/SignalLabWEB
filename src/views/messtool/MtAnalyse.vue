@@ -39,6 +39,11 @@
             <v-checkbox v-model="sectionsVisible.derivative" label="Signal & Ableitung" density="compact" hide-details></v-checkbox>
             <v-checkbox v-model="sectionsVisible.integral" label="Integral" density="compact" hide-details></v-checkbox>
             <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="compact" hide-details></v-checkbox>
+            <v-divider class="my-2"></v-divider>
+            <div class="d-flex ga-2 px-2 pb-1">
+              <v-btn size="small" variant="tonal" block @click="showOnlyStats">Nur Statistik</v-btn>
+              <v-btn size="small" variant="text" block @click="showAllSections">Alles zeigen</v-btn>
+            </div>
           </v-card>
         </v-menu>
       </div>
@@ -115,6 +120,9 @@
         </v-col>
         <v-col cols="auto">
           <v-switch v-model="showStdBand" color="primary" density="compact" hide-details label="±1σ-Band"></v-switch>
+        </v-col>
+        <v-col cols="auto">
+          <v-switch v-model="showDerivativeLine" color="secondary" density="compact" hide-details label="Ableitung im Chart zeigen"></v-switch>
         </v-col>
         <v-col cols="auto">
           <v-switch v-model="smoothDeriv" color="secondary" density="compact" hide-details label="Ableitung glätten"></v-switch>
@@ -354,6 +362,7 @@ const zeitbereichEnd = ref(null);
 const showAvgLine = ref(false);
 const showRmsLine = ref(false);
 const showStdBand = ref(false);
+const showDerivativeLine = ref(true);
 const smoothDeriv = ref(false);
 const smoothDerivWindow = ref(11);
 
@@ -365,6 +374,23 @@ const sectionsVisible = reactive({
   integral: true,
   fft: true,
 });
+
+function showOnlyStats() {
+  sectionsVisible.stats = true;
+  sectionsVisible.overview = false;
+  sectionsVisible.events = false;
+  sectionsVisible.derivative = false;
+  sectionsVisible.integral = false;
+  sectionsVisible.fft = false;
+}
+function showAllSections() {
+  sectionsVisible.stats = true;
+  sectionsVisible.overview = true;
+  sectionsVisible.events = true;
+  sectionsVisible.derivative = true;
+  sectionsVisible.integral = true;
+  sectionsVisible.fft = true;
+}
 
 const eventThreshold = ref(null);
 const eventMode = ref("abs");
@@ -432,7 +458,7 @@ const derivConfig = computed(() => {
   // the Zeitbereich actually triggers ChartCard to rebuild
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void showAvgLine.value; void showRmsLine.value; void showStdBand.value;
-  void smoothDeriv.value; void smoothDerivWindow.value;
+  void smoothDeriv.value; void smoothDerivWindow.value; void showDerivativeLine.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const { y, t: wt } = windowedYT(s, t);
@@ -465,7 +491,9 @@ const derivConfig = computed(() => {
       });
     }
     datasets.push({ label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, yAxisID: "y" });
-    datasets.push({ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1, pointRadius: 0, yAxisID: "y1" });
+    if (showDerivativeLine.value) {
+      datasets.push({ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1, pointRadius: 0, yAxisID: "y1" });
+    }
     if (showAvgLine.value && meanVal != null) {
       datasets.push({
         label: `Mittelwert [${unit}]`, data: sD.rx.map(() => meanVal),
@@ -487,7 +515,7 @@ const derivConfig = computed(() => {
         scales: {
           x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
           y: { position: "left", title: { display: true, text: unit } },
-          y1: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: `${unit}/s` } },
+          y1: { display: showDerivativeLine.value, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: `${unit}/s` } },
         },
       },
     };
