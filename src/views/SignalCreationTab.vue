@@ -165,16 +165,26 @@
             >
               Signal speichern
             </v-btn>
-            <v-btn
-              block
-              color="primary"
-              variant="outlined"
-              class="mb-2"
-              @click="exportSignal"
-              prepend-icon="mdi-download"
-            >
-              Exportieren
-            </v-btn>
+            <v-menu>
+              <template #activator="{ props: menuProps }">
+                <v-btn
+                  v-bind="menuProps"
+                  block
+                  color="primary"
+                  variant="outlined"
+                  class="mb-2"
+                  prepend-icon="mdi-download"
+                  append-icon="mdi-menu-down"
+                >
+                  Exportieren
+                </v-btn>
+              </template>
+              <v-list density="compact">
+                <v-list-item prepend-icon="mdi-code-json" title="Als JSON" @click="exportSignal('json')"></v-list-item>
+                <v-list-item prepend-icon="mdi-file-delimited-outline" title="Als CSV" @click="exportSignal('csv')"></v-list-item>
+                <v-list-item prepend-icon="mdi-file-excel-outline" title="Als Excel (.xlsx)" @click="exportSignal('xlsx')"></v-list-item>
+              </v-list>
+            </v-menu>
             <v-btn
               block
               color="secondary"
@@ -553,9 +563,8 @@ async function saveSignal() {
   showSnackbar.value = true;
 }
 
-function exportSignal() {
-  const format = "json";
-  store.exportSignal(store.currentSignal.id, format);
+async function exportSignal(format = "json") {
+  await store.exportSignal(store.currentSignal.id, format);
   snackbarMessage.value = "Signal exportiert!";
   showSnackbar.value = true;
 }

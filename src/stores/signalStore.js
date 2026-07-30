@@ -184,9 +184,20 @@ export const useSignalStore = defineStore("signal", () => {
   }
 
   // Export signal
-  function exportSignal(signalId, format = "json") {
+  async function exportSignal(signalId, format = "json") {
     const signal = storage.loadSignal(signalId) || currentSignal;
     if (!signal) return null;
+
+    if (format === "xlsx") {
+      // xlsx writes its own file directly (XLSX.writeFile), no Blob/
+      // downloadFile() round-trip needed — see xlsxExport.js.
+      const { buildGeneratorSignalWorkbook, downloadWorkbook } = await import(
+        "../utils/xlsxExport.js"
+      );
+      const workbook = await buildGeneratorSignalWorkbook(signal);
+      downloadWorkbook(workbook, `${signal.name}.xlsx`);
+      return;
+    }
 
     let blob;
     let filename;
