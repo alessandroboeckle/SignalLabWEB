@@ -39,6 +39,7 @@
             <v-checkbox v-model="sectionsVisible.derivative" label="Signal & Ableitung" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.integral" label="Integral" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="comfortable" hide-details></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.group" label="Gruppen-Analyse (mehrere Signale)" density="comfortable" hide-details></v-checkbox>
             <div class="d-flex ga-2 mt-3">
               <v-btn size="small" variant="tonal" block @click="showOnlyStats">Nur Statistik</v-btn>
               <v-btn size="small" variant="text" block @click="showAllSections">Alles zeigen</v-btn>
@@ -269,6 +270,73 @@
           <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" hide-playback />
         </v-col>
       </v-row>
+
+      <v-card v-if="sectionsVisible.group" variant="outlined" rounded="lg" class="mb-4">
+        <v-card-title class="d-flex align-center ga-2">
+          <v-icon size="20">mdi-chart-multiple</v-icon>
+          Gruppen-Analyse — mehrere Signale zusammen auswerten
+        </v-card-title>
+        <v-divider></v-divider>
+        <v-card-text>
+          <v-row dense class="mb-2">
+            <v-col cols="12">
+              <v-autocomplete
+                v-model="groupSelectedIdxs"
+                :items="groupPoolOptions"
+                label="Signale für die Gruppe wählen"
+                variant="outlined"
+                density="comfortable"
+                multiple
+                chips
+                closable-chips
+                prepend-inner-icon="mdi-checkbox-multiple-marked-outline"
+                :hint="mtStore.compareFiles.length ? 'Auch Signale aus zu Vergleich hinzugefügten Dateien wählbar — nutzt denselben Zeitbereich wie oben' : 'Nutzt denselben Zeitbereich wie oben'"
+                persistent-hint
+              ></v-autocomplete>
+            </v-col>
+          </v-row>
+
+          <v-alert v-if="groupSelectedIdxs.length < 2" type="info" variant="tonal" density="compact">
+            Mindestens 2 Signale wählen, um sie gemeinsam auszuwerten.
+          </v-alert>
+
+          <template v-else>
+            <v-table density="compact" class="mb-4">
+              <thead>
+                <tr>
+                  <th>Signal</th>
+                  <th>Einheit</th>
+                  <th class="text-right">Mittel</th>
+                  <th class="text-right">RMS</th>
+                  <th class="text-right">Std</th>
+                  <th class="text-right">Min</th>
+                  <th class="text-right">Max</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in groupStats" :key="row.idx">
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.unit }}</td>
+                  <td class="text-right">{{ row.mean }}</td>
+                  <td class="text-right">{{ row.rms }}</td>
+                  <td class="text-right">{{ row.std }}</td>
+                  <td class="text-right">{{ row.min }}</td>
+                  <td class="text-right">{{ row.max }}</td>
+                </tr>
+              </tbody>
+            </v-table>
+
+            <v-row>
+              <v-col cols="12" md="6">
+                <ChartCard title="Signale überlagert" :config="groupOverlayConfig" :height="280" sync-group="analyse-gruppe" />
+              </v-col>
+              <v-col cols="12" md="6">
+                <ChartCard title="FFT überlagert" :config="groupFftConfig" :height="280" hide-playback />
+              </v-col>
+            </v-row>
+          </template>
+        </v-card-text>
+      </v-card>
     </template>
   </v-container>
 </template>
@@ -373,6 +441,7 @@ const sectionsVisible = reactive({
   derivative: true,
   integral: true,
   fft: true,
+  group: false,
 });
 
 function showOnlyStats() {
@@ -382,6 +451,7 @@ function showOnlyStats() {
   sectionsVisible.derivative = false;
   sectionsVisible.integral = false;
   sectionsVisible.fft = false;
+  sectionsVisible.group = false;
 }
 function showAllSections() {
   sectionsVisible.stats = true;
@@ -390,7 +460,141 @@ function showAllSections() {
   sectionsVisible.derivative = true;
   sectionsVisible.integral = true;
   sectionsVisible.fft = true;
+  sectionsVisible.group = true;
 }
+
+// ---- Gruppen-Analyse: mehrere Signale gemeinsam auswerten (AVG/RMS/Std
+// je Signal nebeneinander + überlagerte Zeit- und FFT-Charts), analog zu
+// Messtool_Antrieb's create_group_analysis_tab / *_multi_anwendung.
+//
+// Pool umfasst NICHT nur die aktuell aktive Datei, sondern auch alle
+// Dateien, die schon zu "Anzeige/Vergleich" hinzugefügt wurden — analog zu
+// Python's Mehrfachdatei-Ablauf, wo alle Signale aller geladenen Dateien
+// gemeinsam in einem Signalauswahl-Fenster landen (jedes Signal behält
+// dabei seine eigene Zeitachse). ----
+const groupPool = computed(() => {
+  const entries = [];
+  const multiSource = mtStore.compareFiles.length > 0;
+  if (mtStore.parsed) {
+    mtStore.parsed.signals.forEach((s, idx) => {
+      entries.push({
+        key: `active:${idx}`,
+        label: multiSource
+          ? `${mtStore.fileName || "Aktuelle Datei"} — ${s.name} [${s.unit || "-"}]`
+          : `${s.name} [${s.unit || "-"}]`,
+        sig: s,
+        t: mtStore.parsed.time,
+      });
+    });
+  }
+  for (const f of mtStore.compareFiles) {
+    f.parsed.signals.forEach((s, idx) => {
+      entries.push({
+        key: `${f.id}:${idx}`,
+        label: `${f.name} — ${s.name} [${s.unit || "-"}]`,
+        sig: s,
+        t: f.parsed.time,
+      });
+    });
+  }
+  return entries;
+});
+
+const groupSelectedIdxs = ref([]);
+
+const groupPoolOptions = computed(() =>
+  groupPool.value.map((e) => ({ title: e.label, value: e.key })),
+);
+
+const groupSignals = computed(() => {
+  const pool = groupPool.value;
+  return groupSelectedIdxs.value
+    .map((key) => pool.find((e) => e.key === key))
+    .filter(Boolean);
+});
+
+const GROUP_COLORS = ["#2563EB", "#FF6B35", "#10B981", "#7C3AED", "#DC2626", "#059669", "#D97706", "#DB2777"];
+
+const groupStats = computed(() => {
+  return groupSignals.value.map(({ key, label, sig: s, t }) => {
+    const { y } = windowedYT(s, t);
+    const yValid = y.filter((v) => v != null && Number.isFinite(v));
+    const mm = A.minMax(yValid);
+    const u = s.unit || "";
+    const f = (v) => (v == null ? "-" : v.toFixed(3));
+    return {
+      idx: key,
+      name: label,
+      unit: u,
+      mean: f(A.mean(yValid)),
+      rms: f(A.rms(yValid)),
+      std: f(A.stddev(yValid)),
+      min: f(mm.min),
+      max: f(mm.max),
+    };
+  });
+});
+
+// Overlay/FFT charts use {x,y} point datasets on a linear x-axis (like
+// MtImport's quickCompareConfig) rather than a single shared "labels"
+// array — needed because pooled signals can come from different files,
+// each with its own time axis / sample count.
+const groupOverlayConfig = computed(() => {
+  const entries = groupSignals.value;
+  void zeitbereichStart.value; void zeitbereichEnd.value;
+  return (peakMode) => {
+    if (!entries.length) return { type: "line", data: { datasets: [] } };
+    const datasets = entries.map(({ label, sig: s, t }, i) => {
+      const { y, t: wt } = windowedYT(s, t);
+      const d = down(y, wt, peakMode);
+      const points = d.rx.map((x, j) => ({ x, y: d.ry[j] }));
+      return {
+        label, data: points, borderColor: GROUP_COLORS[i % GROUP_COLORS.length],
+        borderWidth: 1.5, pointRadius: 0,
+      };
+    });
+    return {
+      type: "line",
+      data: { datasets },
+      options: {
+        responsive: true, animation: false, parsing: false,
+        scales: {
+          x: { type: "linear", title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
+          y: { title: { display: true, text: "Wert" } },
+        },
+      },
+    };
+  };
+});
+
+const groupFftConfig = computed(() => {
+  const entries = groupSignals.value, wt = windowType.value;
+  void zeitbereichStart.value; void zeitbereichEnd.value;
+  return (peakMode) => {
+    if (!entries.length) return { type: "line", data: { datasets: [] } };
+    const datasets = entries.map(({ label, sig: s, t }, i) => {
+      const { y, t: wt2 } = windowedYT(s, t);
+      const { freq, amp } = A.fft(y, wt2, { windowType: wt, normalize: true });
+      const d = down(amp, freq, peakMode);
+      const points = d.rx.map((x, j) => ({ x, y: d.ry[j] }));
+      return {
+        label, data: points, borderColor: GROUP_COLORS[i % GROUP_COLORS.length],
+        borderWidth: 1, pointRadius: 0,
+      };
+    });
+    return {
+      type: "line",
+      data: { datasets },
+      options: {
+        responsive: true, animation: false, parsing: false,
+        scales: {
+          x: { type: "linear", title: { display: true, text: "Frequenz [Hz]" }, ticks: { maxTicksLimit: 12 } },
+          y: { title: { display: true, text: "Amplitude" } },
+        },
+      },
+    };
+  };
+});
 
 const eventThreshold = ref(null);
 const eventMode = ref("abs");

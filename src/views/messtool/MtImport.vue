@@ -4,7 +4,7 @@
       <v-icon color="primary" size="28" class="mr-3">mdi-file-upload</v-icon>
       <h2 class="text-h5 font-weight-bold">Import</h2>
     </div>
-    <p class="text-medium-emphasis mb-6">Messdatei laden (LOGDATA / CSV)</p>
+    <p class="text-medium-emphasis mb-6">Messdatei laden (LOGDATA-CSV oder Excel/.xlsx)</p>
 
     <div v-if="recentFiles.some((f) => f.storagePath)" class="mb-4">
       <div class="text-caption text-medium-emphasis mb-1">Zuletzt geöffnet</div>
@@ -60,17 +60,36 @@
       <v-icon size="56" color="primary" class="mb-3">mdi-cloud-upload-outline</v-icon>
       <h3 class="text-h6 mb-1">Datei(en) hierher ziehen oder klicken</h3>
       <p class="text-medium-emphasis text-caption">
-        CSV im LOGDATA-Messformat · mehrere auf einmal möglich — die erste wird geöffnet,
-        weitere werden direkt in die Cloud hochgeladen
+        CSV im LOGDATA-Messformat oder Excel (.xlsx/.xls) · mehrere auf einmal möglich — die
+        erste wird geöffnet, weitere werden direkt in die Cloud hochgeladen
       </p>
       <input
         ref="fileInput"
         type="file"
-        accept=".csv"
+        accept=".csv,.xlsx,.xls"
         multiple
         class="d-none"
         @change="onFileSelect"
       />
+    </v-card>
+
+    <!-- Excel: which sheet to import (only shown once a multi-sheet workbook was picked) -->
+    <v-card v-if="excelSheets.length > 1" variant="tonal" color="primary" class="pa-4 mb-4">
+      <div class="d-flex align-center flex-wrap ga-3">
+        <v-icon>mdi-file-excel-outline</v-icon>
+        <span class="text-body-2">"{{ excelFileName }}" hat mehrere Tabellenblätter:</span>
+        <v-select
+          v-model="excelSheetName"
+          :items="excelSheets"
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="max-width: 260px"
+        ></v-select>
+        <v-btn size="small" color="primary" variant="flat" :loading="parsing" @click="parseChosenExcelSheet">
+          Blatt laden
+        </v-btn>
+      </div>
     </v-card>
 
     <!-- Batch upload of the extra files (beyond the first) -->
@@ -129,6 +148,9 @@
             <p class="text-caption text-medium-emphasis mb-3">
               Ohne Angabe wird wie bisher die ganze Datei mit automatischer Zeitachse geladen.
               Lädst du mehrere Dateien gleichzeitig, gelten diese Einstellungen für alle.
+              Bei Excel-Dateien (.xlsx/.xls) gelten Start/End Spalte über die Signalspalten
+              (ohne die Zeitspalte); die Zeitspalte wird automatisch anhand des Namens "Time"
+              erkannt.
             </p>
             <v-row dense>
               <v-col cols="12" sm="6">
@@ -500,6 +522,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from "vue";
 import { decodeLatin1 } from "../../utils/messtoolParser.js";
+import { listExcelSheets, parseMesstoolExcel } from "../../utils/messtoolExcelParser.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import * as A from "../../utils/messtoolAnalysis.js";
@@ -525,6 +548,71 @@ const selectedIdx = ref(0);
 const lastFile = ref(null); // the raw File, kept for uploading
 
 // advanced import settings (all optional; empty = behave exactly as before)
+// ---- Excel import (.xlsx/.xls) ----
+// Same buildParseOptions() (startRow/endRow/startCol/endCol/sampleFrequenz)
+// is reused for Excel — the parser applies them the same way over the
+// signal columns, excluding the auto-detected "Time" column.
+function isExcelFile(file) {
+  return /\.xlsx?$/i.test(file.name);
+}
+const excelSheets = ref([]);
+const excelSheetName = ref(null);
+const excelFileName = ref("");
+const pendingExcelBuffer = ref(null);
+
+async function handleExcelFile(file) {
+  errorMsg.value = "";
+  parsed.value = null;
+  excelSheets.value = [];
+  excelSheetName.value = null;
+  parsing.value = true;
+  fileName.value = file.name;
+  lastFile.value = file;
+  try {
+    const buffer = await file.arrayBuffer();
+    const sheets = await listExcelSheets(buffer);
+    if (sheets.length > 1) {
+      // Let the user choose — mirrors the desktop tool's sheet dropdown.
+      pendingExcelBuffer.value = buffer;
+      excelFileName.value = file.name;
+      excelSheets.value = sheets;
+      excelSheetName.value = sheets[0];
+      parsing.value = false;
+      return;
+    }
+    await parseExcelBuffer(buffer, sheets[0], file.name);
+  } catch (err) {
+    errorMsg.value = "Konnte Excel-Datei nicht lesen: " + (err.message || err);
+    parsing.value = false;
+  }
+}
+
+async function parseExcelBuffer(buffer, sheetName, name) {
+  parsing.value = true;
+  try {
+    const result = await parseMesstoolExcel(buffer, sheetName, buildParseOptions());
+    if (result.signals.length === 0) {
+      throw new Error("Keine Signale in diesem Tabellenblatt gefunden.");
+    }
+    parsed.value = result;
+    mtStore.setData(result, name);
+    mtStore.fftWindowDefault = advancedMode.value ? windowTypeImport.value : null;
+    selectedIdx.value = 0;
+    recentFiles.value = addRecentFile({ name });
+    excelSheets.value = [];
+    pendingExcelBuffer.value = null;
+  } catch (err) {
+    errorMsg.value = "Konnte Excel-Tabellenblatt nicht parsen: " + (err.message || err);
+  } finally {
+    parsing.value = false;
+  }
+}
+
+function parseChosenExcelSheet() {
+  if (!pendingExcelBuffer.value) return;
+  parseExcelBuffer(pendingExcelBuffer.value, excelSheetName.value, excelFileName.value);
+}
+
 const advancedMode = ref(false);
 const startRow = ref(null);
 const endRow = ref(null);
@@ -651,8 +739,12 @@ async function uploadExtraFiles(files) {
   for (const file of files) {
     try {
       const buffer = await file.arrayBuffer();
-      const text = decodeLatin1(buffer);
-      const result = await parseCsvOffMainThread(text, buildParseOptions());
+      // Excel files in a batch use the first sheet automatically (no
+      // per-file sheet picker in batch mode) — pick the right sheet
+      // beforehand and re-import individually if that's not the one you need.
+      const result = isExcelFile(file)
+        ? await parseMesstoolExcel(buffer, undefined, buildParseOptions())
+        : await parseCsvOffMainThread(decodeLatin1(buffer), buildParseOptions());
       const row = await mtStorage.uploadMessfile(file, result.meta);
       batchUpload.uploadedFiles.push({
         name: file.name,
@@ -807,6 +899,10 @@ function compareBatchFiles() {
 }
 
 async function handleFile(file) {
+  if (isExcelFile(file)) {
+    await handleExcelFile(file);
+    return;
+  }
   errorMsg.value = "";
   parsed.value = null;
   parsing.value = true;
@@ -870,10 +966,11 @@ async function openCloudFile(f) {
   importProgress.value = 0;
   try {
     const buffer = await mtStorage.downloadMessfile(f.storage_path);
-    const text = decodeLatin1(buffer);
-    const result = await parseCsvOffMainThread(text, buildParseOptions(), (frac) => {
-      importProgress.value = Math.round(frac * 100);
-    });
+    const result = /\.xlsx?$/i.test(f.name)
+      ? await parseMesstoolExcel(buffer, undefined, buildParseOptions())
+      : await parseCsvOffMainThread(decodeLatin1(buffer), buildParseOptions(), (frac) => {
+          importProgress.value = Math.round(frac * 100);
+        });
     parsed.value = result;
     mtStore.setData(result, f.name);
     mtStore.setCloudRef(f.id, f.storage_path);

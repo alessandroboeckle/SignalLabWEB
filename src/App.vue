@@ -52,6 +52,11 @@
           <v-tooltip activator="parent" location="bottom">Einstellungen</v-tooltip>
         </v-btn>
 
+        <v-btn icon variant="text" @click="selectTab('hilfe')">
+          <v-icon color="white">mdi-help-circle-outline</v-icon>
+          <v-tooltip activator="parent" location="bottom">Hilfe / Bedienungsanleitung</v-tooltip>
+        </v-btn>
+
         <v-btn icon variant="text" @click="showAbout = true">
           <v-icon color="white">mdi-information-outline</v-icon>
           <v-tooltip activator="parent" location="bottom">Über</v-tooltip>
@@ -207,6 +212,7 @@
           <v-window-item value="sessions"><SessionManagementTab /></v-window-item>
           <v-window-item value="settings"><SettingsTab /></v-window-item>
           <v-window-item value="admin"><AdminTab /></v-window-item>
+          <v-window-item value="hilfe"><HilfeTab /></v-window-item>
 
           <!-- Messtool sub-pages (placeholders for now) -->
           <v-window-item value="mt-import">
@@ -336,6 +342,7 @@ import CalculatorTab from "./views/CalculatorTab.vue";
 import ComparisonTab from "./views/ComparisonTab.vue";
 import SessionManagementTab from "./views/SessionManagementTab.vue";
 import SettingsTab from "./views/SettingsTab.vue";
+import HilfeTab from "./views/HilfeTab.vue";
 import AdminTab from "./views/AdminTab.vue";
 import MtImport from "./views/messtool/MtImport.vue";
 import MtAnalyse from "./views/messtool/MtAnalyse.vue";
