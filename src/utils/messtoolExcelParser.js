@@ -31,13 +31,13 @@ function splitHeaderUnit(raw) {
 // differences between rows matter, same as the CSV parser's clockSec).
 function cellToSeconds(val) {
   if (val == null || val === "") return null;
+  // With cellDates:true (set below), a cell that's actually *formatted* as
+  // a date/time in the workbook already arrives here as a JS Date — so a
+  // plain number reaching this branch is a raw value the file stores
+  // directly (e.g. an already-elapsed-seconds column), not an Excel date
+  // serial, and must be used as-is rather than reinterpreted as a date.
   if (val instanceof Date) return val.getTime() / 1000;
-  if (typeof val === "number") {
-    // Excel serial date (days since 1899-12-30, fractional part = time of day)
-    const utcDays = Math.floor(val - 25569);
-    const fractionalDay = val - Math.floor(val);
-    return utcDays * 86400 + Math.round(fractionalDay * 86400 * 1000) / 1000;
-  }
+  if (typeof val === "number") return val;
   if (typeof val === "string") {
     const s = val.trim().replace(",", ".");
     const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})[ T](\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d+))?$/);
