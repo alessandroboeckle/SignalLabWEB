@@ -6,14 +6,14 @@
     </div>
     <p class="text-medium-emphasis mb-6">Plot als Bild speichern oder PDF-Report erstellen</p>
 
-    <v-card v-if="!mtStore.parsed" variant="outlined" rounded="lg" class="pa-8 text-center">
-      <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-file-question-outline</v-icon>
-      <h3 class="text-h6 mb-2">Keine Messdatei geladen</h3>
-      <p class="text-medium-emphasis mb-4">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
-      <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-file-upload" @click="$emit('navigate', 'mt-import')">
-        Zu Import
-      </v-btn>
-    </v-card>
+    <EmptyState
+      v-if="!mtStore.parsed"
+      title="Keine Messdatei geladen"
+      description="Lade zuerst im Bereich Import eine Datei."
+      action-label="Zu Import"
+      action-icon="mdi-file-upload"
+      @action="$emit('navigate', 'mt-import')"
+    />
 
     <template v-else>
       <MtQuickNav
@@ -141,6 +141,7 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";

@@ -6,14 +6,14 @@
     </div>
     <p class="text-medium-emphasis mb-6">Digitale Filter – Butterworth, Chebyshev I, Bessel · nullphasig</p>
 
-    <v-card v-if="!mtStore.parsed" variant="outlined" rounded="lg" class="pa-8 text-center">
-      <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-file-question-outline</v-icon>
-      <h3 class="text-h6 mb-2">Keine Messdatei geladen</h3>
-      <p class="text-medium-emphasis mb-4">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
-      <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-file-upload" @click="$emit('navigate', 'mt-import')">
-        Zu Import
-      </v-btn>
-    </v-card>
+    <EmptyState
+      v-if="!mtStore.parsed"
+      title="Keine Messdatei geladen"
+      description="Lade zuerst im Bereich Import eine Datei."
+      action-label="Zu Import"
+      action-icon="mdi-file-upload"
+      @action="$emit('navigate', 'mt-import')"
+    />
 
     <template v-else>
       <MtQuickNav
@@ -132,6 +132,13 @@
         </v-col>
 
         <v-col cols="12" md="8">
+          <v-progress-linear
+            :active="filterComputing"
+            indeterminate
+            color="primary"
+            height="2"
+            class="mb-1"
+          ></v-progress-linear>
           <ChartCard title="Original vs. Gefiltert" :config="filterConfig" :height="440" />
           <ChartCard
             v-if="showFrequencyResponse"
@@ -147,9 +154,11 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
+import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import { applyFilter, designSOS, computeFrequencyResponse } from "../../utils/messtoolFilter.js";
+import { useDebounced } from "../../composables/useDebounced.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import { showToast } from "../../composables/useToast.js";
 import ChartCard from "./ChartCard.vue";
@@ -277,12 +286,22 @@ function down(arr, xs, mode) {
   return downsample(arr, xs, mode ? 'minmax' : 'simple', 800);
 }
 
+// Number fields (Grenzfrequenz/en, Sperrdämpfung) fire on every keystroke —
+// debounce just those so typing "12.5" doesn't recompute the filter (and
+// re-render two charts) three times over. Selects (Ordnung, Charakteristik,
+// Filtertyp) already only fire once per choice, so they stay live.
+const { value: debouncedCutoffs, pending: filterComputing } = useDebounced(
+  () => [cutoff.value, cutoff2.value, stopbandDb.value],
+  200,
+);
+
 const showFrequencyResponse = ref(false);
 
 const frequencyResponseConfig = computed(() => {
   const fs = sampleRate.value;
-  const bt = btype.value, ord = order.value, c1 = cutoff.value, c2 = cutoff2.value;
-  const char = characteristic.value, rs = stopbandDb.value;
+  const [c1, c2, rs] = debouncedCutoffs.value;
+  const bt = btype.value, ord = order.value;
+  const char = characteristic.value;
   return () => {
     const nyq = fs / 2;
     let sos = [];
@@ -327,8 +346,9 @@ const frequencyResponseConfig = computed(() => {
 
 const filterConfig = computed(() => {
   const s = sig.value, t = time.value, fs = sampleRate.value;
-  const bt = btype.value, ord = order.value, c1 = cutoff.value, c2 = cutoff2.value;
-  const char = characteristic.value, rs = stopbandDb.value;
+  const [c1, c2, rs] = debouncedCutoffs.value;
+  const bt = btype.value, ord = order.value;
+  const char = characteristic.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const y = s.data.map((v) => (v == null ? 0 : v));

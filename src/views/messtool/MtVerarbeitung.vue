@@ -6,14 +6,14 @@
     </div>
     <p class="text-medium-emphasis mb-6">Glätten, Detrend, Normalisieren – verkettbar</p>
 
-    <v-card v-if="!mtStore.parsed" variant="outlined" rounded="lg" class="pa-8 text-center">
-      <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-file-question-outline</v-icon>
-      <h3 class="text-h6 mb-2">Keine Messdatei geladen</h3>
-      <p class="text-medium-emphasis mb-4">Lade zuerst im Bereich <strong>Import</strong> eine Datei.</p>
-      <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-file-upload" @click="$emit('navigate', 'mt-import')">
-        Zu Import
-      </v-btn>
-    </v-card>
+    <EmptyState
+      v-if="!mtStore.parsed"
+      title="Keine Messdatei geladen"
+      description="Lade zuerst im Bereich Import eine Datei."
+      action-label="Zu Import"
+      action-icon="mdi-file-upload"
+      @action="$emit('navigate', 'mt-import')"
+    />
 
     <template v-else>
       <MtQuickNav
@@ -154,6 +154,13 @@
 
         <!-- Right: comparison chart -->
         <v-col cols="12" md="8">
+          <v-progress-linear
+            :active="chartComputing"
+            indeterminate
+            color="primary"
+            height="2"
+            class="mb-1"
+          ></v-progress-linear>
           <ChartCard title="Original vs. Verarbeitet" :config="compareConfig" :height="420" />
         </v-col>
       </v-row>
@@ -163,6 +170,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
@@ -199,6 +207,11 @@ const selectedIdx = computed({
 });
 const ops = ref([]);
 const version = ref(0); // bump to force recompute on param edits
+// Recompute (and the chart re-render behind it) is debounced: dragging the
+// smoothing-window slider fires onParamChange on every tick, and without
+// this the chain would re-run applyChain() dozens of times per drag.
+const chartComputing = ref(false);
+let recomputeTimer = null;
 
 // --- undo/redo -----------------------------------------------------------
 // History holds snapshots of the chain (op id + params, not live class
@@ -287,6 +300,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
   window.removeEventListener("beforeunload", handleBeforeUnload);
   clearTimeout(historyTimer);
+  clearTimeout(recomputeTimer);
 });
 
 function exportCsv() {
@@ -332,7 +346,12 @@ function move(i, dir) {
   commitHistory();
 }
 function recompute() {
-  version.value++;
+  chartComputing.value = true;
+  clearTimeout(recomputeTimer);
+  recomputeTimer = setTimeout(() => {
+    version.value++;
+    chartComputing.value = false;
+  }, 150);
 }
 // Slider/select/text-field param edits fire on every tick while dragging,
 // so their history entries are debounced — only the settled value gets

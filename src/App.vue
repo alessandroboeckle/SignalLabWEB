@@ -163,7 +163,7 @@
       <!-- Main content -->
       <v-main class="main-area">
         <ErrorBoundary>
-          <v-window v-model="activeTab" class="tab-content">
+          <v-window v-model="activeTab" class="tab-content" transition="fade-transition" reverse-transition="fade-transition">
           <v-window-item value="start">
             <v-container fluid class="pa-6 pa-md-10 start-page">
               <div class="text-center mb-8">

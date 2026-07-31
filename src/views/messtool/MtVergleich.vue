@@ -55,13 +55,12 @@
       @navigate="$emit('navigate', $event)"
     />
 
-    <v-card v-if="mtStore.compareFiles.length === 0" variant="outlined" rounded="lg" class="pa-8 text-center">
-      <v-icon size="56" color="grey-lighten-1" class="mb-3">mdi-chart-multiple</v-icon>
-      <h3 class="text-h6 mb-2">Noch keine Dateien zur Anzeige hinzugefügt</h3>
-      <p class="text-medium-emphasis">
-        Füge die aktuell geladene Datei, eine neue Datei oder eine aus der Cloud hinzu.
-      </p>
-    </v-card>
+    <EmptyState
+      v-if="mtStore.compareFiles.length === 0"
+      icon="mdi-chart-multiple"
+      title="Noch keine Dateien zur Anzeige hinzugefügt"
+      description="Füge die aktuell geladene Datei, eine neue Datei oder eine aus der Cloud hinzu."
+    />
 
     <template v-else>
       <!-- Per-file signal selection -->
@@ -469,7 +468,9 @@
 
 <script setup>
 import { ref, computed, onBeforeUnmount } from "vue";
+import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { showToast } from "../../composables/useToast.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { formatClockTime } from "../../utils/messtoolParser.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
@@ -679,6 +680,7 @@ function confirmSaveGroup() {
     const names = f.selectedIndices.map((i) => f.parsed.signals[i]?.name).filter(Boolean);
     signalGroups.value = groupsApi.saveGroup(groupNameInput.value, names);
     saveGroupDialog.value = false;
+    showToast(`Gruppe "${groupNameInput.value}" gespeichert.`);
   } catch (err) {
     groupSaveError.value = err.message || "Konnte Gruppe nicht speichern.";
   }
@@ -691,10 +693,12 @@ function applyGroup(f, group) {
     return;
   }
   f.selectedIndices = matched;
+  showToast(`Gruppe "${group.name}" angewendet (${matched.length} Signal(e)).`, { color: "info" });
 }
 
 function removeGroup(name) {
   signalGroups.value = groupsApi.deleteGroup(name);
+  showToast(`Gruppe "${name}" gelöscht.`, { color: "info" });
 }
 const alignConfidence = ref({}); // { [fileId]: score } from the last auto-align run
 const cloudDialog = ref(false);

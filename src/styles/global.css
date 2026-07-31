@@ -46,3 +46,41 @@
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/*
+ * Hover polish for clickable rows (file lists, cloud lists, session
+ * lists, ...). Vuetify's v-list-item already darkens the background on
+ * hover; this adds a touch of motion so interactivity reads clearly
+ * without shouting. Applies to any v-list-item that isn't disabled.
+ */
+.v-list-item:not(.v-list-item--disabled) {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.v-list-item:not(.v-list-item--disabled):hover {
+  transform: translateX(2px);
+}
+
+/* Same idea for outlined cards used as clickable tiles. Views with their
+   own bespoke hover treatment (e.g. .start-card) opt out below. */
+.v-card--link:not(.start-card) {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.v-card--link:not(.start-card):hover {
+  transform: translateY(-2px);
+}
+
+/* Smooths the v-window fade so tab switches feel settled, not abrupt. */
+.tab-content .v-window__container {
+  transition: height 0.2s ease;
+}
+
+/* Respect reduced-motion preferences across all of the above. */
+@media (prefers-reduced-motion: reduce) {
+  .v-list-item:not(.v-list-item--disabled),
+  .v-card--link:not(.start-card),
+  .tab-content .v-window__container {
+    transition: none !important;
+  }
+}
