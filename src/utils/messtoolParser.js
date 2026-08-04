@@ -27,6 +27,23 @@ function extractUnit(text) {
   return "";
 }
 
+// Look up a signal name in a LOGITEM-derived map (unitMap/typeMap), with a
+// fallback for files where the LOGDATA header column carries a resource-node
+// prefix that the LOGITEMS section does not (e.g. header
+// "VCU_A.IIGB_A1_10.xFoo" vs. LOGITEM name "IIGB_A1_10.xFoo"). Without this,
+// the lookup silently misses, BOOL columns get treated as REAL, and
+// parseFloat("TRUE") produces NaN for every row.
+function lookupWithPrefixFallback(map, name) {
+  if (map[name] !== undefined) return map[name];
+  let rest = name;
+  let dot;
+  while ((dot = rest.indexOf(".")) !== -1) {
+    rest = rest.slice(dot + 1);
+    if (map[rest] !== undefined) return map[rest];
+  }
+  return undefined;
+}
+
 // Convert a spreadsheet-style column reference to a 1-based index.
 // Accepts plain numbers ("12") or letters ("A", "CC", ...).
 export function colRefToNumber(ref) {
@@ -111,7 +128,9 @@ export async function parseMesstoolCsv(text, options = {}) {
   const time = [];
   const clockSec = []; // real wall-clock time (seconds since midnight) per row, independent of whatever the x-axis uses
   const signalData = signalNames.map(() => []);
-  const isBoolFlag = signalNames.map((name) => typeMap[name] === "BOOL");
+  const isBoolFlag = signalNames.map(
+    (name) => lookupWithPrefixFallback(typeMap, name) === "BOOL"
+  );
 
   // Optional progress reporting for large files: called with a 0..1
   // fraction every YIELD_EVERY rows, with a real (macro-task) yield after
@@ -190,8 +209,8 @@ export async function parseMesstoolCsv(text, options = {}) {
 
   const signals = signalNames.map((name, idx) => ({
     name,
-    unit: unitMap[name] || "",
-    type: typeMap[name] || "",
+    unit: lookupWithPrefixFallback(unitMap, name) || "",
+    type: lookupWithPrefixFallback(typeMap, name) || "",
     isBoolean: isBoolFlag[idx],
     data: signalData[idx],
   }));

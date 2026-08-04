@@ -116,6 +116,31 @@ describe("parseMesstoolCsv", () => {
     expect(updates[updates.length - 1]).toBe(1);
     expect(updates.every((f) => f >= 0 && f <= 1)).toBe(true);
   });
+
+  // Regression test: some exports prefix the LOGDATA header column with a
+  // resource-node name (e.g. "VCU_A.") that the LOGITEMS section doesn't
+  // carry. Without a fallback lookup, BOOL columns get misdetected as REAL
+  // and every TRUE/FALSE value turns into NaN -> null across the board.
+  it("resolves BOOL type via LOGITEMS even when the LOGDATA header has an extra resource-node prefix", async () => {
+    const csv = [
+      "SECTION;LOGITEMS",
+      "LOGITEM;IIGB_A1_10.xTCU_bMCB_AC_isReleased;;BOOL;desc",
+      "LOGITEM;IIGB_A1_10.rTCU_Temp_ControlAir;;REAL;desc [unit: degC]",
+      "SECTION;LOGDATA",
+      "Nb;Type;Date;Time;VCU_A.IIGB_A1_10.xTCU_bMCB_AC_isReleased;VCU_A.IIGB_A1_10.rTCU_Temp_ControlAir",
+      "1;+;07.03.2025;14:34:28:090;TRUE;50.1",
+      "2;+;07.03.2025;14:34:29:090;FALSE;50.2",
+    ].join("\n");
+    const result = await parseMesstoolCsv(csv, {});
+    const boolSig = result.signals.find((s) => s.name.endsWith("xTCU_bMCB_AC_isReleased"));
+    const realSig = result.signals.find((s) => s.name.endsWith("rTCU_Temp_ControlAir"));
+    expect(boolSig.isBoolean).toBe(true);
+    expect(boolSig.data).toEqual([1, 0]);
+    expect(realSig.isBoolean).toBe(false);
+    expect(realSig.unit).toBe("degC");
+    expect(realSig.data).toEqual([50.1, 50.2]);
+    expect(result.meta.qualityWarnings.allNullSignals).toEqual([]);
+  });
 });
 
 describe("formatClockTime", () => {
