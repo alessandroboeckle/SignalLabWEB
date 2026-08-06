@@ -482,23 +482,44 @@
       <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
         Noch keine Dateien in der Cloud.
       </div>
-      <v-list v-else density="compact">
-        <v-list-item v-for="f in cloudFiles" :key="f.id">
-          <template #prepend>
-            <v-checkbox-btn
-              :model-value="selectedCloudIds.includes(f.id)"
-              :aria-label="`${f.name} auswählen`"
-              class="mr-1"
-              @update:model-value="toggleCloudSelection(f.id)"
-            ></v-checkbox-btn>
-            <v-icon color="primary">mdi-file-chart</v-icon>
-          </template>
-          <v-list-item-title class="font-weight-medium">{{ f.name }}</v-list-item-title>
-          <v-list-item-subtitle>
-            {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
-            {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
-          </v-list-item-subtitle>
-          <template #append>
+      <template v-else>
+        <div class="d-flex align-center ga-2 px-4 py-2">
+          <v-checkbox-btn
+            :model-value="allCloudFilesSelected"
+            :indeterminate="selectedCloudIds.length > 0 && !allCloudFilesSelected"
+            density="compact"
+            aria-label="Alle auswählen"
+            @update:model-value="toggleSelectAllCloudFiles"
+          ></v-checkbox-btn>
+          <span class="text-caption text-medium-emphasis">Alle auswählen</span>
+        </div>
+        <v-divider></v-divider>
+        <!-- Plain flex rows instead of v-list-item: v-list-item's fixed
+             prepend/title/append columns don't reflow on narrow screens —
+             the title/subtitle get squeezed to nothing while the append
+             icon buttons keep their size, so on a phone-width viewport
+             you'd end up with just a strip of overlapping icons and no
+             filename in sight. This wraps properly instead. -->
+        <div
+          v-for="f in cloudFiles"
+          :key="f.id"
+          class="d-flex flex-wrap align-center ga-2 px-4 py-3 cloud-file-row"
+        >
+          <v-checkbox-btn
+            :model-value="selectedCloudIds.includes(f.id)"
+            :aria-label="`${f.name} auswählen`"
+            density="compact"
+            @update:model-value="toggleCloudSelection(f.id)"
+          ></v-checkbox-btn>
+          <v-icon color="primary">mdi-file-chart</v-icon>
+          <div class="flex-grow-1" style="min-width: 180px">
+            <div class="font-weight-medium text-body-2 text-truncate">{{ f.name }}</div>
+            <div class="text-caption text-medium-emphasis">
+              {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
+              {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
+            </div>
+          </div>
+          <div class="d-flex flex-wrap ga-1">
             <v-btn
               size="small" variant="text" icon="mdi-chart-multiple-outline"
               :loading="compareAddingId === f.id"
@@ -511,9 +532,9 @@
               Öffnen
             </v-btn>
             <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} löschen`" @click="removeCloudFile(f)"></v-btn>
-          </template>
-        </v-list-item>
-      </v-list>
+          </div>
+        </div>
+      </template>
     </v-card>
 
   </v-container>
@@ -839,6 +860,14 @@ function toggleCloudSelection(id) {
   else selectedCloudIds.value = selectedCloudIds.value.filter((x) => x !== id);
 }
 
+const allCloudFilesSelected = computed(() =>
+  cloudFiles.value.length > 0 && cloudFiles.value.every((f) => selectedCloudIds.value.includes(f.id)),
+);
+
+function toggleSelectAllCloudFiles(checked) {
+  selectedCloudIds.value = checked ? cloudFiles.value.map((f) => f.id) : [];
+}
+
 async function addSelectedToCompare() {
   const files = cloudFiles.value.filter((f) => selectedCloudIds.value.includes(f.id));
   if (!files.length) return;
@@ -1043,5 +1072,8 @@ function formatDuration(sec) {
 .signal-list {
   max-height: 360px;
   overflow-y: auto;
+}
+.cloud-file-row + .cloud-file-row {
+  border-top: 1px solid rgba(128, 128, 128, 0.15);
 }
 </style>
