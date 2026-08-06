@@ -90,7 +90,12 @@ export const useMesstoolStore = defineStore("messtool", () => {
       }
       // Rough size estimate for the guard only — the actual write stores
       // the live object directly (structured clone), not this string.
-      const approxBytes = JSON.stringify(parsed.value).length;
+      // Includes compareFiles now too (each carries its own full parsed
+      // signal data, same shape as the main file) since that's the bulk
+      // of what could blow past a sane size limit.
+      const approxBytes =
+        JSON.stringify(parsed.value).length +
+        JSON.stringify(compareFiles.value).length;
       if (approxBytes > MAX_PERSIST_BYTES) {
         sessionTooLargeToPersist.value = true;
         await idbSession.clearSession();
@@ -103,6 +108,13 @@ export const useMesstoolStore = defineStore("messtool", () => {
         selectedSignalIdx: selectedSignalIdx.value,
         fftWindowDefault: fftWindowDefault.value,
         markers: markers.value,
+        // Previously only the file itself + selection + markers were
+        // saved — Filter/Verarbeitung settings and the whole Anzeige
+        // comparison file list silently vanished on reload even though
+        // "auto-save the session" implied everything would survive.
+        filterSettings: filterSettings.value,
+        verarbeitungSnapshot: verarbeitungSnapshot.value,
+        compareFiles: compareFiles.value,
       });
     } catch {
       // storage full/unavailable/disabled — fail silently, see above
@@ -125,6 +137,9 @@ export const useMesstoolStore = defineStore("messtool", () => {
       selectedSignalIdx.value = data.selectedSignalIdx || 0;
       fftWindowDefault.value = data.fftWindowDefault || null;
       markers.value = data.markers || [];
+      if (data.filterSettings) filterSettings.value = data.filterSettings;
+      if (data.verarbeitungSnapshot) verarbeitungSnapshot.value = data.verarbeitungSnapshot;
+      if (data.compareFiles) compareFiles.value = data.compareFiles;
       sessionRestored.value = true;
     } catch {
       // nothing to restore, or storage unavailable — start with a clean slate
@@ -164,6 +179,12 @@ export const useMesstoolStore = defineStore("messtool", () => {
   }
 
   watch(selectedSignalIdx, () => persistSession());
+  // Filter/Verarbeitung settings and the comparison file list are now
+  // part of the persisted session too (see persistSessionNow above) —
+  // auto-save on change here rather than relying on every call site that
+  // touches these to remember to call persistSession() itself.
+  watch(filterSettings, () => persistSession(), { deep: true });
+  watch(verarbeitungSnapshot, () => persistSession(), { deep: true });
 
   // ---- Multi-file comparison (Messtool -> Vergleich) ----
   // Each entry: { id, name, parsed, selectedIndices, offsetSec }. A file
@@ -234,6 +255,11 @@ export const useMesstoolStore = defineStore("messtool", () => {
   function clearCompare() {
     compareFiles.value = [];
   }
+
+  // Auto-save the Anzeige/Vergleich comparison list too — offsets, filter
+  // toggles, selected signals, everything that used to disappear on an
+  // accidental reload.
+  watch(compareFiles, () => persistSession(), { deep: true });
 
   // Flattened (file, signal) pairs actually shown in the comparison chart/
   // stats/batch-export, each with its own color assigned in display order

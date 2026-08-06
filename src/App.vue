@@ -449,7 +449,39 @@ const store = useSignalStore();
 const auth = useAuthStore();
 const { toast } = useToast();
 
-const activeTab = ref("start");
+const VALID_TABS = new Set([
+  "start", "overview", "signal", "calculator", "comparison", "sessions",
+  "settings", "admin", "hilfe",
+  "mt-import", "mt-filter", "mt-analyse", "mt-verarbeitung", "mt-vergleich",
+  "mt-export", "mt-sessions",
+]);
+const ACTIVE_TAB_KEY = "signallab.activeTab";
+
+// Which page you're on was never saved anywhere — an accidental reload
+// (or just hitting F5) always bounced back to the Start page even though
+// the actual measurement data survives (see messtoolStore's IndexedDB
+// session). localStorage is fine here: this is a single short string, not
+// the multi-MB payload that forced IndexedDB for the file data itself.
+function restoreActiveTab() {
+  try {
+    const saved = localStorage.getItem(ACTIVE_TAB_KEY);
+    if (saved && VALID_TABS.has(saved) && (saved !== "admin" || auth.isAdmin)) {
+      return saved;
+    }
+  } catch {
+    // localStorage unavailable (private browsing, disabled, ...) — fine, just start on "start"
+  }
+  return "start";
+}
+
+const activeTab = ref(restoreActiveTab());
+watch(activeTab, (tab) => {
+  try {
+    localStorage.setItem(ACTIVE_TAB_KEY, tab);
+  } catch {
+    // storage unavailable — not persisting the tab is not worth surfacing an error for
+  }
+});
 const showAbout = ref(false);
 const showShortcuts = ref(false);
 
