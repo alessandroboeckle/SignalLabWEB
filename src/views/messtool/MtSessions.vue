@@ -217,6 +217,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useAuthStore } from "../../stores/authStore.js";
 import * as sessionsApi from "../../utils/messtoolSessionStorage.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
+import { withTimeout } from "../../utils/withTimeout.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { showToast } from "../../composables/useToast.js";
 
@@ -332,7 +333,7 @@ async function loadSession(s) {
   loadingId.value = s.id;
   errorMsg.value = "";
   try {
-    const buffer = await mtStorage.downloadMessfile(s.messfile_storage_path);
+    const buffer = await withTimeout(mtStorage.downloadMessfile(s.messfile_storage_path), 25000, `"${s.name}": Zeitüberschreitung beim Download.`);
     const text = decodeLatin1(buffer);
     const result = await parseCsvOffMainThread(text, {});
     mtStore.setData(result, s.messfile_name || "");
@@ -350,7 +351,7 @@ async function loadSession(s) {
     const failed = [];
     for (const entry of compareEntries) {
       try {
-        const cBuffer = await mtStorage.downloadMessfile(entry.messfileStoragePath);
+        const cBuffer = await withTimeout(mtStorage.downloadMessfile(entry.messfileStoragePath), 25000, `"${entry.name}": Zeitüberschreitung beim Download.`);
         const cText = decodeLatin1(cBuffer);
         const cResult = await parseCsvOffMainThread(cText, {});
         const added = mtStore.addCompareFile(entry.name, cResult, {
