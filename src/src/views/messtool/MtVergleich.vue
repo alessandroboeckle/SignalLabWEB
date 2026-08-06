@@ -349,44 +349,28 @@
 
       <!-- Stacked individual charts -->
       <template v-else>
-        <v-card v-if="mtStore.compareSeries.length > 1" variant="outlined" rounded="lg" class="mb-4">
-          <v-card-title
-            class="d-flex align-center ga-2"
-            style="cursor: pointer"
-            @click="mergePanelOpen = !mergePanelOpen"
-          >
-            <v-icon size="18">mdi-call-merge</v-icon>
-            <span class="text-subtitle-2 font-weight-medium">Plots zusammenlegen</span>
-            <v-chip v-if="activeMergeCount > 0" size="x-small" color="primary" variant="flat">
-              {{ activeMergeCount }} aktiv
-            </v-chip>
-            <v-spacer></v-spacer>
-            <v-icon>{{ mergePanelOpen ? "mdi-chevron-up" : "mdi-chevron-down" }}</v-icon>
-          </v-card-title>
-          <v-expand-transition>
-            <div v-show="mergePanelOpen">
-              <v-divider></v-divider>
-              <v-card-text>
-                <p class="text-caption text-medium-emphasis mb-2">
-                  Standardmäßig bekommt jedes Signal seinen eigenen Plot. Wähle hier für ein Signal
-                  ein anderes aus, um beide im selben Plot übereinander darzustellen.
-                </p>
-                <v-row dense>
-                  <v-col v-for="s in mtStore.compareSeries" :key="s.key" cols="12" sm="6" md="4">
-                    <v-select
-                      :model-value="mergeGroupOf[s.key] || ''"
-                      :items="mergeTargetOptions(s)"
-                      :label="`${s.fileName} — ${s.signal.name}`"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                      @update:model-value="(v) => (mergeGroupOf = { ...mergeGroupOf, [s.key]: v })"
-                    ></v-select>
-                  </v-col>
-                </v-row>
-              </v-card-text>
-            </div>
-          </v-expand-transition>
+        <v-card v-if="mtStore.compareSeries.length > 1" variant="outlined" rounded="lg" class="mb-4 pa-3">
+          <div class="text-subtitle-2 font-weight-medium mb-2">
+            <v-icon size="18" class="mr-1">mdi-call-merge</v-icon>
+            Plots zusammenlegen
+          </div>
+          <p class="text-caption text-medium-emphasis mb-2">
+            Standardmäßig bekommt jedes Signal seinen eigenen Plot. Wähle hier für ein Signal
+            ein anderes aus, um beide im selben Plot übereinander darzustellen.
+          </p>
+          <v-row dense>
+            <v-col v-for="s in mtStore.compareSeries" :key="s.key" cols="12" sm="6" md="4">
+              <v-select
+                :model-value="mergeGroupOf[s.key] || ''"
+                :items="mergeTargetOptions(s)"
+                :label="`${s.fileName} — ${s.signal.name}`"
+                variant="outlined"
+                density="compact"
+                hide-details
+                @update:model-value="(v) => (mergeGroupOf = { ...mergeGroupOf, [s.key]: v })"
+              ></v-select>
+            </v-col>
+          </v-row>
         </v-card>
 
         <ChartCard
@@ -582,14 +566,6 @@ const syncZoom = ref(true); // zoom/pan on one Gestapelt chart applies to all of
 // its own) — enough for "combine these two/three signals" without the
 // bookkeeping of arbitrary merge chains.
 const mergeGroupOf = ref({});
-
-// Collapsed by default — with dozens of signals loaded (batch imports,
-// whole session folders) this panel is a wall of dropdowns nobody wants
-// staring at them by default; expand only when actually needed.
-const mergePanelOpen = ref(false);
-const activeMergeCount = computed(
-  () => Object.values(mergeGroupOf.value).filter((v) => v).length,
-);
 
 function mergeTargetOptions(series) {
   return [
