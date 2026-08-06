@@ -15,7 +15,11 @@
     <template v-else>
       <!-- Top bar with gradient -->
       <v-app-bar :elevation="3" class="app-header" height="64">
-        <v-app-bar-nav-icon color="white" aria-label="Navigation ein-/ausblenden" @click="toggleDrawer">
+        <v-app-bar-nav-icon
+          color="white"
+          aria-label="Navigation ein-/ausblenden"
+          @click="toggleDrawer"
+        >
           <v-icon>mdi-menu</v-icon>
         </v-app-bar-nav-icon>
 
@@ -28,10 +32,26 @@
           @mouseenter="logoHover = true"
           @mouseleave="logoHover = false"
         >
-          <svg class="logo-svg" :class="{ wiggle: logoHover }" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="3" />
-            <path d="M 18 50 Q 30 24 42 50 T 66 50 T 84 50" stroke="white" stroke-width="5"
-                  fill="none" stroke-linecap="round" />
+          <svg
+            class="logo-svg"
+            :class="{ wiggle: logoHover }"
+            viewBox="0 0 100 100"
+          >
+            <circle
+              cx="50"
+              cy="50"
+              r="44"
+              fill="none"
+              stroke="rgba(255,255,255,0.3)"
+              stroke-width="3"
+            />
+            <path
+              d="M 18 50 Q 30 24 42 50 T 66 50 T 84 50"
+              stroke="white"
+              stroke-width="5"
+              fill="none"
+              stroke-linecap="round"
+            />
           </svg>
           <span class="logo-text">Signal Lab</span>
         </div>
@@ -41,20 +61,26 @@
         <span class="user-email d-none d-sm-inline">{{ auth.user.email }}</span>
 
         <v-btn icon variant="text" @click="toggleTheme">
-          <v-icon color="white">{{ isDark ? 'mdi-white-balance-sunny' : 'mdi-weather-night' }}</v-icon>
+          <v-icon color="white">{{
+            isDark ? "mdi-white-balance-sunny" : "mdi-weather-night"
+          }}</v-icon>
           <v-tooltip activator="parent" location="bottom">
-            {{ isDark ? 'Heller Modus' : 'Dunkler Modus' }}
+            {{ isDark ? "Heller Modus" : "Dunkler Modus" }}
           </v-tooltip>
         </v-btn>
 
         <v-btn icon variant="text" @click="selectTab('settings')">
           <v-icon color="white">mdi-cog</v-icon>
-          <v-tooltip activator="parent" location="bottom">Einstellungen</v-tooltip>
+          <v-tooltip activator="parent" location="bottom"
+            >Einstellungen</v-tooltip
+          >
         </v-btn>
 
         <v-btn icon variant="text" @click="selectTab('hilfe')">
           <v-icon color="white">mdi-help-circle-outline</v-icon>
-          <v-tooltip activator="parent" location="bottom">Hilfe / Bedienungsanleitung</v-tooltip>
+          <v-tooltip activator="parent" location="bottom"
+            >Hilfe / Bedienungsanleitung</v-tooltip
+          >
         </v-btn>
 
         <v-btn icon variant="text" @click="showAbout = true">
@@ -77,7 +103,12 @@
         class="side-nav"
         width="240"
       >
-        <v-list v-model:opened="openGroups" nav density="comfortable" class="nav-list">
+        <v-list
+          v-model:opened="openGroups"
+          nav
+          density="comfortable"
+          class="nav-list"
+        >
           <!-- Start (always visible top-level) — lets you jump straight to
                either tool without guessing which group it lives in. -->
           <v-list-item
@@ -163,80 +194,101 @@
       <!-- Main content -->
       <v-main class="main-area">
         <ErrorBoundary>
-          <v-window v-model="activeTab" class="tab-content" transition="fade-transition" reverse-transition="fade-transition">
-          <v-window-item value="start">
-            <v-container fluid class="pa-6 pa-md-10 start-page">
-              <div class="text-center mb-8">
-                <h1 class="text-h4 font-weight-bold mb-2">Womit möchtest du arbeiten?</h1>
-                <p class="text-medium-emphasis">Signal Lab bündelt zwei eigenständige Werkzeuge.</p>
-              </div>
-              <v-row justify="center">
-                <v-col cols="12" sm="8" md="5">
-                  <v-card
-                    variant="outlined"
-                    rounded="xl"
-                    link
-                    class="start-card pa-8 text-center h-100"
-                    @click="selectTab('mt-import')"
-                  >
-                    <v-icon size="56" color="primary" class="mb-4">mdi-tools</v-icon>
-                    <h2 class="text-h5 font-weight-bold mb-2">Messtool</h2>
-                    <p class="text-medium-emphasis">
-                      LOGDATA-Messdateien importieren, filtern, analysieren, vergleichen und exportieren.
-                    </p>
-                  </v-card>
-                </v-col>
-                <v-col cols="12" sm="8" md="5">
-                  <v-card
-                    variant="outlined"
-                    rounded="xl"
-                    link
-                    class="start-card pa-8 text-center h-100"
-                    @click="selectTab('overview')"
-                  >
-                    <v-icon size="56" color="secondary" class="mb-4">mdi-waveform</v-icon>
-                    <h2 class="text-h5 font-weight-bold mb-2">Generier-Tool</h2>
-                    <p class="text-medium-emphasis">
-                      Eigene Testsignale erzeugen, berechnen und als Sessions verwalten.
-                    </p>
-                  </v-card>
-                </v-col>
-              </v-row>
-            </v-container>
-          </v-window-item>
+          <v-window
+            v-model="activeTab"
+            class="tab-content"
+            transition="fade-transition"
+            reverse-transition="fade-transition"
+          >
+            <v-window-item value="start">
+              <v-container fluid class="pa-6 pa-md-10 start-page">
+                <div class="text-center mb-8">
+                  <h1 class="text-h4 font-weight-bold mb-2">
+                    Womit möchtest du arbeiten?
+                  </h1>
+                  <p class="text-medium-emphasis">
+                    Signal Lab bündelt zwei eigenständige Werkzeuge.
+                  </p>
+                </div>
+                <v-row justify="center">
+                  <v-col cols="12" sm="8" md="5">
+                    <v-card
+                      variant="outlined"
+                      rounded="xl"
+                      link
+                      class="start-card pa-8 text-center h-100"
+                      @click="selectTab('mt-import')"
+                    >
+                      <v-icon size="56" color="primary" class="mb-4"
+                        >mdi-tools</v-icon
+                      >
+                      <h2 class="text-h5 font-weight-bold mb-2">Messtool</h2>
+                      <p class="text-medium-emphasis">
+                        LOGDATA-Messdateien importieren, filtern, analysieren,
+                        vergleichen und exportieren.
+                      </p>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="12" sm="8" md="5">
+                    <v-card
+                      variant="outlined"
+                      rounded="xl"
+                      link
+                      class="start-card pa-8 text-center h-100"
+                      @click="selectTab('overview')"
+                    >
+                      <v-icon size="56" color="secondary" class="mb-4"
+                        >mdi-waveform</v-icon
+                      >
+                      <h2 class="text-h5 font-weight-bold mb-2">
+                        Generier-Tool
+                      </h2>
+                      <p class="text-medium-emphasis">
+                        Eigene Testsignale erzeugen, berechnen und als Sessions
+                        verwalten.
+                      </p>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </v-container>
+            </v-window-item>
 
-          <v-window-item value="overview"><OverviewTab @navigate="activeTab = $event" /></v-window-item>
-          <v-window-item value="signal"><SignalCreationTab /></v-window-item>
-          <v-window-item value="calculator"><CalculatorTab /></v-window-item>
-          <v-window-item value="comparison"><ComparisonTab /></v-window-item>
-          <v-window-item value="sessions"><SessionManagementTab /></v-window-item>
-          <v-window-item value="settings"><SettingsTab /></v-window-item>
-          <v-window-item value="admin"><AdminTab /></v-window-item>
-          <v-window-item value="hilfe"><HilfeTab /></v-window-item>
+            <v-window-item value="overview"
+              ><OverviewTab @navigate="activeTab = $event"
+            /></v-window-item>
+            <v-window-item value="signal"><SignalCreationTab /></v-window-item>
+            <v-window-item value="calculator"><CalculatorTab /></v-window-item>
+            <v-window-item value="comparison"><ComparisonTab /></v-window-item>
+            <v-window-item value="sessions"
+              ><SessionManagementTab
+            /></v-window-item>
+            <v-window-item value="settings"><SettingsTab /></v-window-item>
+            <v-window-item value="admin"><AdminTab /></v-window-item>
+            <v-window-item value="hilfe"><HilfeTab /></v-window-item>
 
-          <!-- Messtool sub-pages (placeholders for now) -->
-          <v-window-item value="mt-import">
-            <MtImport @navigate="activeTab = $event" />
-          </v-window-item>
-          <v-window-item value="mt-filter">
-            <MtFilter @navigate="activeTab = $event" />
-          </v-window-item>
-          <v-window-item value="mt-analyse">
-            <MtAnalyse @navigate="activeTab = $event" />
-          </v-window-item>
-          <v-window-item value="mt-verarbeitung">
-            <MtVerarbeitung @navigate="activeTab = $event" />
-          </v-window-item>
-          <v-window-item value="mt-vergleich">
-            <MtVergleich @navigate="activeTab = $event" />
-          </v-window-item>
-          <v-window-item value="mt-export">
-            <MtExport @navigate="activeTab = $event" />
-          </v-window-item>
-          <v-window-item value="mt-sessions">
-            <MtSessions @navigate="activeTab = $event" />
-          </v-window-item>
-        </v-window>
+            <!-- Messtool sub-pages (placeholders for now) -->
+            <v-window-item value="mt-import">
+              <MtImport @navigate="activeTab = $event" />
+            </v-window-item>
+            <v-window-item value="mt-filter">
+              <MtFilter @navigate="activeTab = $event" />
+            </v-window-item>
+            <v-window-item value="mt-analyse">
+              <MtAnalyse @navigate="activeTab = $event" />
+            </v-window-item>
+            <v-window-item value="mt-verarbeitung">
+              <MtVerarbeitung @navigate="activeTab = $event" />
+            </v-window-item>
+            <v-window-item value="mt-vergleich">
+              <MtVergleich @navigate="activeTab = $event" />
+            </v-window-item>
+            <v-window-item value="mt-export">
+              <MtExport @navigate="activeTab = $event" />
+            </v-window-item>
+            <v-window-item value="mt-sessions">
+              <MtSessions @navigate="activeTab = $event" />
+            </v-window-item>
+          </v-window>
         </ErrorBoundary>
       </v-main>
 
@@ -252,12 +304,30 @@
             </p>
             <v-divider class="my-4"></v-divider>
             <v-list density="compact">
-              <v-list-item prepend-icon="mdi-check-circle" title="Signalgenerierung (5 Kurvenformen)"></v-list-item>
-              <v-list-item prepend-icon="mdi-check-circle" title="FFT-Analyse & Visualisierung"></v-list-item>
-              <v-list-item prepend-icon="mdi-check-circle" title="Signal-Vergleich"></v-list-item>
-              <v-list-item prepend-icon="mdi-check-circle" title="Cloud-Sessions (geteilt)"></v-list-item>
-              <v-list-item prepend-icon="mdi-check-circle" title="Export (JSON/CSV)"></v-list-item>
-              <v-list-item prepend-icon="mdi-check-circle" title="Messtool: Import, Filter, Analyse, Anzeige, Export"></v-list-item>
+              <v-list-item
+                prepend-icon="mdi-check-circle"
+                title="Signalgenerierung (5 Kurvenformen)"
+              ></v-list-item>
+              <v-list-item
+                prepend-icon="mdi-check-circle"
+                title="FFT-Analyse & Visualisierung"
+              ></v-list-item>
+              <v-list-item
+                prepend-icon="mdi-check-circle"
+                title="Signal-Vergleich"
+              ></v-list-item>
+              <v-list-item
+                prepend-icon="mdi-check-circle"
+                title="Cloud-Sessions (geteilt)"
+              ></v-list-item>
+              <v-list-item
+                prepend-icon="mdi-check-circle"
+                title="Export (JSON/CSV)"
+              ></v-list-item>
+              <v-list-item
+                prepend-icon="mdi-check-circle"
+                title="Messtool: Import, Filter, Analyse, Anzeige, Export"
+              ></v-list-item>
             </v-list>
             <v-divider class="my-4"></v-divider>
             <p class="text-caption text-center text-medium-emphasis">
@@ -266,7 +336,9 @@
           </v-card-text>
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn color="primary" variant="flat" @click="showAbout = false">Schliessen</v-btn>
+            <v-btn color="primary" variant="flat" @click="showAbout = false"
+              >Schliessen</v-btn
+            >
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -290,12 +362,20 @@
             <tbody>
               <tr v-for="row in keyboardShortcuts" :key="row.effect">
                 <td class="py-2">
-                  <span v-for="(k, i) in row.keys" :key="i" class="d-inline-flex align-center">
+                  <span
+                    v-for="(k, i) in row.keys"
+                    :key="i"
+                    class="d-inline-flex align-center"
+                  >
                     <kbd class="key-badge">
                       <v-icon v-if="k.icon" size="14">{{ k.icon }}</v-icon>
                       <span v-else>{{ k.text }}</span>
                     </kbd>
-                    <span v-if="i < row.keys.length - 1" class="mx-1 text-medium-emphasis">{{ row.keySep || "+" }}</span>
+                    <span
+                      v-if="i < row.keys.length - 1"
+                      class="mx-1 text-medium-emphasis"
+                      >{{ row.keySep || "+" }}</span
+                    >
                   </span>
                 </td>
                 <td>{{ row.effect }}</td>
@@ -305,7 +385,9 @@
           </v-table>
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn color="primary" variant="flat" @click="showShortcuts = false">Schliessen</v-btn>
+            <v-btn color="primary" variant="flat" @click="showShortcuts = false"
+              >Schliessen</v-btn
+            >
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -320,14 +402,23 @@
     >
       {{ toast.message }}
       <template #actions>
-        <v-btn variant="text" size="small" @click="toast.show = false">Schliessen</v-btn>
+        <v-btn variant="text" size="small" @click="toast.show = false"
+          >Schliessen</v-btn
+        >
       </template>
     </v-snackbar>
   </v-app>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import {
+  ref,
+  computed,
+  watch,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
 import { keyboardShortcuts } from "./utils/keyboardShortcuts.js";
 import { useTheme, useDisplay } from "vuetify";
 import { useSignalStore } from "./stores/signalStore";
@@ -365,7 +456,12 @@ const showShortcuts = ref(false);
 function isEditableTarget(el) {
   if (!el) return false;
   const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    el.isContentEditable
+  );
 }
 
 function onGlobalKeydown(e) {
@@ -382,10 +478,14 @@ const rail = ref(false);
 
 // On mobile, the sidebar becomes an overlay (not permanent) and starts closed,
 // so it doesn't eat screen space; the hamburger toggles it in/out.
-watch(mobile, (isMobile) => {
-  drawer.value = !isMobile;
-  rail.value = false;
-}, { immediate: true });
+watch(
+  mobile,
+  (isMobile) => {
+    drawer.value = !isMobile;
+    rail.value = false;
+  },
+  { immediate: true },
+);
 
 function toggleDrawer() {
   if (mobile.value) {
@@ -425,7 +525,11 @@ const generierToolItems = [
   { value: "overview", label: "Dashboard", icon: "mdi-view-dashboard" },
   { value: "signal", label: "Generator", icon: "mdi-sine-wave" },
   { value: "calculator", label: "Rechner", icon: "mdi-calculator" },
-  { value: "comparison", label: "Signal-Vergleich", icon: "mdi-chart-multiple" },
+  {
+    value: "comparison",
+    label: "Signal-Vergleich",
+    icon: "mdi-chart-multiple",
+  },
   { value: "sessions", label: "Sessions", icon: "mdi-folder-open" },
 ];
 
@@ -436,7 +540,11 @@ const messtoolItems = [
   { value: "mt-verarbeitung", label: "Verarbeitung", icon: "mdi-cog-transfer" },
   { value: "mt-vergleich", label: "Anzeige", icon: "mdi-chart-multiple" },
   { value: "mt-export", label: "Export", icon: "mdi-file-export" },
-  { value: "mt-sessions", label: "Sessions", icon: "mdi-content-save-cog-outline" },
+  {
+    value: "mt-sessions",
+    label: "Sessions",
+    icon: "mdi-content-save-cog-outline",
+  },
 ];
 
 // Whichever group contains the currently active tab should be expanded —
@@ -447,7 +555,9 @@ function groupFor(value) {
   if (generierToolItems.some((i) => i.value === value)) return "generiertool";
   return null; // top-level items like 'start' or 'admin' don't belong to either group
 }
-const openGroups = ref(groupFor(activeTab.value) ? [groupFor(activeTab.value)] : []);
+const openGroups = ref(
+  groupFor(activeTab.value) ? [groupFor(activeTab.value)] : [],
+);
 function ensureGroupOpenFor(value) {
   const group = groupFor(value);
   if (group && !openGroups.value.includes(group)) {
@@ -482,7 +592,7 @@ watch(
       }
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Apply saved theme
@@ -491,7 +601,7 @@ watch(
   (newTheme) => {
     theme.global.name.value = newTheme === "dark" ? "dark" : "light";
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>
 
@@ -513,12 +623,20 @@ watch(
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Top bar with a smooth multi-stop gradient */
 .app-header {
-  background: linear-gradient(100deg, #1e3a8a 0%, #2563eb 45%, #3b82f6 80%, #60a5fa 100%) !important;
+  background: linear-gradient(
+    100deg,
+    #1e3a8a 0%,
+    #2563eb 45%,
+    #3b82f6 80%,
+    #60a5fa 100%
+  ) !important;
   color: white;
 }
 
@@ -540,9 +658,16 @@ watch(
   animation: wiggle 0.9s ease-in-out infinite;
 }
 @keyframes wiggle {
-  0%, 100% { transform: rotate(0deg) scale(1); }
-  25% { transform: rotate(-8deg) scale(1.08); }
-  75% { transform: rotate(8deg) scale(1.08); }
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-8deg) scale(1.08);
+  }
+  75% {
+    transform: rotate(8deg) scale(1.08);
+  }
 }
 .logo-text {
   font-size: 20px;
@@ -635,7 +760,10 @@ watch(
   margin: 0 auto;
 }
 .start-card {
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
 }
 .start-card:hover {
   transform: translateY(-4px);

@@ -445,6 +445,17 @@ function toggleCursorMode() {
   cursorMode.value = !cursorMode.value;
   if (cursorMode.value) markerMode.value = false;
   cursors.value = [];
+  compareSelection.value = [];
+  // Previously this only flipped *this* chart's own cursorMode — with
+  // "Cursor über alle Plots" active, clicking the ruler on one stacked
+  // chart left every other chart in the group either still showing no
+  // cursors (mode never turned on there) or hanging onto stale cursor
+  // ids from before (mode turned off here without telling them to clear)
+  // — exactly the "spakt rum" glitchiness. Broadcasting the mode change
+  // itself, not just individual cursor add/remove/toggle actions, keeps
+  // every chart in the group on/off together and their cursor lists in
+  // sync at all times.
+  broadcastCursorAction({ type: "mode", active: cursorMode.value });
   buildInline();
   if (fullscreen.value) buildFullscreen();
   buildCursorRows();
@@ -975,6 +986,11 @@ function onIncomingCursorAction(action, sourceId) {
       cursors.value = cursors.value.filter((c) => c.id !== action.id);
     } else if (action.type === "clear") {
       cursors.value = [];
+    } else if (action.type === "mode") {
+      cursorMode.value = action.active;
+      if (action.active) markerMode.value = false;
+      cursors.value = [];
+      compareSelection.value = [];
     }
     buildInline();
     if (fullscreen.value) buildFullscreen();

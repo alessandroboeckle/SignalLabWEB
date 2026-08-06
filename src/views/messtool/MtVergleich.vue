@@ -349,6 +349,30 @@
 
       <!-- Stacked individual charts -->
       <template v-else>
+        <v-card v-if="mtStore.compareSeries.length > 1" variant="outlined" rounded="lg" class="mb-4 pa-3">
+          <div class="text-subtitle-2 font-weight-medium mb-2">
+            <v-icon size="18" class="mr-1">mdi-call-merge</v-icon>
+            Plots zusammenlegen
+          </div>
+          <p class="text-caption text-medium-emphasis mb-2">
+            Standardmäßig bekommt jedes Signal seinen eigenen Plot. Wähle hier für ein Signal
+            ein anderes aus, um beide im selben Plot übereinander darzustellen.
+          </p>
+          <v-row dense>
+            <v-col v-for="s in mtStore.compareSeries" :key="s.key" cols="12" sm="6" md="4">
+              <v-select
+                :model-value="mergeGroupOf[s.key] || ''"
+                :items="mergeTargetOptions(s)"
+                :label="`${s.fileName} — ${s.signal.name}`"
+                variant="outlined"
+                density="compact"
+                hide-details
+                @update:model-value="(v) => (mergeGroupOf = { ...mergeGroupOf, [s.key]: v })"
+              ></v-select>
+            </v-col>
+          </v-row>
+        </v-card>
+
         <ChartCard
           v-for="item in stackedRenderItems"
           :key="item.key"
@@ -495,6 +519,25 @@ const bigMode = ref(false); // show every chart bigger, one page's worth at a ti
 const syncCursors = ref(false); // cursors placed on one Gestapelt chart appear on all of them
 const syncZoom = ref(true); // zoom/pan on one Gestapelt chart applies to all of them (existing default behavior)
 
+// Lets specific signals share a chart within the Gestapelt view instead
+// of every signal always getting its own row — e.g. plot #3 together
+// with #1, or #5 with #2, while everything else stays one-per-chart.
+// Keyed by series.key (see mtStore.compareSeries); value is the key of
+// another series to join into, or "" for its own chart. Single-hop only
+// (a series that's itself a merge target doesn't chase further merges of
+// its own) — enough for "combine these two/three signals" without the
+// bookkeeping of arbitrary merge chains.
+const mergeGroupOf = ref({});
+
+function mergeTargetOptions(series) {
+  return [
+    { title: "Eigener Plot", value: "" },
+    ...mtStore.compareSeries
+      .filter((s) => s.key !== series.key)
+      .map((s) => ({ title: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`, value: s.key })),
+  ];
+}
+
 // Elapsed-time-to-clock offset for a series: clockSec[i] ≈ time[i] +
 // clockOffset, assuming a steady sample rate (reasonable — big gaps are
 // already flagged separately by the quality check). Used to relabel the
@@ -585,34 +628,169 @@ function filteredStackedConfig(s, f) {
   };
 }
 
+// Resolves mergeGroupOf into actual groups of series, preserving each
+// group's first-appearance position in mtStore.compareSeries so the
+// stacked list doesn't visibly reshuffle just because of a merge.
+const stackedGroups = computed(() => {
+  const series = mtStore.compareSeries;
+  const byKey = new Map(series.map((s) => [s.key, s]));
+  const leaderOf = new Map(); // seriesKey -> leaderKey
+  for (const s of series) {
+    const target = mergeGroupOf.value[s.key];
+    leaderOf.set(s.key, target && byKey.has(target) ? target : s.key);
+  }
+  const groups = new Map(); // leaderKey -> [series...]
+  for (const s of series) {
+    const leader = leaderOf.get(s.key);
+    if (!groups.has(leader)) groups.set(leader, []);
+    groups.get(leader).push(s);
+  }
+  const seen = new Set();
+  const ordered = [];
+  for (const s of series) {
+    const leader = leaderOf.get(s.key);
+    if (seen.has(leader)) continue;
+    seen.add(leader);
+    ordered.push(groups.get(leader));
+  }
+  return ordered;
+});
+
 // Expands each selected series into one or two charts for the Gestapelt
 // view, depending on that file's "Filter anwenden" / "Nur gefiltert"
 // settings: original only (default, filter off), both stacked (filter
-// on, default), or filtered only.
+// on, default), or filtered only. Groups of >1 (via mergeGroupOf) render
+// as a single chart with one dataset per member instead.
 const stackedRenderItems = computed(() => {
+  // stackedConfig()/filteredStackedConfig()/mergedStackedConfig() only
+  // read xAxisMode inside the closure they return (evaluated later by
+  // ChartCard), so Vue's computed dependency tracking never sees it
+  // accessed *here* — toggling Zeit/Uhrzeit silently did nothing in the
+  // Gestapelt view because this computed (and therefore item.config's
+  // function identity) never re-ran. Read it here too, same fix already
+  // used in overlayConfig.
+  void xAxisMode.value;
   const items = [];
-  for (const s of mtStore.compareSeries) {
-    const f = mtStore.compareFiles.find((cf) => cf.id === s.fileId);
-    const useFilter = !!f?.useFilter;
-    const filterOnly = !!f?.filterOnly;
+  for (const group of stackedGroups.value) {
+    if (group.length === 1) {
+      const s = group[0];
+      const f = mtStore.compareFiles.find((cf) => cf.id === s.fileId);
+      const useFilter = !!f?.useFilter;
+      const filterOnly = !!f?.filterOnly;
 
-    if (!useFilter || !filterOnly) {
+      if (!useFilter || !filterOnly) {
+        items.push({
+          key: `${s.key}:orig`,
+          title: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
+          config: stackedConfig(s),
+          members: group,
+        });
+      }
+      if (useFilter) {
+        items.push({
+          key: `${s.key}:filtered`,
+          title: `${s.fileName} — ${s.signal.name} (gefiltert)`,
+          config: filteredStackedConfig(s, f),
+          members: group,
+        });
+      }
+    } else {
+      const leaderKey = group[0].key;
       items.push({
-        key: `${s.key}:orig`,
-        title: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
-        config: stackedConfig(s),
-      });
-    }
-    if (useFilter) {
-      items.push({
-        key: `${s.key}:filtered`,
-        title: `${s.fileName} — ${s.signal.name} (gefiltert)`,
-        config: filteredStackedConfig(s, f),
+        key: `${leaderKey}:merged`,
+        title: group.map((s) => `${s.fileName} — ${s.signal.name}`).join("  +  "),
+        config: mergedStackedConfig(group),
+        members: group,
       });
     }
   }
   return items;
 });
+
+// One chart, one dataset per member series — same shape/behavior as the
+// overlay chart (offset, second axis, per-file in-place filter) but
+// scoped to just the signals merged into this particular Gestapelt slot.
+function mergedStackedConfig(members) {
+  return (peakMode) => {
+    const datasets = [];
+    for (const s of members) {
+      const f = mtStore.compareFiles.find((cf) => cf.id === s.fileId);
+      const useFilter = !!f?.useFilter;
+      const filterOnly = !!f?.filterOnly;
+      const off = s.offsetSec || 0;
+
+      if (!useFilter || !filterOnly) {
+        const y = s.signal.data.map((v) => (v == null ? null : v));
+        const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
+        datasets.push({
+          label: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
+          data: d.rx.map((x, i) => ({ x: x + off, y: d.ry[i], clock: s.clockSec ? s.clockSec[d.indices[i]] : null })),
+          borderColor: s.color,
+          backgroundColor: s.color,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          yAxisID: s.useSecondAxis ? "y1" : "y",
+        });
+      }
+      if (useFilter) {
+        const rawY = s.signal.data.map((v) => (v == null ? 0 : v));
+        let filtered;
+        try {
+          filtered = applyFilter(rawY, {
+            order: f.filterSettings.order,
+            cutoffHz: f.filterSettings.cutoff,
+            cutoff2Hz: f.filterSettings.cutoff2,
+            sampleRate: sampleRateFor(f),
+            btype: f.filterSettings.btype,
+            characteristic: f.filterSettings.characteristic,
+          });
+        } catch {
+          filtered = rawY;
+        }
+        const fD = downsample(filtered, s.time, peakMode ? "minmax" : "simple", 800);
+        datasets.push({
+          label: `${s.fileName} — ${s.signal.name} gefiltert [${s.signal.unit || "-"}]`,
+          data: fD.rx.map((x, i) => ({ x: x + off, y: fD.ry[i] })),
+          borderColor: "#FF6B35",
+          backgroundColor: "#FF6B35",
+          borderWidth: 1.5,
+          pointRadius: 0,
+          yAxisID: s.useSecondAxis ? "y1" : "y",
+        });
+      }
+    }
+
+    const useClock = xAxisMode.value === "uhrzeit";
+    const clockOffset = useClock ? clockOffsetFor(members[0]) : null;
+
+    const scales = {
+      x: {
+        type: "linear",
+        title: { display: true, text: useClock ? "Uhrzeit" : "Zeit [s]" },
+        ticks: clockOffset != null ? { callback: (val) => formatClockTime(val + clockOffset) } : {},
+      },
+      y: { title: { display: true, text: "Wert" } },
+    };
+    if (members.some((s) => s.useSecondAxis)) {
+      scales.y1 = {
+        position: "right",
+        title: { display: true, text: "Wert (rechte Achse)" },
+        grid: { drawOnChartArea: false },
+      };
+    }
+
+    return {
+      type: "line",
+      data: { datasets },
+      options: {
+        responsive: true,
+        animation: false,
+        parsing: false,
+        scales,
+      },
+    };
+  };
+}
 
 // carry the file's real clock time (see messtoolParser's clockSec)
 // alongside elapsed seconds, so ChartCard's tooltip can show both.

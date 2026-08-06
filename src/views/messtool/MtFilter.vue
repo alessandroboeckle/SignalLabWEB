@@ -142,9 +142,17 @@
           <ChartCard title="Original vs. Gefiltert" :config="filterConfig" :height="440" />
           <ChartCard
             v-if="showFrequencyResponse"
-            title="Frequenzgang des Filters (Bode-Plot)"
+            title="Frequenzgang des Filters (Bode-Plot) — Amplitude"
             :config="frequencyResponseConfig"
             :height="320"
+            hide-playback
+          />
+          <ChartCard
+            v-if="showFrequencyResponse"
+            title="Frequenzgang des Filters (Bode-Plot) — Phase"
+            :config="phaseResponseConfig"
+            :height="320"
+            hide-playback
           />
         </v-col>
       </v-row>
@@ -297,27 +305,35 @@ const { value: debouncedCutoffs, pending: filterComputing } = useDebounced(
 
 const showFrequencyResponse = ref(false);
 
-const frequencyResponseConfig = computed(() => {
+// Shared SOS-design + response-evaluation step for both Bode plots
+// (magnitude and phase) — designed once here so the two chart configs
+// below just read freqs/magDb/phaseDeg instead of each re-deriving the
+// filter's SOS coefficients independently.
+const frequencyResponseData = computed(() => {
   const fs = sampleRate.value;
   const [c1, c2, rs] = debouncedCutoffs.value;
   const bt = btype.value, ord = order.value;
   const char = characteristic.value;
-  return () => {
-    const nyq = fs / 2;
-    let sos = [];
-    try {
-      if (bt === "band") {
-        if (c1 > 0 && c1 < nyq) sos.push(...designSOS(ord, c1 / nyq, "high", char, 1, rs));
-        if (c2 > 0 && c2 < nyq) sos.push(...designSOS(ord, c2 / nyq, "low", char, 1, rs));
-      } else if (c1 > 0 && c1 < nyq) {
-        sos = designSOS(ord, c1 / nyq, bt, char, 1, rs);
-      }
-    } catch {
-      sos = [];
+  const nyq = fs / 2;
+  let sos = [];
+  try {
+    if (bt === "band") {
+      if (c1 > 0 && c1 < nyq) sos.push(...designSOS(ord, c1 / nyq, "high", char, 1, rs));
+      if (c2 > 0 && c2 < nyq) sos.push(...designSOS(ord, c2 / nyq, "low", char, 1, rs));
+    } else if (c1 > 0 && c1 < nyq) {
+      sos = designSOS(ord, c1 / nyq, bt, char, 1, rs);
     }
-    if (!sos.length) return { type: "line", data: { labels: [], datasets: [] } };
+  } catch {
+    sos = [];
+  }
+  if (!sos.length) return { freqs: [], magDb: [], phaseDeg: [] };
+  return computeFrequencyResponse(sos, fs, 300);
+});
 
-    const { freqs, magDb } = computeFrequencyResponse(sos, fs, 300);
+const frequencyResponseConfig = computed(() => {
+  const { freqs, magDb } = frequencyResponseData.value;
+  return () => {
+    if (!freqs.length) return { type: "line", data: { labels: [], datasets: [] } };
     return {
       type: "line",
       data: {
@@ -338,6 +354,44 @@ const frequencyResponseConfig = computed(() => {
             title: { display: true, text: "Frequenz [Hz] (log)" },
           },
           y: { title: { display: true, text: "Amplitude [dB]" } },
+        },
+      },
+    };
+  };
+});
+
+// Phase response — the filter's SOS evaluation already computes phaseDeg
+// alongside magDb (see computeFrequencyResponse), it just wasn't plotted
+// anywhere. Own chart rather than a second y-axis on the magnitude plot:
+// phase wraps at ±180° on a totally different scale than dB, so sharing
+// an axis would make both curves hard to read.
+const phaseResponseConfig = computed(() => {
+  const { freqs, phaseDeg } = frequencyResponseData.value;
+  return () => {
+    if (!freqs.length) return { type: "line", data: { labels: [], datasets: [] } };
+    return {
+      type: "line",
+      data: {
+        datasets: [{
+          label: "Phase [°]",
+          data: freqs.map((f, i) => ({ x: f, y: phaseDeg[i] })),
+          borderColor: "#D97706",
+          backgroundColor: "rgba(217,119,6,0.08)",
+          borderWidth: 1.5, pointRadius: 0, fill: false,
+        }],
+      },
+      options: {
+        responsive: true, animation: false,
+        parsing: false,
+        scales: {
+          x: {
+            type: "logarithmic",
+            title: { display: true, text: "Frequenz [Hz] (log)" },
+          },
+          y: {
+            title: { display: true, text: "Phase [°]" },
+            ticks: { stepSize: 90 },
+          },
         },
       },
     };

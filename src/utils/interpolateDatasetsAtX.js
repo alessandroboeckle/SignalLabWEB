@@ -42,14 +42,17 @@ export function interpolateDatasetsAtX(chartLike, x) {
     }
 
     // Fallback: the strict bracket search can come up empty in edge cases
-    // (a stray NaN x, floating-point ties, or anything else that isn't a
-    // clean ascending sweep) even though there's clearly data nearby —
-    // rather than silently showing nothing, fall back to whichever point
-    // is nearest to x by plain distance. Only reject it if x sits outside
-    // this dataset's overall time span entirely (checking against a
-    // per-point distance instead would misfire on sparsely/unevenly
-    // downsampled real data, where consecutive points can legitimately be
-    // many seconds apart).
+    // (a stray NaN x, floating-point ties, a measurement gap where the
+    // two points straddling x are both null, or anything else that isn't
+    // a clean ascending sweep) even though there's clearly real data
+    // nearby in the file — rather than silently showing nothing, fall
+    // back to whichever point *with an actual value* is nearest to x by
+    // plain distance (skipping null/gap points, not just picking the
+    // literal-closest index and giving up if that one happens to be a
+    // gap). Only reject it if x sits outside this dataset's overall time
+    // span entirely (checking against a per-point distance instead would
+    // misfire on sparsely/unevenly downsampled real data, where
+    // consecutive points can legitimately be many seconds apart).
     if (yVal == null) {
       const validXs = dsXs.filter((v) => v != null && Number.isFinite(v));
       if (validXs.length) {
@@ -62,6 +65,8 @@ export function interpolateDatasetsAtX(chartLike, x) {
           for (let i = 0; i < dsXs.length; i++) {
             const xi = dsXs[i];
             if (xi == null || !Number.isFinite(xi)) continue;
+            const yi = getY(ds.data[i]);
+            if (yi == null || !Number.isFinite(yi)) continue; // skip gaps — keep looking
             const d = Math.abs(xi - x);
             if (d < nearestDist) {
               nearestDist = d;
@@ -69,8 +74,7 @@ export function interpolateDatasetsAtX(chartLike, x) {
             }
           }
           if (nearestIdx !== -1) {
-            const y = getY(ds.data[nearestIdx]);
-            if (y != null && Number.isFinite(y)) yVal = y;
+            yVal = getY(ds.data[nearestIdx]);
           }
         }
       }

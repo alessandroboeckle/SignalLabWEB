@@ -129,6 +129,28 @@ describe("interpolateDatasetsAtX — robustness fallback", () => {
     expect(atPeak2[0].value).toBeGreaterThan(0);
   });
 
+  it("skips a null measurement gap and still surfaces the nearest real value instead of reporting none found", () => {
+    // A cursor placed right on/next to a dropout (null) shouldn't come up
+    // empty just because the immediate bracketing points are gaps — there
+    // is always a real value somewhere close by in the file, and the
+    // Cursorbox should find it rather than showing
+    // "(keine Werte an dieser Stelle gefunden)".
+    const data = [
+      { x: 0, y: 12 },
+      { x: 1, y: 13 },
+      { x: 2, y: null }, // dropout starts
+      { x: 3, y: null },
+      { x: 4, y: null }, // clicked right here, in the middle of the gap
+      { x: 5, y: null },
+      { x: 6, y: 14 }, // nearest real value
+      { x: 7, y: 15 },
+    ];
+    const chart = { data: { datasets: [{ label: "Signal", data }] } };
+    const result = interpolateDatasetsAtX(chart, 4);
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBe(14); // nearest non-null point (x=6), not fabricated, not "no value"
+  });
+
   it("does NOT fabricate a value when x is genuinely far from all of this dataset's points", () => {
     const chart = { data: { datasets: [{ label: "Signal", data: [{ x: 0, y: 1 }, { x: 10, y: 2 }] }] } };
     expect(interpolateDatasetsAtX(chart, 5000)).toEqual([]);
