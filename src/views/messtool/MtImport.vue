@@ -861,13 +861,18 @@ async function addSelectedToCompare() {
   if (failed.length) {
     errorMsg.value = "Nicht hinzugefügt: " + failed.join(", ");
   } else {
-    emit("navigate", "mt-vergleich");
+    // Button says "Zur Anzeige hinzufügen", not "zur Anzeige gehen" — stay
+    // put so you can keep selecting more files instead of getting bounced
+    // to the Anzeige page after every add. The explicit "Zur Anzeige" /
+    // "Alle Funktionen in der Anzeige öffnen" buttons elsewhere on this
+    // page still navigate on purpose.
+    showToast(`${files.length} Datei(en) zur Anzeige hinzugefügt.`);
   }
 }
 
 async function addCloudFileToCompare(f) {
   if (mtStore.compareFiles.some((c) => c.name === f.name)) {
-    emit("navigate", "mt-vergleich");
+    showToast(`"${f.name}" ist bereits in der Anzeige.`);
     return;
   }
   compareAddingId.value = f.id;
@@ -877,6 +882,7 @@ async function addCloudFileToCompare(f) {
     const text = decodeLatin1(buffer);
     const result = await parseCsvOffMainThread(text, {});
     mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
+    showToast(`"${f.name}" zur Anzeige hinzugefügt.`);
   } catch (e) {
     errorMsg.value = `"${f.name}" konnte nicht zur Anzeige hinzugefügt werden: ` + (e.message || e);
   }
@@ -895,7 +901,7 @@ function compareBatchFiles() {
       mtStore.addCompareFile(f.name, f.parsed, { messfileId: f.messfileId, storagePath: f.storagePath });
     }
   }
-  emit("navigate", "mt-vergleich");
+  showToast(`${mtStore.compareFiles.length} Datei(en) zur Anzeige hinzugefügt.`);
 }
 
 async function handleFile(file) {

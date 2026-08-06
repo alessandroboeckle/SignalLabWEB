@@ -370,8 +370,10 @@ async function loadSession(s) {
     } else {
       showToast(`Session "${s.name}" geladen.`);
     }
-
-    emit("navigate", "mt-verarbeitung");
+    // Used to force-navigate to Verarbeitung after loading — but loading a
+    // session is a "load", not a "take me there" click, so stay on the
+    // Sessions page (matches the same fix on Import's "hinzufügen"
+    // buttons: an add/load action shouldn't silently also be a navigate).
   } catch (e) {
     errorMsg.value = `"${s.name}" konnte nicht geladen werden: ` + (e.message || e);
   }
