@@ -458,26 +458,63 @@
           Aus Cloud hinzufügen
         </v-card-title>
         <v-divider></v-divider>
-        <v-list v-if="cloudFiles.length" density="comfortable">
-          <v-list-item v-for="f in cloudFiles" :key="f.id">
-            <v-list-item-title>{{ f.name }}</v-list-item-title>
-            <v-list-item-subtitle>
-              {{ f.signal_count }} Signale · {{ (f.size_bytes / 1024).toFixed(0) }} KB
-            </v-list-item-subtitle>
-            <template #append>
-              <v-btn
-                size="small"
-                variant="text"
-                prepend-icon="mdi-plus"
-                :loading="cloudBusyId === f.id"
-                :disabled="mtStore.compareFiles.some((c) => c.name === f.name)"
-                @click="addFromCloud(f)"
-              >
-                {{ mtStore.compareFiles.some((c) => c.name === f.name) ? "Hinzugefügt" : "Hinzufügen" }}
-              </v-btn>
-            </template>
-          </v-list-item>
-        </v-list>
+        <template v-if="cloudFiles.length">
+          <div class="d-flex align-center ga-2 px-4 py-2">
+            <v-checkbox-btn
+              :model-value="allCloudSelected"
+              :indeterminate="selectedCloudIds.length > 0 && !allCloudSelected"
+              density="compact"
+              aria-label="Alle auswählen"
+              @update:model-value="toggleSelectAllCloud"
+            ></v-checkbox-btn>
+            <span class="text-caption text-medium-emphasis">
+              {{ selectedCloudIds.length > 0 ? `${selectedCloudIds.length} ausgewählt` : "Alle auswählen" }}
+            </span>
+            <v-spacer></v-spacer>
+            <v-btn
+              v-if="selectedCloudIds.length > 0"
+              size="small"
+              color="primary"
+              variant="flat"
+              prepend-icon="mdi-plus"
+              :loading="bulkCloudAdding"
+              @click="addSelectedFromCloud"
+            >
+              Ausgewählte hinzufügen
+            </v-btn>
+          </div>
+          <v-divider></v-divider>
+          <v-list density="comfortable" style="max-height: 420px; overflow-y: auto">
+            <v-list-item v-for="f in cloudFiles" :key="f.id">
+              <template #prepend>
+                <v-checkbox-btn
+                  :model-value="selectedCloudIds.includes(f.id)"
+                  :disabled="mtStore.compareFiles.some((c) => c.name === f.name)"
+                  :aria-label="`${f.name} auswählen`"
+                  density="compact"
+                  class="mr-1"
+                  @update:model-value="toggleCloudSelection(f.id)"
+                ></v-checkbox-btn>
+              </template>
+              <v-list-item-title>{{ f.name }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ f.signal_count }} Signale · {{ (f.size_bytes / 1024).toFixed(0) }} KB
+              </v-list-item-subtitle>
+              <template #append>
+                <v-btn
+                  size="small"
+                  variant="text"
+                  prepend-icon="mdi-plus"
+                  :loading="cloudBusyId === f.id"
+                  :disabled="mtStore.compareFiles.some((c) => c.name === f.name)"
+                  @click="addFromCloud(f)"
+                >
+                  {{ mtStore.compareFiles.some((c) => c.name === f.name) ? "Hinzugefügt" : "Hinzufügen" }}
+                </v-btn>
+              </template>
+            </v-list-item>
+          </v-list>
+        </template>
         <v-card-text v-else class="text-center text-medium-emphasis pa-6">
           Keine Dateien in der Cloud.
         </v-card-text>
@@ -882,6 +919,29 @@ const alignConfidence = ref({}); // { [fileId]: score } from the last auto-align
 const cloudDialog = ref(false);
 const cloudFiles = ref([]);
 const cloudBusyId = ref(null);
+const selectedCloudIds = ref([]);
+const bulkCloudAdding = ref(false);
+
+// Only files not already in the comparison list count towards "select
+// all" / are selectable at all — an already-added file has nothing left
+// to do here (its row's checkbox and "Hinzufügen" button are disabled).
+const selectableCloudFiles = computed(() =>
+  cloudFiles.value.filter((f) => !mtStore.compareFiles.some((c) => c.name === f.name)),
+);
+const allCloudSelected = computed(() =>
+  selectableCloudFiles.value.length > 0 &&
+  selectableCloudFiles.value.every((f) => selectedCloudIds.value.includes(f.id)),
+);
+
+function toggleCloudSelection(id) {
+  selectedCloudIds.value = selectedCloudIds.value.includes(id)
+    ? selectedCloudIds.value.filter((x) => x !== id)
+    : [...selectedCloudIds.value, id];
+}
+
+function toggleSelectAllCloud(checked) {
+  selectedCloudIds.value = checked ? selectableCloudFiles.value.map((f) => f.id) : [];
+}
 
 function decodeLatin1(buffer) {
   return new TextDecoder("iso-8859-1").decode(buffer);
@@ -915,6 +975,7 @@ async function onFileSelect(e) {
 
 async function openCloudDialog() {
   cloudDialog.value = true;
+  selectedCloudIds.value = [];
   try {
     cloudFiles.value = await mtStorage.listMessfiles();
   } catch (err) {
@@ -933,6 +994,36 @@ async function addFromCloud(f) {
     errorMsg.value = err.message || "Datei konnte nicht geladen werden.";
   } finally {
     cloudBusyId.value = null;
+  }
+}
+
+// Bulk version of addFromCloud — downloads/parses/adds every selected
+// file in sequence (same "list of failures instead of failing everything"
+// approach as Import's addSelectedToCompare), so ticking a batch of
+// checkboxes doesn't require clicking "Hinzufügen" once per file.
+async function addSelectedFromCloud() {
+  const files = cloudFiles.value.filter((f) => selectedCloudIds.value.includes(f.id));
+  if (!files.length) return;
+  bulkCloudAdding.value = true;
+  errorMsg.value = "";
+  const failed = [];
+  for (const f of files) {
+    if (mtStore.compareFiles.some((c) => c.name === f.name)) continue; // already added
+    try {
+      const buffer = await mtStorage.downloadMessfile(f.storage_path);
+      const text = decodeLatin1(buffer);
+      const result = await parseCsvOffMainThread(text, {});
+      mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
+    } catch {
+      failed.push(f.name);
+    }
+  }
+  bulkCloudAdding.value = false;
+  selectedCloudIds.value = [];
+  if (failed.length) {
+    errorMsg.value = "Nicht hinzugefügt: " + failed.join(", ");
+  } else {
+    showToast(`${files.length} Datei(en) hinzugefügt.`);
   }
 }
 
