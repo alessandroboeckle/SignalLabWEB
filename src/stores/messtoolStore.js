@@ -135,6 +135,25 @@ export const useMesstoolStore = defineStore("messtool", () => {
     persistTimer = setTimeout(persistSessionNow, 300);
   }
 
+  // The debounce above is exactly the kind of thing that bites you on a
+  // fast, deliberate reload: add a compare file, add a marker, hit F5
+  // within that 300ms window, and the write that was scheduled never
+  // gets to run — the page is already gone. Flush immediately (no
+  // debounce) whenever the tab is about to go away, so "do a thing, then
+  // immediately reload" doesn't silently lose that last thing.
+  function flushPersist() {
+    clearTimeout(persistTimer);
+    persistSessionNow();
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeunload", flushPersist);
+    // Covers mobile/tab-switch cases where beforeunload doesn't fire
+    // reliably — flush whenever the page is hidden, not just on unload.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushPersist();
+    });
+  }
+
   async function restoreSession() {
     try {
       const data = await idbSession.loadSession();
