@@ -11,7 +11,14 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # Was true — but killing an in-progress deploy-pages step mid-flight can
+  # leave the Pages-side deployment lock stuck (that's the "Cancelled" run
+  # from earlier, and why the very next run then hung forever in
+  # "deployment_queued": GitHub Pages only allows one deployment at a time
+  # and the old one never released its slot). GitHub's own starter workflow
+  # deliberately uses false for this reason — queue behind the running
+  # deploy instead of cancelling it.
+  cancel-in-progress: false
 
 jobs:
   build:

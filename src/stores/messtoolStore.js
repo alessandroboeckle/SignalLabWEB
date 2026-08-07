@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, toRaw } from "vue";
 import * as idbSession from "../utils/idbSession.js";
 
 // A small fixed palette so colors stay distinct and consistent across
@@ -102,19 +102,26 @@ export const useMesstoolStore = defineStore("messtool", () => {
         return;
       }
       sessionTooLargeToPersist.value = false;
+      // toRaw() every field — Vue wraps object/array ref values in a
+      // reactive Proxy, and the browser's structured-clone algorithm
+      // (what IndexedDB's put() uses internally) cannot clone a Proxy at
+      // all: it throws DataCloneError. That was silently swallowed by
+      // the catch below, so *every* write here — not just the fields
+      // just added — has likely been failing all along, session
+      // auto-save quietly doing nothing since it was first built.
       await idbSession.saveSession({
-        parsed: parsed.value,
+        parsed: toRaw(parsed.value),
         fileName: fileName.value,
         selectedSignalIdx: selectedSignalIdx.value,
         fftWindowDefault: fftWindowDefault.value,
-        markers: markers.value,
+        markers: toRaw(markers.value),
         // Previously only the file itself + selection + markers were
         // saved — Filter/Verarbeitung settings and the whole Anzeige
         // comparison file list silently vanished on reload even though
         // "auto-save the session" implied everything would survive.
-        filterSettings: filterSettings.value,
-        verarbeitungSnapshot: verarbeitungSnapshot.value,
-        compareFiles: compareFiles.value,
+        filterSettings: toRaw(filterSettings.value),
+        verarbeitungSnapshot: toRaw(verarbeitungSnapshot.value),
+        compareFiles: toRaw(compareFiles.value),
       });
     } catch {
       // storage full/unavailable/disabled — fail silently, see above
