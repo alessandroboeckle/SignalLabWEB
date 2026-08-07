@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
-import { ref, watch, computed, toRaw } from "vue";
+import { ref, watch, computed } from "vue";
 import * as idbSession from "../utils/idbSession.js";
+import { deepToRaw } from "../utils/deepToRaw.js";
 
 // A small fixed palette so colors stay distinct and consistent across
 // re-renders (assigned in order as files are added).
@@ -102,26 +103,30 @@ export const useMesstoolStore = defineStore("messtool", () => {
         return;
       }
       sessionTooLargeToPersist.value = false;
-      // toRaw() every field — Vue wraps object/array ref values in a
-      // reactive Proxy, and the browser's structured-clone algorithm
-      // (what IndexedDB's put() uses internally) cannot clone a Proxy at
-      // all: it throws DataCloneError. That was silently swallowed by
-      // the catch below, so *every* write here — not just the fields
-      // just added — has likely been failing all along, session
-      // auto-save quietly doing nothing since it was first built.
+      // deepToRaw() every field — a plain toRaw() only strips the
+      // outermost reactive Proxy. compareFiles entries can end up with a
+      // Proxy nested *inside* them (e.g. "add the currently loaded file"
+      // stores parsed.value directly, which is itself a separate
+      // reactive Proxy from the main `parsed` ref) — one such leftover
+      // nested Proxy anywhere in the object graph is enough to fail
+      // structured-clone (what IndexedDB's put() uses internally) for
+      // the *entire* write, silently swallowed by the catch below. So
+      // this wasn't just "some fields never got added to the save" —
+      // depending on how a file ended up in compareFiles, the whole
+      // auto-save could still quietly do nothing.
       await idbSession.saveSession({
-        parsed: toRaw(parsed.value),
+        parsed: deepToRaw(parsed.value),
         fileName: fileName.value,
         selectedSignalIdx: selectedSignalIdx.value,
         fftWindowDefault: fftWindowDefault.value,
-        markers: toRaw(markers.value),
+        markers: deepToRaw(markers.value),
         // Previously only the file itself + selection + markers were
         // saved — Filter/Verarbeitung settings and the whole Anzeige
         // comparison file list silently vanished on reload even though
         // "auto-save the session" implied everything would survive.
-        filterSettings: toRaw(filterSettings.value),
-        verarbeitungSnapshot: toRaw(verarbeitungSnapshot.value),
-        compareFiles: toRaw(compareFiles.value),
+        filterSettings: deepToRaw(filterSettings.value),
+        verarbeitungSnapshot: deepToRaw(verarbeitungSnapshot.value),
+        compareFiles: deepToRaw(compareFiles.value),
       });
     } catch {
       // storage full/unavailable/disabled — fail silently, see above

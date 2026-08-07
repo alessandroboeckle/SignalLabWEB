@@ -88,4 +88,38 @@ describe("messtoolStore session persistence - compareFile then marker then reloa
     expect(saved.markers).toHaveLength(1);
     expect(saved.compareFiles).toHaveLength(1);
   });
+
+  it("survives adding the CURRENTLY LOADED file to Anzeige (not a fresh cloud/upload parse) then reload", async () => {
+    // This is the case that was still broken after the first (shallow
+    // toRaw) fix: addCurrentToCompare() passes the live parsed.value
+    // straight through, so the compareFiles entry's .parsed field is a
+    // *separate* reactive Proxy nested inside the (otherwise toRaw'd)
+    // outer array — poisoning the whole structured-clone write, not just
+    // that one field.
+    setActivePinia(createPinia());
+    const { useMesstoolStore } = await import("../messtoolStore.js");
+    const store = useMesstoolStore();
+
+    store.setData({ signals: [{ name: "Sig1", unit: "V", data: [1, 2, 3] }], time: [0, 1, 2] }, "test.csv");
+    // Mirrors MtImport.vue's addCurrentToCompare(): mtStore.addCompareFile(fileName.value, parsed.value, {...})
+    store.addCompareFile(store.fileName, store.parsed, { messfileId: store.messfileId, storagePath: store.messfileStoragePath });
+    store.addMarker(1.5, "Ereignis hier");
+
+    await new Promise((r) => setTimeout(r, 500));
+
+    const saved = await idbSession.loadSession();
+    expect(saved).toBeTruthy(); // previously null — the whole save silently failed
+    expect(saved.markers).toHaveLength(1);
+    expect(saved.compareFiles).toHaveLength(1);
+    expect(saved.compareFiles[0].parsed.signals[0].name).toBe("Sig1");
+
+    vi.resetModules();
+    setActivePinia(createPinia());
+    const { useMesstoolStore: useAgain } = await import("../messtoolStore.js");
+    const restored = useAgain();
+    await new Promise((r) => setTimeout(r, 100));
+
+    expect(restored.markers).toHaveLength(1);
+    expect(restored.compareFiles).toHaveLength(1);
+  });
 });
