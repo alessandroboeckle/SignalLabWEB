@@ -1,16 +1,17 @@
 <template>
-  <v-btn
-    size="small"
-    variant="text"
-    icon="mdi-help-circle-outline"
-    :aria-label="`Hilfe zu ${label || 'dieser Seite'} öffnen`"
-    @click="ui.openHelp(section)"
-  >
-    <v-icon>mdi-help-circle-outline</v-icon>
-    <v-tooltip activator="parent" location="bottom">
-      Hilfe zu {{ label || "dieser Seite" }}
-    </v-tooltip>
-  </v-btn>
+  <v-tooltip location="bottom">
+    <template #activator="{ props: tooltipProps }">
+      <v-btn
+        size="small"
+        variant="text"
+        icon="mdi-help-circle-outline"
+        :aria-label="`Hilfe zu ${label || 'dieser Seite'} öffnen`"
+        v-bind="tooltipProps"
+        @click="ui.openHelp(section)"
+      ></v-btn>
+    </template>
+    Hilfe zu {{ label || "dieser Seite" }}
+  </v-tooltip>
 </template>
 
 <script setup>

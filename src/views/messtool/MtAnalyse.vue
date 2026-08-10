@@ -238,10 +238,15 @@
             <template #extra-toolbar>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props: lineMenuProps }">
-                  <v-btn v-bind="lineMenuProps" size="small" variant="text" icon="mdi-tune-variant" aria-label="Linien-Optionen">
-                    <v-icon>mdi-tune-variant</v-icon>
-                    <v-tooltip activator="parent" location="bottom">Linien-Optionen</v-tooltip>
-                  </v-btn>
+                  <v-tooltip location="bottom">
+                    <template #activator="{ props: tooltipProps }">
+                      <v-btn
+                        v-bind="{ ...lineMenuProps, ...tooltipProps }"
+                        size="small" variant="text" icon="mdi-tune-variant" aria-label="Linien-Optionen"
+                      ></v-btn>
+                    </template>
+                    Linien-Optionen
+                  </v-tooltip>
                 </template>
                 <v-card min-width="280" class="pa-4">
                   <div class="text-subtitle-2 font-weight-bold mb-2">Linien im Signal-Chart</div>

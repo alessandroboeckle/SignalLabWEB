@@ -365,14 +365,16 @@
           <template v-if="mtStore.compareSeries.length > 1" #extra-toolbar>
             <v-menu :close-on-content-click="false">
               <template #activator="{ props: menuProps }">
-                <v-btn
-                  size="small" variant="text" icon="mdi-chevron-down"
-                  :aria-label="`Weitere Signale in ${item.title} legen`"
-                  v-bind="menuProps"
-                >
-                  <v-icon>mdi-chevron-down</v-icon>
-                  <v-tooltip activator="parent" location="bottom">Signale in diesen Plot legen</v-tooltip>
-                </v-btn>
+                <v-tooltip location="bottom">
+                  <template #activator="{ props: tooltipProps }">
+                    <v-btn
+                      size="small" variant="text" icon="mdi-chevron-down"
+                      :aria-label="`Weitere Signale in ${item.title} legen`"
+                      v-bind="{ ...menuProps, ...tooltipProps }"
+                    ></v-btn>
+                  </template>
+                  Signale in diesen Plot legen
+                </v-tooltip>
               </template>
               <v-card min-width="300" max-height="380" style="overflow-y: auto">
                 <v-list density="compact">

@@ -3,76 +3,81 @@
     <v-card-title class="text-subtitle-1 d-flex align-center flex-wrap ga-2">
       {{ title }}
       <v-spacer></v-spacer>
-      <v-btn
-        size="small"
-        :variant="cursorMode ? 'flat' : 'outlined'"
-        :color="cursorMode ? 'secondary' : 'default'"
-        icon="mdi-ruler"
-        :aria-label="`Cursor ${cursorMode ? 'ausschalten' : 'einschalten'}`"
-        :aria-pressed="cursorMode"
-        @click="toggleCursorMode"
-      >
-        <v-icon>mdi-ruler</v-icon>
-        <v-tooltip activator="parent" location="bottom">
-          Cursor {{ cursorMode ? "AN" : "AUS" }} — Klicken setzt einen Cursor, mehrere möglich, per Checkbox einzeln ein-/ausschaltbar
-        </v-tooltip>
-      </v-btn>
-      <v-btn
-        size="small"
-        :variant="markerMode ? 'flat' : 'outlined'"
-        :color="markerMode ? 'warning' : 'default'"
-        icon="mdi-map-marker-plus-outline"
-        :aria-label="`Marker ${markerMode ? 'ausschalten' : 'einschalten'}`"
-        :aria-pressed="markerMode"
-        @click="toggleMarkerMode"
-      >
-        <v-icon>mdi-map-marker-plus-outline</v-icon>
-        <v-tooltip activator="parent" location="bottom">
-          Marker {{ markerMode ? "AN" : "AUS" }} — Stelle anklicken, um eine Notiz zu setzen (gilt für alle Charts dieser Datei)
-        </v-tooltip>
-      </v-btn>
-      <v-btn
-        size="small"
-        :variant="peakMode ? 'flat' : 'outlined'"
-        :color="peakMode ? 'primary' : 'default'"
-        icon="mdi-pulse"
-        :aria-label="`Spitzen-Modus ${peakMode ? 'ausschalten' : 'einschalten'}`"
-        :aria-pressed="peakMode"
-        @click="peakMode = !peakMode"
-      >
-        <v-icon>mdi-pulse</v-icon>
-        <v-tooltip activator="parent" location="bottom">
-          Spitzen {{ peakMode ? "AN" : "AUS" }} — {{ peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen' }}
-        </v-tooltip>
-      </v-btn>
-      <v-btn
-        size="small"
-        :variant="outlierMode ? 'flat' : 'outlined'"
-        :color="outlierMode ? 'error' : 'default'"
-        icon="mdi-alert-circle-outline"
-        :aria-label="`Ausreisser-Markierung ${outlierMode ? 'ausschalten' : 'einschalten'}`"
-        :aria-pressed="outlierMode"
-        @click="toggleOutlierMode"
-      >
-        <v-icon>mdi-alert-circle-outline</v-icon>
-        <v-tooltip activator="parent" location="bottom">
-          Ausreisser {{ outlierMode ? "AN" : "AUS" }} — markiert Punkte, die statistisch stark aus der Reihe tanzen (&gt;3σ)
-        </v-tooltip>
-      </v-btn>
-      <v-btn
-        size="small"
-        :variant="yLogMode ? 'flat' : 'outlined'"
-        :color="yLogMode ? 'secondary' : 'default'"
-        icon="mdi-math-log"
-        :aria-label="`Logarithmische Y-Achse ${yLogMode ? 'ausschalten' : 'einschalten'}`"
-        :aria-pressed="yLogMode"
-        @click="toggleYLog"
-      >
-        <v-icon>mdi-math-log</v-icon>
-        <v-tooltip activator="parent" location="bottom">
-          Y-Log {{ yLogMode ? "AN" : "AUS" }} — logarithmische Y-Achse (Werte ≤ 0 werden dabei nicht angezeigt)
-        </v-tooltip>
-      </v-btn>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-btn
+            size="small"
+            :variant="cursorMode ? 'flat' : 'outlined'"
+            :color="cursorMode ? 'secondary' : 'default'"
+            icon="mdi-ruler"
+            :aria-label="`Cursor ${cursorMode ? 'ausschalten' : 'einschalten'}`"
+            :aria-pressed="cursorMode"
+            v-bind="tooltipProps"
+            @click="toggleCursorMode"
+          ></v-btn>
+        </template>
+        Cursor {{ cursorMode ? "AN" : "AUS" }} — Klicken setzt einen Cursor, mehrere möglich, per Checkbox einzeln ein-/ausschaltbar
+      </v-tooltip>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-btn
+            size="small"
+            :variant="markerMode ? 'flat' : 'outlined'"
+            :color="markerMode ? 'warning' : 'default'"
+            icon="mdi-map-marker-plus-outline"
+            :aria-label="`Marker ${markerMode ? 'ausschalten' : 'einschalten'}`"
+            :aria-pressed="markerMode"
+            v-bind="tooltipProps"
+            @click="toggleMarkerMode"
+          ></v-btn>
+        </template>
+        Marker {{ markerMode ? "AN" : "AUS" }} — Stelle anklicken, um eine Notiz zu setzen (gilt für alle Charts dieser Datei)
+      </v-tooltip>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-btn
+            size="small"
+            :variant="peakMode ? 'flat' : 'outlined'"
+            :color="peakMode ? 'primary' : 'default'"
+            icon="mdi-pulse"
+            :aria-label="`Spitzen-Modus ${peakMode ? 'ausschalten' : 'einschalten'}`"
+            :aria-pressed="peakMode"
+            v-bind="tooltipProps"
+            @click="peakMode = !peakMode"
+          ></v-btn>
+        </template>
+        Spitzen {{ peakMode ? "AN" : "AUS" }} — {{ peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen' }}
+      </v-tooltip>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-btn
+            size="small"
+            :variant="outlierMode ? 'flat' : 'outlined'"
+            :color="outlierMode ? 'error' : 'default'"
+            icon="mdi-alert-circle-outline"
+            :aria-label="`Ausreisser-Markierung ${outlierMode ? 'ausschalten' : 'einschalten'}`"
+            :aria-pressed="outlierMode"
+            v-bind="tooltipProps"
+            @click="toggleOutlierMode"
+          ></v-btn>
+        </template>
+        Ausreisser {{ outlierMode ? "AN" : "AUS" }} — markiert Punkte, die statistisch stark aus der Reihe tanzen (&gt;3σ)
+      </v-tooltip>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-btn
+            size="small"
+            :variant="yLogMode ? 'flat' : 'outlined'"
+            :color="yLogMode ? 'secondary' : 'default'"
+            icon="mdi-math-log"
+            :aria-label="`Logarithmische Y-Achse ${yLogMode ? 'ausschalten' : 'einschalten'}`"
+            :aria-pressed="yLogMode"
+            v-bind="tooltipProps"
+            @click="toggleYLog"
+          ></v-btn>
+        </template>
+        Y-Log {{ yLogMode ? "AN" : "AUS" }} — logarithmische Y-Achse (Werte ≤ 0 werden dabei nicht angezeigt)
+      </v-tooltip>
       <template v-if="!hidePlayback">
         <v-btn
           size="small"
@@ -95,19 +100,23 @@
           label="Tempo"
         ></v-select>
       </template>
-      <v-btn size="small" variant="text" icon="mdi-restore" aria-label="Zoom zurücksetzen" @click="resetZoom('inline')">
-        <v-icon>mdi-restore</v-icon>
-        <v-tooltip activator="parent" location="bottom">Zoom zurücksetzen</v-tooltip>
-      </v-btn>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-btn size="small" variant="text" icon="mdi-restore" aria-label="Zoom zurücksetzen" v-bind="tooltipProps" @click="resetZoom('inline')"></v-btn>
+        </template>
+        Zoom zurücksetzen
+      </v-tooltip>
       <!-- Extra page-specific controls (e.g. MtAnalyse's "Linien-Optionen")
            slot in here, in the same toolbar row, instead of needing their
            own row above the card — which would push just this one chart
            down relative to any sibling chart next to it. -->
       <slot name="extra-toolbar"></slot>
-      <v-btn size="small" variant="text" icon="mdi-fullscreen" aria-label="Vollbild" @click="openFullscreen">
-        <v-icon>mdi-fullscreen</v-icon>
-        <v-tooltip activator="parent" location="bottom">Vergrößern</v-tooltip>
-      </v-btn>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-btn size="small" variant="text" icon="mdi-fullscreen" aria-label="Vollbild" v-bind="tooltipProps" @click="openFullscreen"></v-btn>
+        </template>
+        Vergrößern
+      </v-tooltip>
     </v-card-title>
     <v-divider></v-divider>
     <v-card-text>
@@ -234,9 +243,7 @@
           <v-toolbar-title>{{ title }}</v-toolbar-title>
           <v-spacer></v-spacer>
           <v-btn variant="text" prepend-icon="mdi-restore" @click="resetZoom('fs')">Zoom zurück</v-btn>
-          <v-btn icon="mdi-close" aria-label="Schliessen" @click="fullscreen = false">
-            <v-icon>mdi-close</v-icon>
-          </v-btn>
+          <v-btn icon="mdi-close" aria-label="Schliessen" @click="fullscreen = false"></v-btn>
         </v-toolbar>
         <v-card-text class="pa-4" style="height: calc(100vh - 64px)">
           <v-card v-if="cursorMode && cursors.length" variant="tonal" rounded="lg" class="mb-2 pa-2">

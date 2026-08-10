@@ -523,14 +523,18 @@
             </div>
           </div>
           <div class="d-flex flex-wrap ga-1">
-            <v-btn
-              size="small" variant="tonal" color="primary" icon="mdi-chart-multiple"
-              :loading="compareAddingId === f.id"
-              :aria-label="`${f.name} zur Anzeige hinzufügen`"
-              @click="addCloudFileToCompare(f)"
-            >
-              <v-tooltip activator="parent" location="bottom">Zur Anzeige hinzufügen</v-tooltip>
-            </v-btn>
+            <v-tooltip location="bottom">
+              <template #activator="{ props: tooltipProps }">
+                <v-btn
+                  size="small" variant="tonal" color="primary" icon="mdi-chart-multiple"
+                  :loading="compareAddingId === f.id"
+                  :aria-label="`${f.name} zur Anzeige hinzufügen`"
+                  v-bind="tooltipProps"
+                  @click="addCloudFileToCompare(f)"
+                ></v-btn>
+              </template>
+              Zur Anzeige hinzufügen
+            </v-tooltip>
             <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
               Öffnen
             </v-btn>

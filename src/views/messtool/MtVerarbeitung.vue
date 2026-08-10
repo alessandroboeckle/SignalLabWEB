@@ -45,20 +45,28 @@
             <v-card-title class="text-subtitle-1 d-flex align-center flex-wrap ga-2">
               Operationen
               <v-spacer></v-spacer>
-              <v-btn
-                size="small" variant="text" icon="mdi-undo" aria-label="Rückgängig"
-                :disabled="historyIndex <= 0"
-                @click="undo"
-              >
-                <v-tooltip activator="parent" location="bottom">Rückgängig (Strg+Z)</v-tooltip>
-              </v-btn>
-              <v-btn
-                size="small" variant="text" icon="mdi-redo" aria-label="Wiederholen"
-                :disabled="historyIndex >= history.length - 1"
-                @click="redo"
-              >
-                <v-tooltip activator="parent" location="bottom">Wiederholen (Strg+Y)</v-tooltip>
-              </v-btn>
+              <v-tooltip location="bottom">
+                <template #activator="{ props: tooltipProps }">
+                  <v-btn
+                    size="small" variant="text" icon="mdi-undo" aria-label="Rückgängig"
+                    :disabled="historyIndex <= 0"
+                    v-bind="tooltipProps"
+                    @click="undo"
+                  ></v-btn>
+                </template>
+                Rückgängig (Strg+Z)
+              </v-tooltip>
+              <v-tooltip location="bottom">
+                <template #activator="{ props: tooltipProps }">
+                  <v-btn
+                    size="small" variant="text" icon="mdi-redo" aria-label="Wiederholen"
+                    :disabled="historyIndex >= history.length - 1"
+                    v-bind="tooltipProps"
+                    @click="redo"
+                  ></v-btn>
+                </template>
+                Wiederholen (Strg+Y)
+              </v-tooltip>
               <v-menu>
                 <template #activator="{ props }">
                   <v-btn size="small" variant="tonal" color="primary" v-bind="props" prepend-icon="mdi-plus">
