@@ -163,7 +163,7 @@
             <v-chip v-if="u.id === auth.user.id" size="x-small" variant="outlined" class="ml-1">Du</v-chip>
           </v-list-item-title>
           <v-list-item-subtitle>
-            freigegeben • registriert {{ formatDate(u.created_at) }}
+            freigegeben • registriert {{ formatDate(u.created_at) }} • zuletzt online {{ formatLastSeen(u.last_seen_at) }}
           </v-list-item-subtitle>
           <template #append>
             <v-btn
@@ -292,6 +292,23 @@ function formatDate(d) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// Relative-ish "last seen" — a raw timestamp is fine for "registriert",
+// but for "how actively is this actually being used" a glance at "vor 5
+// Min." is far more useful at a glance than doing date math in your head
+// against today's date every time you check this page.
+function formatLastSeen(d) {
+  if (!d) return "nie";
+  const diffMs = Date.now() - new Date(d).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "gerade eben";
+  if (minutes < 60) return `vor ${minutes} Min.`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `vor ${hours} Std.`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `vor ${days} Tag${days === 1 ? "" : "en"}`;
+  return formatDate(d);
 }
 
 // Clears anything the browser might be holding onto from an older

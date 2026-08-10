@@ -31,19 +31,39 @@ export const useAuthStore = defineStore("auth", () => {
     isAdmin.value = !!data?.is_admin;
   }
 
+  // Records "you were here" for the Admin page's usage overview — fire
+  // and forget (best effort only, never blocks anything else on it, and
+  // failing quietly is fine if e.g. the SQL migration for the column
+  // hasn't been run yet).
+  async function touchLastSeen() {
+    if (!user.value) return;
+    try {
+      await supabase.from("profiles").update({ last_seen_at: new Date().toISOString() }).eq("id", user.value.id);
+    } catch {
+      // best effort
+    }
+  }
+
   // Called once on app start, and whenever auth state changes.
   async function init() {
     loading.value = true;
     const { data } = await supabase.auth.getSession();
     user.value = data.session?.user ?? null;
     await refreshApproval();
+    touchLastSeen();
     loading.value = false;
 
     // React to login/logout happening in this or another tab.
     supabase.auth.onAuthStateChange(async (_event, session) => {
       user.value = session?.user ?? null;
       await refreshApproval();
+      touchLastSeen();
     });
+
+    // Keep it fresh for long-running sessions too — otherwise someone who
+    // opens the app once in the morning and leaves the tab open all day
+    // would show as "last seen: this morning" the whole time.
+    setInterval(touchLastSeen, 5 * 60 * 1000);
   }
 
   async function signIn(email, password) {
@@ -57,6 +77,7 @@ export const useAuthStore = defineStore("auth", () => {
       return false;
     }
     await refreshApproval();
+    touchLastSeen();
     return true;
   }
 
