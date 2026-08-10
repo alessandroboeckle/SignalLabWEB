@@ -349,46 +349,6 @@
 
       <!-- Stacked individual charts -->
       <template v-else>
-        <v-card v-if="mtStore.compareSeries.length > 1" variant="outlined" rounded="lg" class="mb-4">
-          <v-card-title
-            class="d-flex align-center ga-2"
-            style="cursor: pointer"
-            @click="mergePanelOpen = !mergePanelOpen"
-          >
-            <v-icon size="18">mdi-call-merge</v-icon>
-            <span class="text-subtitle-2 font-weight-medium">Plots zusammenlegen</span>
-            <v-chip v-if="activeMergeCount > 0" size="x-small" color="primary" variant="flat">
-              {{ activeMergeCount }} aktiv
-            </v-chip>
-            <v-spacer></v-spacer>
-            <v-icon>{{ mergePanelOpen ? "mdi-chevron-up" : "mdi-chevron-down" }}</v-icon>
-          </v-card-title>
-          <v-expand-transition>
-            <div v-show="mergePanelOpen">
-              <v-divider></v-divider>
-              <v-card-text>
-                <p class="text-caption text-medium-emphasis mb-2">
-                  Standardmäßig bekommt jedes Signal seinen eigenen Plot. Wähle hier für ein Signal
-                  ein anderes aus, um beide im selben Plot übereinander darzustellen.
-                </p>
-                <v-row dense>
-                  <v-col v-for="s in mtStore.compareSeries" :key="s.key" cols="12" sm="6" md="4">
-                    <v-select
-                      :model-value="mergeGroupOf[s.key] || ''"
-                      :items="mergeTargetOptions(s)"
-                      :label="`${s.fileName} — ${s.signal.name}`"
-                      variant="outlined"
-                      density="compact"
-                      hide-details
-                      @update:model-value="(v) => (mergeGroupOf = { ...mergeGroupOf, [s.key]: v })"
-                    ></v-select>
-                  </v-col>
-                </v-row>
-              </v-card-text>
-            </div>
-          </v-expand-transition>
-        </v-card>
-
         <ChartCard
           v-for="item in stackedRenderItems"
           :key="item.key"
@@ -398,7 +358,44 @@
           :sync-group="syncZoom ? 'vergleich-gestapelt' : null"
           :cursor-sync-group="syncCursors ? 'vergleich-gestapelt' : null"
           class="mb-4"
-        />
+        >
+          <template v-if="mtStore.compareSeries.length > 1" #extra-toolbar>
+            <v-menu :close-on-content-click="false">
+              <template #activator="{ props: menuProps }">
+                <v-btn
+                  size="small" variant="text" icon="mdi-chevron-down"
+                  :aria-label="`Weitere Signale in ${item.title} legen`"
+                  v-bind="menuProps"
+                >
+                  <v-icon>mdi-chevron-down</v-icon>
+                  <v-tooltip activator="parent" location="bottom">Signale in diesen Plot legen</v-tooltip>
+                </v-btn>
+              </template>
+              <v-card min-width="300" max-height="380" style="overflow-y: auto">
+                <v-list density="compact">
+                  <v-list-subheader>Signale in diesem Plot</v-list-subheader>
+                  <v-list-item v-for="s in mtStore.compareSeries" :key="s.key" :disabled="isGroupLeader(item, s)">
+                    <template #prepend>
+                      <v-checkbox-btn
+                        :model-value="isInGroup(item, s)"
+                        :disabled="isGroupLeader(item, s) || !canJoinGroup(s)"
+                        density="compact"
+                        @update:model-value="(v) => toggleGroupMembership(item, s, v)"
+                      ></v-checkbox-btn>
+                    </template>
+                    <v-list-item-title class="text-body-2">{{ s.fileName }} — {{ s.signal.name }}</v-list-item-title>
+                    <v-list-item-subtitle v-if="isGroupLeader(item, s)" class="text-caption">
+                      Ankersignal dieses Plots
+                    </v-list-item-subtitle>
+                    <v-list-item-subtitle v-else-if="!canJoinGroup(s)" class="text-caption">
+                      Hat selbst andere Signale zusammengelegt — erst dort entfernen
+                    </v-list-item-subtitle>
+                  </v-list-item>
+                </v-list>
+              </v-card>
+            </v-menu>
+          </template>
+        </ChartCard>
         <p v-if="mtStore.compareSeries.length === 0" class="text-medium-emphasis text-center pa-6">
           Keine Signale ausgewählt.
         </p>
@@ -583,21 +580,33 @@ const syncZoom = ref(true); // zoom/pan on one Gestapelt chart applies to all of
 // bookkeeping of arbitrary merge chains.
 const mergeGroupOf = ref({});
 
-// Collapsed by default — with dozens of signals loaded (batch imports,
-// whole session folders) this panel is a wall of dropdowns nobody wants
-// staring at them by default; expand only when actually needed.
-const mergePanelOpen = ref(false);
-const activeMergeCount = computed(
-  () => Object.values(mergeGroupOf.value).filter((v) => v).length,
-);
+// A series currently acting as a leader for OTHER followers can't itself
+// be folded into a different plot — doing so via the single-hop model
+// would silently orphan its followers into a group whose "leader" no
+// longer renders its own chart. Compute the set of such off-limits keys
+// once so every chart's menu can just check against it.
+const groupLeaderKeys = computed(() => {
+  const counts = new Map();
+  for (const target of Object.values(mergeGroupOf.value)) {
+    if (target) counts.set(target, (counts.get(target) || 0) + 1);
+  }
+  return new Set([...counts.keys()].filter((k) => counts.get(k) > 0));
+});
 
-function mergeTargetOptions(series) {
-  return [
-    { title: "Eigener Plot", value: "" },
-    ...mtStore.compareSeries
-      .filter((s) => s.key !== series.key)
-      .map((s) => ({ title: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`, value: s.key })),
-  ];
+function canJoinGroup(series) {
+  return !groupLeaderKeys.value.has(series.key);
+}
+
+function isGroupLeader(item, series) {
+  return item.anchorKey === series.key;
+}
+
+function isInGroup(item, series) {
+  return item.members.some((m) => m.key === series.key);
+}
+
+function toggleGroupMembership(item, series, checked) {
+  mergeGroupOf.value = { ...mergeGroupOf.value, [series.key]: checked ? item.anchorKey : "" };
 }
 
 // Elapsed-time-to-clock offset for a series: clockSec[i] ≈ time[i] +
@@ -713,7 +722,13 @@ const stackedGroups = computed(() => {
     const leader = leaderOf.get(s.key);
     if (seen.has(leader)) continue;
     seen.add(leader);
-    ordered.push(groups.get(leader));
+    // anchorKey is the actual leader/target key from mergeGroupOf — NOT
+    // necessarily members[0], since a follower can appear earlier than
+    // its anchor in mtStore.compareSeries (e.g. you merge an
+    // already-earlier signal INTO a later one). Carrying this alongside
+    // the members array means the arrow-menu UI doesn't have to guess
+    // which member is "the" anchor from array order.
+    ordered.push({ anchorKey: leader, members: groups.get(leader) });
   }
   return ordered;
 });
@@ -733,7 +748,7 @@ const stackedRenderItems = computed(() => {
   // used in overlayConfig.
   void xAxisMode.value;
   const items = [];
-  for (const group of stackedGroups.value) {
+  for (const { anchorKey, members: group } of stackedGroups.value) {
     if (group.length === 1) {
       const s = group[0];
       const f = mtStore.compareFiles.find((cf) => cf.id === s.fileId);
@@ -746,6 +761,7 @@ const stackedRenderItems = computed(() => {
           title: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
           config: stackedConfig(s),
           members: group,
+          anchorKey,
         });
       }
       if (useFilter) {
@@ -754,15 +770,16 @@ const stackedRenderItems = computed(() => {
           title: `${s.fileName} — ${s.signal.name} (gefiltert)`,
           config: filteredStackedConfig(s, f),
           members: group,
+          anchorKey,
         });
       }
     } else {
-      const leaderKey = group[0].key;
       items.push({
-        key: `${leaderKey}:merged`,
+        key: `${anchorKey}:merged`,
         title: group.map((s) => `${s.fileName} — ${s.signal.name}`).join("  +  "),
         config: mergedStackedConfig(group),
         members: group,
+        anchorKey,
       });
     }
   }
