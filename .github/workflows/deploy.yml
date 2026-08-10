@@ -58,8 +58,16 @@ jobs:
     steps:
       - name: Notify anyone currently online that a new version just deployed
         run: |
-          curl -sf -X POST "https://fkxucoahutmnitfnyjtr.supabase.co/realtime/v1/api/broadcast" \
+          http_code=$(curl -sS -o response.json -w "%{http_code}" -X POST "https://fkxucoahutmnitfnyjtr.supabase.co/realtime/v1/api/broadcast" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"messages\":[{\"topic\":\"signallab-presence\",\"event\":\"announcement\",\"private\":false,\"payload\":{\"message\":\"🚀 Neue Version verfügbar — bitte Seite neu laden (Strg+Shift+R).\",\"sentAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}]}"
+            -d "{\"messages\":[{\"topic\":\"signallab-presence\",\"event\":\"announcement\",\"private\":false,\"payload\":{\"message\":\"🚀 Neue Version verfügbar — bitte Seite neu laden (Strg+Shift+R).\",\"sentAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}]}")
+          echo "HTTP status: $http_code"
+          echo "Response body:"
+          cat response.json
+          echo ""
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::Broadcast failed with HTTP $http_code — see response body above"
+            exit 1
+          fi
