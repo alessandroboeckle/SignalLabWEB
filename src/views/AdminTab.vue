@@ -68,7 +68,7 @@
     </v-card>
 
     <!-- Approved -->
-    <v-card variant="outlined" rounded="lg">
+    <v-card variant="outlined" rounded="lg" class="mb-6">
       <v-card-title class="d-flex align-center">
         <v-icon color="success" class="mr-2">mdi-account-check</v-icon>
         Freigegebene Nutzer
@@ -110,6 +110,34 @@
       </v-list>
     </v-card>
 
+    <!-- Wartung -->
+    <v-card variant="outlined" rounded="lg">
+      <v-card-title class="d-flex align-center">
+        <v-icon color="secondary" class="mr-2">mdi-broom</v-icon>
+        Wartung
+      </v-card-title>
+      <v-divider></v-divider>
+      <v-card-text>
+        <p class="text-body-2 text-medium-emphasis mb-3">
+          Löscht den Browser-Cache (Service Worker + Cache-Storage, falls vorhanden) und lädt die Seite
+          garantiert frisch vom Server, statt eine evtl. gecachte alte Version zu zeigen — nützlich direkt
+          nach einem neuen Deploy, wenn trotz Neuladen (F5) noch der alte Stand angezeigt wird.
+          <strong>Wirkt nur im eigenen Browser</strong>, nicht bei anderen Nutzern — jeder muss das bei sich
+          selbst auslösen. Deine Messdaten/Sessions bleiben unangetastet, es wird nur Browser-Cache
+          geleert, keine eigenen Daten.
+        </p>
+        <v-btn
+          variant="tonal"
+          color="secondary"
+          prepend-icon="mdi-cached"
+          :loading="hardRefreshing"
+          @click="hardRefresh"
+        >
+          Cache leeren & Seite neu laden
+        </v-btn>
+      </v-card-text>
+    </v-card>
+
     <v-snackbar v-model="showSnackbar" :timeout="2500" color="primary">
       {{ snackbarMessage }}
     </v-snackbar>
@@ -129,6 +157,7 @@ const busyId = ref(null);
 const errorMsg = ref("");
 const showSnackbar = ref(false);
 const snackbarMessage = ref("");
+const hardRefreshing = ref(false);
 
 const pending = computed(() => users.value.filter((u) => !u.approved));
 const approvedUsers = computed(() => users.value.filter((u) => u.approved));
@@ -173,6 +202,33 @@ function formatDate(d) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// Clears anything the browser might be holding onto from an older
+// deploy (Cache Storage entries, a service worker if one's ever
+// registered) and then forces a genuinely fresh network fetch — a plain
+// location.reload() can still be served from HTTP cache/a CDN edge
+// cache, which is exactly the "I pushed a fix but the site still shows
+// the old thing" symptom. Deliberately does NOT touch IndexedDB/
+// localStorage (measurement data, saved sessions, active tab) — this is
+// only about stale *code*, never about the user's own data.
+async function hardRefresh() {
+  hardRefreshing.value = true;
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+  } catch {
+    // best effort — still do the cache-busting reload below regardless
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("_refresh", Date.now().toString());
+  window.location.href = url.toString();
 }
 
 onMounted(load);
