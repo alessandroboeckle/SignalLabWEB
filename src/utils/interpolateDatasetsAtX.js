@@ -17,7 +17,11 @@ export function interpolateDatasetsAtX(chartLike, x) {
       ? labels.map(Number)
       : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
 
-    const getY = (raw) => (raw && typeof raw === "object" ? raw.y : raw);
+    const getY = (raw) => {
+      let v = raw && typeof raw === "object" ? raw.y : raw;
+      if (typeof v === "boolean") v = v ? 1 : 0; // boolean-type signals (isOn/isReleased/...) — a real value, not "no value"
+      return v;
+    };
 
     // Primary: find the two points bracketing x and linearly interpolate
     // between them — precise, and correct even on a steep slope.
@@ -44,39 +48,30 @@ export function interpolateDatasetsAtX(chartLike, x) {
     // Fallback: the strict bracket search can come up empty in edge cases
     // (a stray NaN x, floating-point ties, a measurement gap where the
     // two points straddling x are both null, or anything else that isn't
-    // a clean ascending sweep) even though there's clearly real data
-    // nearby in the file — rather than silently showing nothing, fall
-    // back to whichever point *with an actual value* is nearest to x by
-    // plain distance (skipping null/gap points, not just picking the
-    // literal-closest index and giving up if that one happens to be a
-    // gap). Only reject it if x sits outside this dataset's overall time
-    // span entirely (checking against a per-point distance instead would
-    // misfire on sparsely/unevenly downsampled real data, where
-    // consecutive points can legitimately be many seconds apart).
+    // a clean ascending sweep) even though there's clearly real data in
+    // the file — rather than silently showing nothing, fall back to
+    // whichever point *with an actual value* is nearest to x by plain
+    // distance (skipping null/gap points along the way). No range check
+    // here on purpose: if this dataset has even one real value anywhere,
+    // that's a genuine measured value worth showing, full stop — a
+    // cursor should never come up empty just because of where exactly
+    // the nearest real point happens to sit.
     if (yVal == null) {
-      const validXs = dsXs.filter((v) => v != null && Number.isFinite(v));
-      if (validXs.length) {
-        const dsMin = Math.min(...validXs);
-        const dsMax = Math.max(...validXs);
-        const margin = Math.max((dsMax - dsMin) * 0.01, 1e-6);
-        if (x >= dsMin - margin && x <= dsMax + margin) {
-          let nearestIdx = -1;
-          let nearestDist = Infinity;
-          for (let i = 0; i < dsXs.length; i++) {
-            const xi = dsXs[i];
-            if (xi == null || !Number.isFinite(xi)) continue;
-            const yi = getY(ds.data[i]);
-            if (yi == null || !Number.isFinite(yi)) continue; // skip gaps — keep looking
-            const d = Math.abs(xi - x);
-            if (d < nearestDist) {
-              nearestDist = d;
-              nearestIdx = i;
-            }
-          }
-          if (nearestIdx !== -1) {
-            yVal = getY(ds.data[nearestIdx]);
-          }
+      let nearestIdx = -1;
+      let nearestDist = Infinity;
+      for (let i = 0; i < dsXs.length; i++) {
+        const xi = dsXs[i];
+        if (xi == null || !Number.isFinite(xi)) continue;
+        const yi = getY(ds.data[i]);
+        if (yi == null || !Number.isFinite(yi)) continue; // skip gaps — keep looking
+        const d = Math.abs(xi - x);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearestIdx = i;
         }
+      }
+      if (nearestIdx !== -1) {
+        yVal = getY(ds.data[nearestIdx]);
       }
     }
 

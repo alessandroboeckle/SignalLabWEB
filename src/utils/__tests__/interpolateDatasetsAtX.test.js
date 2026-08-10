@@ -59,9 +59,11 @@ describe("interpolateDatasetsAtX", () => {
     expect(atC2[0].value).toBeCloseTo(0, 5);
   });
 
-  it("returns an empty array when x is outside every dataset's range", () => {
+  it("returns the nearest real value even when x is outside every dataset's range (never a hard empty if data exists)", () => {
     const chart = { data: { datasets: [{ data: [{ x: 0, y: 1 }, { x: 10, y: 2 }] }] } };
-    expect(interpolateDatasetsAtX(chart, 500)).toEqual([]);
+    const result = interpolateDatasetsAtX(chart, 500);
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBe(2);
   });
 
   it("skips empty datasets instead of throwing", () => {
@@ -151,8 +153,23 @@ describe("interpolateDatasetsAtX — robustness fallback", () => {
     expect(result[0].value).toBe(14); // nearest non-null point (x=6), not fabricated, not "no value"
   });
 
-  it("does NOT fabricate a value when x is genuinely far from all of this dataset's points", () => {
+  it("returns the nearest available value even far outside the dataset's usual range (better than a hard 'no value')", () => {
+    // Deliberate: a cursor showing the nearest real measurement — however
+    // far off — beats it showing nothing at all.
     const chart = { data: { datasets: [{ label: "Signal", data: [{ x: 0, y: 1 }, { x: 10, y: 2 }] }] } };
-    expect(interpolateDatasetsAtX(chart, 5000)).toEqual([]);
+    const result = interpolateDatasetsAtX(chart, 5000);
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBe(2); // x=10 is the nearest of the two points
+  });
+
+  it("treats boolean signal values (isOn/isReleased/...) as real 0/1 values, not 'no value'", () => {
+    const chart = {
+      data: {
+        datasets: [{ label: "Flag", data: [{ x: 0, y: false }, { x: 10, y: true }] }],
+      },
+    };
+    const result = interpolateDatasetsAtX(chart, 5);
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBeCloseTo(0.5); // interpolated halfway between 0 and 1
   });
 });
