@@ -83,30 +83,18 @@
         <v-card v-if="selectedSignals.length > 0" class="elevation-2 mt-4">
           <v-card-title>Statistik</v-card-title>
           <v-card-text>
-            <v-table>
-              <thead>
-                <tr>
-                  <th>Signalname</th>
-                  <th>Typ</th>
-                  <th>Frequenz (Hz)</th>
-                  <th>RMS</th>
-                  <th>Spitzenwert</th>
-                  <th>Spitze-Spitze</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="signal in selectedSignalObjects" :key="signal.id">
-                  <td>
-                    <strong>{{ signal.name }}</strong>
-                  </td>
-                  <td>{{ signal.waveType }}</td>
-                  <td>{{ signal.frequency }}</td>
-                  <td>{{ formatNumber(signal.meta?.rms || 0) }}</td>
-                  <td>{{ formatNumber(signal.meta?.peak || 0) }}</td>
-                  <td>{{ formatNumber(signal.meta?.peakToPeak || 0) }}</td>
-                </tr>
-              </tbody>
-            </v-table>
+            <v-data-table
+              :headers="comparisonHeaders"
+              :items="selectedSignalObjects"
+              density="comfortable"
+              items-per-page="-1"
+              hide-default-footer
+            >
+              <template #item.name="{ item }"><strong>{{ item.name }}</strong></template>
+              <template #item.meta.rms="{ item }">{{ formatNumber(item.meta?.rms || 0) }}</template>
+              <template #item.meta.peak="{ item }">{{ formatNumber(item.meta?.peak || 0) }}</template>
+              <template #item.meta.peakToPeak="{ item }">{{ formatNumber(item.meta?.peakToPeak || 0) }}</template>
+            </v-data-table>
           </v-card-text>
         </v-card>
       </v-col>
@@ -256,6 +244,15 @@ function applyZoomLimits(chart) {
     minRange: span * 0.01,
   };
 }
+
+const comparisonHeaders = [
+  { title: "Signalname", key: "name" },
+  { title: "Typ", key: "waveType" },
+  { title: "Frequenz (Hz)", key: "frequency", align: "end" },
+  { title: "RMS", key: "meta.rms", align: "end" },
+  { title: "Spitzenwert", key: "meta.peak", align: "end" },
+  { title: "Spitze-Spitze", key: "meta.peakToPeak", align: "end" },
+];
 
 function formatNumber(num) {
   return typeof num === "number" ? num.toFixed(3) : "0";

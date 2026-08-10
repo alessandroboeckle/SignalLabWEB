@@ -136,14 +136,14 @@
   transition: height 0.2s ease;
 }
 
-/* Plain v-table (stat/summary tables) reads better with faint row
-   banding and a header that stays put if the table itself scrolls —
-   Vuetify's default is flat rows with no visual separation beyond a
-   thin bottom border per row. */
-.v-table:not(.v-data-table) tbody tr:nth-child(even) {
+/* Every table in the app — plain v-table and v-data-table alike (Vuetify
+   builds both from the same base markup) — gets the same faint row
+   banding and sticky header instead of Vuetify's flat, undifferentiated
+   default rows. */
+.v-table tbody tr:nth-child(even) {
   background: rgba(var(--v-theme-primary), 0.035);
 }
-.v-table:not(.v-data-table) thead th {
+.v-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;

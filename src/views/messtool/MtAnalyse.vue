@@ -169,30 +169,24 @@
             Keine Ereignisse über diesem Schwellwert gefunden.
           </v-alert>
 
-          <v-table v-if="foundEvents.length" density="compact" class="mt-3">
-            <thead>
-              <tr>
-                <th>Start [s]</th>
-                <th>Ende [s]</th>
-                <th>Dauer [s]</th>
-                <th>Spitzenwert</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(ev, i) in foundEvents" :key="i">
-                <td>{{ ev.startTime.toFixed(2) }}</td>
-                <td>{{ ev.endTime.toFixed(2) }}</td>
-                <td>{{ ev.durationSec.toFixed(2) }}</td>
-                <td>{{ ev.peakValue.toFixed(3) }}</td>
-                <td>
-                  <v-btn size="x-small" variant="text" prepend-icon="mdi-map-marker-outline" @click="markEvent(ev, i)">
-                    Marker
-                  </v-btn>
-                </td>
-              </tr>
-            </tbody>
-          </v-table>
+          <v-data-table
+            v-if="foundEvents.length"
+            :headers="eventHeaders"
+            :items="foundEvents"
+            density="compact"
+            items-per-page="10"
+            class="mt-3"
+          >
+            <template #item.startTime="{ item }">{{ item.startTime.toFixed(2) }}</template>
+            <template #item.endTime="{ item }">{{ item.endTime.toFixed(2) }}</template>
+            <template #item.durationSec="{ item }">{{ item.durationSec.toFixed(2) }}</template>
+            <template #item.peakValue="{ item }">{{ item.peakValue.toFixed(3) }}</template>
+            <template #item.actions="{ item, index }">
+              <v-btn size="x-small" variant="text" prepend-icon="mdi-map-marker-outline" @click="markEvent(item, index)">
+                Marker
+              </v-btn>
+            </template>
+          </v-data-table>
         </v-card-text>
       </v-card>
 
@@ -224,6 +218,11 @@
                   {{ item.name }}
                 </span>
               </template>
+              <template #item.mean="{ item }">{{ item.mean == null ? "-" : item.mean.toFixed(3) }}</template>
+              <template #item.rms="{ item }">{{ item.rms == null ? "-" : item.rms.toFixed(3) }}</template>
+              <template #item.std="{ item }">{{ item.std == null ? "-" : item.std.toFixed(3) }}</template>
+              <template #item.min="{ item }">{{ item.min == null ? "-" : item.min.toFixed(3) }}</template>
+              <template #item.max="{ item }">{{ item.max == null ? "-" : item.max.toFixed(3) }}</template>
             </v-data-table>
             <p class="text-caption text-medium-emphasis mt-2">
               Auf eine Zeile klicken, um dieses Signal oben auszuwählen.
@@ -309,30 +308,20 @@
           </v-alert>
 
           <template v-else>
-            <v-table density="compact" class="mb-4">
-              <thead>
-                <tr>
-                  <th>Signal</th>
-                  <th>Einheit</th>
-                  <th class="text-right">Mittel</th>
-                  <th class="text-right">RMS</th>
-                  <th class="text-right">Std</th>
-                  <th class="text-right">Min</th>
-                  <th class="text-right">Max</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in groupStats" :key="row.idx">
-                  <td>{{ row.name }}</td>
-                  <td>{{ row.unit }}</td>
-                  <td class="text-right">{{ row.mean }}</td>
-                  <td class="text-right">{{ row.rms }}</td>
-                  <td class="text-right">{{ row.std }}</td>
-                  <td class="text-right">{{ row.min }}</td>
-                  <td class="text-right">{{ row.max }}</td>
-                </tr>
-              </tbody>
-            </v-table>
+            <v-data-table
+              :headers="groupStatsHeaders"
+              :items="groupStats"
+              density="compact"
+              items-per-page="-1"
+              hide-default-footer
+              class="mb-4"
+            >
+              <template #item.mean="{ item }">{{ item.mean == null ? "-" : item.mean.toFixed(3) }}</template>
+              <template #item.rms="{ item }">{{ item.rms == null ? "-" : item.rms.toFixed(3) }}</template>
+              <template #item.std="{ item }">{{ item.std == null ? "-" : item.std.toFixed(3) }}</template>
+              <template #item.min="{ item }">{{ item.min == null ? "-" : item.min.toFixed(3) }}</template>
+              <template #item.max="{ item }">{{ item.max == null ? "-" : item.max.toFixed(3) }}</template>
+            </v-data-table>
 
             <v-row>
               <v-col cols="12" md="6">
@@ -378,6 +367,24 @@ const overviewHeaders = [
   { title: "Max", key: "max", align: "end" },
 ];
 
+const eventHeaders = [
+  { title: "Start [s]", key: "startTime" },
+  { title: "Ende [s]", key: "endTime" },
+  { title: "Dauer [s]", key: "durationSec" },
+  { title: "Spitzenwert", key: "peakValue" },
+  { title: "", key: "actions", sortable: false, align: "end" },
+];
+
+const groupStatsHeaders = [
+  { title: "Signal", key: "name" },
+  { title: "Einheit", key: "unit" },
+  { title: "Mittel", key: "mean", align: "end" },
+  { title: "RMS", key: "rms", align: "end" },
+  { title: "Std", key: "std", align: "end" },
+  { title: "Min", key: "min", align: "end" },
+  { title: "Max", key: "max", align: "end" },
+];
+
 // Computed once per loaded file (Vue memoizes this — it only re-runs when
 // mtStore.parsed changes, not on every render), so opening the panel is
 // instant even though it covers every signal in the file.
@@ -386,16 +393,17 @@ const allSignalStats = computed(() => {
   return mtStore.parsed.signals.map((s, idx) => {
     const y = s.data.filter((v) => v != null && Number.isFinite(v));
     const mm = A.minMax(y);
-    const fmt = (v) => (v == null ? "-" : v.toFixed(3));
     return {
       idx,
       name: s.name,
       unit: s.unit || "-",
-      mean: fmt(A.mean(y)),
-      rms: fmt(A.rms(y)),
-      std: fmt(A.stddev(y)),
-      min: fmt(mm.min),
-      max: fmt(mm.max),
+      // Raw numbers so v-data-table sorts numerically, not lexically —
+      // formatted for display via the #item.mean etc. templates.
+      mean: A.mean(y),
+      rms: A.rms(y),
+      std: A.stddev(y),
+      min: mm.min,
+      max: mm.max,
     };
   });
 });
@@ -531,16 +539,19 @@ const groupStats = computed(() => {
     const yValid = y.filter((v) => v != null && Number.isFinite(v));
     const mm = A.minMax(yValid);
     const u = s.unit || "";
-    const f = (v) => (v == null ? "-" : v.toFixed(3));
     return {
       idx: key,
       name: label,
       unit: u,
-      mean: f(A.mean(yValid)),
-      rms: f(A.rms(yValid)),
-      std: f(A.stddev(yValid)),
-      min: f(mm.min),
-      max: f(mm.max),
+      // Raw numbers, not pre-formatted strings — v-data-table's default
+      // sort is lexical (string) unless the values are actual numbers,
+      // so keeping "10.5" as a string would sort it before "9.2".
+      // Formatted for display via the #item.mean etc. templates below.
+      mean: A.mean(yValid),
+      rms: A.rms(yValid),
+      std: A.stddev(yValid),
+      min: mm.min,
+      max: mm.max,
     };
   });
 });

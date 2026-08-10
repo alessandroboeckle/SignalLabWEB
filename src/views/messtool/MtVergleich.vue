@@ -410,30 +410,22 @@
       <v-card variant="outlined" rounded="lg" class="mt-4">
         <v-card-title class="text-subtitle-1">Statistik-Übersicht</v-card-title>
         <v-divider></v-divider>
-        <v-table density="comfortable">
-          <thead>
-            <tr>
-              <th>Datei</th>
-              <th>Signal</th>
-              <th class="text-right">Mittel</th>
-              <th class="text-right">RMS</th>
-              <th class="text-right">Std</th>
-              <th class="text-right">Min</th>
-              <th class="text-right">Max</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in statRows" :key="row.id">
-              <td><v-avatar :color="row.color" size="10" class="mr-2"></v-avatar>{{ row.name }}</td>
-              <td>{{ row.signalLabel }}</td>
-              <td class="text-right">{{ row.mean }}</td>
-              <td class="text-right">{{ row.rms }}</td>
-              <td class="text-right">{{ row.std }}</td>
-              <td class="text-right">{{ row.min }}</td>
-              <td class="text-right">{{ row.max }}</td>
-            </tr>
-          </tbody>
-        </v-table>
+        <v-data-table
+          :headers="statHeaders"
+          :items="statRows"
+          density="comfortable"
+          items-per-page="-1"
+          hide-default-footer
+        >
+          <template #item.name="{ item }">
+            <v-avatar :color="item.color" size="10" class="mr-2"></v-avatar>{{ item.name }}
+          </template>
+          <template #item.mean="{ item }">{{ item.mean == null ? "-" : item.mean.toFixed(3) }}</template>
+          <template #item.rms="{ item }">{{ item.rms == null ? "-" : item.rms.toFixed(3) }}</template>
+          <template #item.std="{ item }">{{ item.std == null ? "-" : item.std.toFixed(3) }}</template>
+          <template #item.min="{ item }">{{ item.min == null ? "-" : item.min.toFixed(3) }}</template>
+          <template #item.max="{ item }">{{ item.max == null ? "-" : item.max.toFixed(3) }}</template>
+        </v-data-table>
       </v-card>
     </template>
 
@@ -1202,21 +1194,32 @@ const overlayConfig = computed(() => {
   };
 });
 
+const statHeaders = [
+  { title: "Datei", key: "name" },
+  { title: "Signal", key: "signalLabel" },
+  { title: "Mittel", key: "mean", align: "end" },
+  { title: "RMS", key: "rms", align: "end" },
+  { title: "Std", key: "std", align: "end" },
+  { title: "Min", key: "min", align: "end" },
+  { title: "Max", key: "max", align: "end" },
+];
+
 const statRows = computed(() =>
   mtStore.compareSeries.map((s) => {
     const y = s.signal.data.filter((v) => v != null && Number.isFinite(v));
     const mm = A.minMax(y);
-    const fmt = (v) => (v == null ? "-" : v.toFixed(3));
     return {
       id: s.key,
       name: s.fileName,
       color: s.color,
       signalLabel: `${s.signal.name} [${s.signal.unit || "-"}]`,
-      mean: fmt(A.mean(y)),
-      rms: fmt(A.rms(y)),
-      std: fmt(A.stddev(y)),
-      min: fmt(mm.min),
-      max: fmt(mm.max),
+      // Raw numbers so the table sorts numerically, not lexically —
+      // formatted for display via the #item.mean etc. templates.
+      mean: A.mean(y),
+      rms: A.rms(y),
+      std: A.stddev(y),
+      min: mm.min,
+      max: mm.max,
     };
   }),
 );
