@@ -524,7 +524,7 @@
           </div>
           <div class="d-flex flex-wrap ga-1">
             <v-btn
-              size="small" variant="text" icon="mdi-chart-box-plus-outline"
+              size="small" variant="tonal" color="primary" icon="mdi-chart-box-plus-outline"
               :loading="compareAddingId === f.id"
               :aria-label="`${f.name} zur Anzeige hinzufügen`"
               @click="addCloudFileToCompare(f)"

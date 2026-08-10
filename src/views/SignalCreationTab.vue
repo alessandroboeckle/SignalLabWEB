@@ -161,7 +161,7 @@
               color="primary"
               class="mb-2"
               @click="saveSignal"
-              prepend-icon="mdi-save"
+              prepend-icon="mdi-content-save"
             >
               Signal speichern
             </v-btn>
