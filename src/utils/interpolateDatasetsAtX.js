@@ -10,10 +10,19 @@
 export function interpolateDatasetsAtX(chartLike, x) {
   const { labels, datasets } = chartLike.data;
   const results = [];
+  // Chart.js normalizes a config with no "labels" key to data.labels = []
+  // internally — an empty array is truthy in JS, so `labels ? ... : ...`
+  // wrongly took the category-scale branch for every linear-scale
+  // ({x,y} point) chart in the app (the whole Anzeige/Vergleich page).
+  // dsXs ended up [] for every dataset, so the cursor could never find
+  // ANY value, anywhere, regardless of how dense or continuous the real
+  // data was — matching exactly what was reported. Must check length,
+  // not just truthiness.
+  const hasLabels = Array.isArray(labels) && labels.length > 0;
 
   datasets.forEach((ds, dsIndex) => {
     if (!ds.data.length) return;
-    const dsXs = labels
+    const dsXs = hasLabels
       ? labels.map(Number)
       : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
 

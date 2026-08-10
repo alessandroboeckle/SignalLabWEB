@@ -5,6 +5,12 @@ describe("interpolateDatasetsAtX", () => {
   it("interpolates a linear-scale ({x,y} point) dataset, matching Vergleich's overlay shape", () => {
     const chart = {
       data: {
+        // Chart.js itself always normalizes a linear-scale config's
+        // data.labels to [] (never leaves it undefined/absent) — using
+        // the real shape here, not just omitting the key, since that's
+        // exactly the distinction that caused this bug to slip past
+        // every other test in this file (see the dedicated test below).
+        labels: [],
         datasets: [
           {
             label: "Testfile.csv — IITCU_A.rP_VLU [kW]",
@@ -23,6 +29,18 @@ describe("interpolateDatasetsAtX", () => {
     expect(result).toHaveLength(1);
     expect(result[0].value).toBeCloseTo(1.6677, 3);
     expect(result[0].label).toBe("Testfile.csv — IITCU_A.rP_VLU [kW]");
+  });
+
+  it("REGRESSION: an empty labels array (Chart.js's real default for linear-scale charts) must not be treated as 'this is a category-scale chart' — this is the actual bug that made every Anzeige/Vergleich cursor report 'no value' everywhere, always, while Analyse (which sets real labels) worked fine", () => {
+    const chart = {
+      data: {
+        labels: [], // truthy in JS — the whole point of this test
+        datasets: [{ label: "Voltage", data: [{ x: 0, y: 100 }, { x: 10, y: 200 }] }],
+      },
+    };
+    const result = interpolateDatasetsAtX(chart, 5);
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBeCloseTo(150);
   });
 
   it("interpolates a category-scale (labels + plain value array) dataset, matching Analyse's shape", () => {
