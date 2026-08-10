@@ -398,27 +398,27 @@
           />
           <v-row v-if="selectedSignal" dense class="mt-1">
             <v-col cols="6" sm="3">
-              <v-card variant="outlined" class="pa-2 text-center">
-                <div class="text-body-2 font-weight-bold">{{ previewStats.mean }}</div>
-                <div class="text-caption text-medium-emphasis">Mittel</div>
+              <v-card variant="outlined" class="pa-2 text-center stat-card">
+                <div class="text-overline text-medium-emphasis stat-card__label">Mittel</div>
+                <div class="text-body-1 font-weight-bold font-mono stat-card__value">{{ previewStats.mean }}</div>
               </v-card>
             </v-col>
             <v-col cols="6" sm="3">
-              <v-card variant="outlined" class="pa-2 text-center">
-                <div class="text-body-2 font-weight-bold">{{ previewStats.rms }}</div>
-                <div class="text-caption text-medium-emphasis">RMS</div>
+              <v-card variant="outlined" class="pa-2 text-center stat-card">
+                <div class="text-overline text-medium-emphasis stat-card__label">RMS</div>
+                <div class="text-body-1 font-weight-bold font-mono stat-card__value">{{ previewStats.rms }}</div>
               </v-card>
             </v-col>
             <v-col cols="6" sm="3">
-              <v-card variant="outlined" class="pa-2 text-center">
-                <div class="text-body-2 font-weight-bold">{{ previewStats.min }}</div>
-                <div class="text-caption text-medium-emphasis">Min</div>
+              <v-card variant="outlined" class="pa-2 text-center stat-card">
+                <div class="text-overline text-medium-emphasis stat-card__label">Min</div>
+                <div class="text-body-1 font-weight-bold font-mono stat-card__value">{{ previewStats.min }}</div>
               </v-card>
             </v-col>
             <v-col cols="6" sm="3">
-              <v-card variant="outlined" class="pa-2 text-center">
-                <div class="text-body-2 font-weight-bold">{{ previewStats.max }}</div>
-                <div class="text-caption text-medium-emphasis">Max</div>
+              <v-card variant="outlined" class="pa-2 text-center stat-card">
+                <div class="text-overline text-medium-emphasis stat-card__label">Max</div>
+                <div class="text-body-1 font-weight-bold font-mono stat-card__value">{{ previewStats.max }}</div>
               </v-card>
             </v-col>
           </v-row>

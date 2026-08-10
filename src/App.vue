@@ -433,6 +433,7 @@ import {
   nextTick,
   onMounted,
   onBeforeUnmount,
+  defineAsyncComponent,
 } from "vue";
 import { keyboardShortcuts } from "./utils/keyboardShortcuts.js";
 import { useTheme, useDisplay } from "vuetify";
@@ -442,24 +443,34 @@ import { useUiStore } from "./stores/uiStore.js";
 import { usePresenceStore } from "./stores/presenceStore.js";
 import { useToast } from "./composables/useToast.js";
 
+// Kept as regular (eager) imports: these three are either on the
+// critical first-paint path (Login/Waiting screens show before anything
+// else can) or, for Overview, the single most common landing page — no
+// point trading a loading flicker there for a bundle-size win. Every
+// other tab below is lazy: each one only downloads its JS the first time
+// someone actually navigates to it, instead of all ~15 pages (charts,
+// xlsx/pdf export code, the works) being bundled into one artifact that
+// everyone pays for on first load regardless of which single tool they
+// actually came to use.
 import LoginScreen from "./views/LoginScreen.vue";
 import WaitingScreen from "./views/WaitingScreen.vue";
 import OverviewTab from "./views/OverviewTab.vue";
-import SignalCreationTab from "./views/SignalCreationTab.vue";
-import CalculatorTab from "./views/CalculatorTab.vue";
-import ComparisonTab from "./views/ComparisonTab.vue";
-import SessionManagementTab from "./views/SessionManagementTab.vue";
-import SettingsTab from "./views/SettingsTab.vue";
-import HilfeTab from "./views/HilfeTab.vue";
-import AdminTab from "./views/AdminTab.vue";
-import MtImport from "./views/messtool/MtImport.vue";
-import MtAnalyse from "./views/messtool/MtAnalyse.vue";
-import MtVerarbeitung from "./views/messtool/MtVerarbeitung.vue";
-import MtFilter from "./views/messtool/MtFilter.vue";
-import MtExport from "./views/messtool/MtExport.vue";
-import MtVergleich from "./views/messtool/MtVergleich.vue";
 import ErrorBoundary from "./components/ErrorBoundary.vue";
-import MtSessions from "./views/messtool/MtSessions.vue";
+
+const SignalCreationTab = defineAsyncComponent(() => import("./views/SignalCreationTab.vue"));
+const CalculatorTab = defineAsyncComponent(() => import("./views/CalculatorTab.vue"));
+const ComparisonTab = defineAsyncComponent(() => import("./views/ComparisonTab.vue"));
+const SessionManagementTab = defineAsyncComponent(() => import("./views/SessionManagementTab.vue"));
+const SettingsTab = defineAsyncComponent(() => import("./views/SettingsTab.vue"));
+const HilfeTab = defineAsyncComponent(() => import("./views/HilfeTab.vue"));
+const AdminTab = defineAsyncComponent(() => import("./views/AdminTab.vue"));
+const MtImport = defineAsyncComponent(() => import("./views/messtool/MtImport.vue"));
+const MtAnalyse = defineAsyncComponent(() => import("./views/messtool/MtAnalyse.vue"));
+const MtVerarbeitung = defineAsyncComponent(() => import("./views/messtool/MtVerarbeitung.vue"));
+const MtFilter = defineAsyncComponent(() => import("./views/messtool/MtFilter.vue"));
+const MtExport = defineAsyncComponent(() => import("./views/messtool/MtExport.vue"));
+const MtVergleich = defineAsyncComponent(() => import("./views/messtool/MtVergleich.vue"));
+const MtSessions = defineAsyncComponent(() => import("./views/messtool/MtSessions.vue"));
 
 const theme = useTheme();
 const store = useSignalStore();

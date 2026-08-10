@@ -198,9 +198,9 @@
 
       <v-row v-if="sectionsVisible.stats" class="mb-4">
         <v-col v-for="stat in stats" :key="stat.label" cols="6" sm="4" md="2">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h6 font-weight-bold">{{ stat.value }}</div>
-            <div class="text-caption">{{ stat.label }}</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">{{ stat.label }}</div>
+            <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ stat.value }}</div>
           </v-card>
         </v-col>
       </v-row>
