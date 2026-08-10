@@ -22,6 +22,8 @@ export const usePresenceStore = defineStore("presence", () => {
   const announcement = ref(null); // { message, sentAt } | null, shown as a dismissible banner
 
   let channel = null;
+  let announcementTimer = null;
+  const ANNOUNCEMENT_DURATION_MS = 90_000; // auto-dismiss after 90s if nobody closes it manually
 
   function join(user) {
     if (channel || !user) return;
@@ -40,6 +42,10 @@ export const usePresenceStore = defineStore("presence", () => {
 
       channel.on("broadcast", { event: "announcement" }, ({ payload }) => {
         announcement.value = payload;
+        clearTimeout(announcementTimer);
+        announcementTimer = setTimeout(() => {
+          announcement.value = null;
+        }, ANNOUNCEMENT_DURATION_MS);
       });
 
       channel.subscribe(async (status) => {
@@ -59,6 +65,7 @@ export const usePresenceStore = defineStore("presence", () => {
       supabase.removeChannel(channel);
       channel = null;
     }
+    clearTimeout(announcementTimer);
     onlineUsers.value = [];
   }
 
@@ -74,6 +81,7 @@ export const usePresenceStore = defineStore("presence", () => {
 
   function dismissAnnouncement() {
     announcement.value = null;
+    clearTimeout(announcementTimer);
   }
 
   return { onlineUsers, announcement, join, leave, sendAnnouncement, dismissAnnouncement };
