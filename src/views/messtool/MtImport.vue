@@ -251,7 +251,7 @@
         <v-spacer></v-spacer>
         <v-btn
           variant="outlined"
-          prepend-icon="mdi-chart-box-plus-outline"
+          prepend-icon="mdi-chart-multiple"
           class="mr-2"
           :disabled="mtStore.compareFiles.some((f) => f.name === fileName)"
           @click="addCurrentToCompare"
@@ -524,7 +524,7 @@
           </div>
           <div class="d-flex flex-wrap ga-1">
             <v-btn
-              size="small" variant="tonal" color="primary" icon="mdi-chart-box-plus-outline"
+              size="small" variant="tonal" color="primary" icon="mdi-chart-multiple"
               :loading="compareAddingId === f.id"
               :aria-label="`${f.name} zur Anzeige hinzufügen`"
               @click="addCloudFileToCompare(f)"
