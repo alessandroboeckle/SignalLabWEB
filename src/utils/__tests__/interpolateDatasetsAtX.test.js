@@ -172,4 +172,24 @@ describe("interpolateDatasetsAtX — robustness fallback", () => {
     expect(result).toHaveLength(1);
     expect(result[0].value).toBeCloseTo(0.5); // interpolated halfway between 0 and 1
   });
+
+  it("treats numeric-looking string y-values as real values (e.g. a CSV column that stayed text after parsing)", () => {
+    const chart = {
+      data: {
+        datasets: [{ label: "Voltage", data: [{ x: 0, y: "16000.5" }, { x: 10, y: "16200.25" }] }],
+      },
+    };
+    const result = interpolateDatasetsAtX(chart, 5);
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBeCloseTo(16100.375);
+  });
+
+  it("still correctly reports no value for genuinely non-numeric strings, not a fabricated 0", () => {
+    const chart = {
+      data: {
+        datasets: [{ label: "Broken", data: [{ x: 0, y: "n/a" }, { x: 10, y: "" }] }],
+      },
+    };
+    expect(interpolateDatasetsAtX(chart, 5)).toEqual([]);
+  });
 });

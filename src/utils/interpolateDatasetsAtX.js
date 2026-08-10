@@ -17,11 +17,25 @@ export function interpolateDatasetsAtX(chartLike, x) {
       ? labels.map(Number)
       : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));
 
-    const getY = (raw) => {
-      let v = raw && typeof raw === "object" ? raw.y : raw;
-      if (typeof v === "boolean") v = v ? 1 : 0; // boolean-type signals (isOn/isReleased/...) — a real value, not "no value"
-      return v;
+    // Pulls a usable number out of whatever's actually in the data —
+    // Chart.js itself is lenient about what it'll plot (numeric strings,
+    // booleans), so a cursor rejecting anything that isn't a strict JS
+    // number would fail on every single point of an otherwise perfectly
+    // visible, densely-plotted line. Real invalid values (null, empty
+    // string, NaN, objects) still correctly come back as "no value".
+    const toFiniteNumber = (v) => {
+      if (v == null) return null;
+      if (typeof v === "boolean") return v ? 1 : 0;
+      if (typeof v === "number") return Number.isFinite(v) ? v : null;
+      if (typeof v === "string") {
+        const trimmed = v.trim();
+        if (trimmed === "") return null;
+        const n = Number(trimmed);
+        return Number.isFinite(n) ? n : null;
+      }
+      return null;
     };
+    const getY = (raw) => toFiniteNumber(raw && typeof raw === "object" ? raw.y : raw);
 
     // Primary: find the two points bracketing x and linearly interpolate
     // between them — precise, and correct even on a steep slope.
