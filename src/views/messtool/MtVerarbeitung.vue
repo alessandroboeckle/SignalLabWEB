@@ -3,6 +3,9 @@
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-cog-transfer</v-icon>
       <h2 class="text-h5 font-weight-bold">Verarbeitung</h2>
+    
+      <v-spacer></v-spacer>
+      <HelpIconButton section="messtool-verarbeitung" label="Verarbeitung" />
     </div>
     <p class="text-medium-emphasis mb-6">Glätten, Detrend, Normalisieren – verkettbar</p>
 
@@ -177,6 +180,7 @@ import { OP_REGISTRY, applyChain } from "../../utils/messtoolProcessing.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import { showToast } from "../../composables/useToast.js";
 import ChartCard from "./ChartCard.vue";
+import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
 defineEmits(["navigate"]);

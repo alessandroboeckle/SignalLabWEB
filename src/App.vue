@@ -423,6 +423,7 @@ import { keyboardShortcuts } from "./utils/keyboardShortcuts.js";
 import { useTheme, useDisplay } from "vuetify";
 import { useSignalStore } from "./stores/signalStore";
 import { useAuthStore } from "./stores/authStore";
+import { useUiStore } from "./stores/uiStore.js";
 import { useToast } from "./composables/useToast.js";
 
 import LoginScreen from "./views/LoginScreen.vue";
@@ -482,6 +483,21 @@ watch(activeTab, (tab) => {
     // storage unavailable — not persisting the tab is not worth surfacing an error for
   }
 });
+
+// Any page's help icon (see HelpIconButton.vue) sets this via the ui
+// store instead of needing its own "navigate" emit threaded through —
+// App.vue just applies it here like any other tab switch.
+const ui = useUiStore();
+watch(
+  () => ui.pendingTab,
+  (tab) => {
+    if (tab) {
+      activeTab.value = tab;
+      ui.pendingTab = null;
+    }
+  },
+);
+
 const showAbout = ref(false);
 const showShortcuts = ref(false);
 

@@ -3,6 +3,9 @@
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-file-export</v-icon>
       <h2 class="text-h5 font-weight-bold">Export</h2>
+    
+      <v-spacer></v-spacer>
+      <HelpIconButton section="messtool-export" label="Export" />
     </div>
     <p class="text-medium-emphasis mb-6">Plot als Bild speichern oder PDF-Report erstellen</p>
 
@@ -150,6 +153,7 @@ import { downsample } from "../../utils/downsample.js";
 import { buildLineChartSvg } from "../../utils/svgChart.js";
 import { buildMultiSignalWorkbook, downloadWorkbook } from "../../utils/xlsxExport.js";
 import ChartCard from "./ChartCard.vue";
+import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
 defineEmits(["navigate"]);

@@ -3,6 +3,9 @@
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-file-upload</v-icon>
       <h2 class="text-h5 font-weight-bold">Import</h2>
+    
+      <v-spacer></v-spacer>
+      <HelpIconButton section="messtool-import" label="Import" />
     </div>
     <p class="text-medium-emphasis mb-6">Messdatei laden (LOGDATA-CSV oder Excel/.xlsx)</p>
 
@@ -552,6 +555,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { showToast } from "../../composables/useToast.js";
 import { listRecentFiles, addRecentFile } from "../../utils/recentFiles.js";
 import ChartCard from "./ChartCard.vue";
+import HelpIconButton from "../../components/HelpIconButton.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const emit = defineEmits(["navigate"]);

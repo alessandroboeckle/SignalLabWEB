@@ -3,6 +3,9 @@
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-chart-bell-curve</v-icon>
       <h2 class="text-h5 font-weight-bold">Analyse</h2>
+    
+      <v-spacer></v-spacer>
+      <HelpIconButton section="messtool-analyse" label="Analyse" />
     </div>
     <p class="text-medium-emphasis mb-6">Statistik, Ableitung, Integral & FFT</p>
 
@@ -351,6 +354,7 @@ import { SmoothOp } from "../../utils/messtoolProcessing.js";
 import { findWindowBounds } from "../../utils/timeWindow.js";
 import { findEvents } from "../../utils/eventDetection.js";
 import ChartCard from "./ChartCard.vue";
+import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 import { downsample } from "../../utils/downsample.js";
 

@@ -3,6 +3,9 @@
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-chart-multiple</v-icon>
       <h2 class="text-h5 font-weight-bold">Anzeige</h2>
+    
+      <v-spacer></v-spacer>
+      <HelpIconButton section="messtool-vergleich" label="Anzeige" />
     </div>
     <p class="text-medium-emphasis mb-6">Signale anzeigen, überlagern und vergleichen</p>
 
@@ -556,6 +559,7 @@ import * as groupsApi from "../../utils/messtoolSignalGroups.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { withTimeout } from "../../utils/withTimeout.js";
 import ChartCard from "./ChartCard.vue";
+import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
 defineEmits(["navigate"]);

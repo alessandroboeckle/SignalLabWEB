@@ -3,6 +3,9 @@
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-tune-variant</v-icon>
       <h2 class="text-h5 font-weight-bold">Filter</h2>
+    
+      <v-spacer></v-spacer>
+      <HelpIconButton section="messtool-filter" label="Filter" />
     </div>
     <p class="text-medium-emphasis mb-6">Digitale Filter – Butterworth, Chebyshev I, Bessel · nullphasig</p>
 
@@ -170,6 +173,7 @@ import { useDebounced } from "../../composables/useDebounced.js";
 import { buildCsv, downloadCsv } from "../../utils/csvExport.js";
 import { showToast } from "../../composables/useToast.js";
 import ChartCard from "./ChartCard.vue";
+import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
 defineEmits(["navigate"]);

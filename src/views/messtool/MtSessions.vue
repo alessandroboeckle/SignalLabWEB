@@ -3,6 +3,9 @@
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-content-save-cog-outline</v-icon>
       <h2 class="text-h5 font-weight-bold">Sessions</h2>
+    
+      <v-spacer></v-spacer>
+      <HelpIconButton section="messtool-sessions" label="Sessions" />
     </div>
     <p class="text-medium-emphasis mb-6">
       Deinen aktuellen Arbeitsstand (Datei + Verarbeitung + Filter + gewähltes Signal) benannt
@@ -215,6 +218,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useAuthStore } from "../../stores/authStore.js";
+import HelpIconButton from "../../components/HelpIconButton.vue";
 import * as sessionsApi from "../../utils/messtoolSessionStorage.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { withTimeout } from "../../utils/withTimeout.js";
