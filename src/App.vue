@@ -717,10 +717,10 @@ watch(
 .app-header {
   background: linear-gradient(
     100deg,
-    #1e3a8a 0%,
-    #2563eb 45%,
-    #3b82f6 80%,
-    #60a5fa 100%
+    #0c4a5f 0%,
+    #0e7490 45%,
+    #0891b2 80%,
+    #22d3ee 100%
   ) !important;
   color: white;
 }
@@ -776,7 +776,8 @@ watch(
 .nav-item {
   margin-bottom: 2px;
   min-height: 42px;
-  transition: background-color 0.15s ease;
+  border-left: 3px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 .nav-item :deep(.v-list-item-title) {
   font-size: 14px;
@@ -787,6 +788,22 @@ watch(
 }
 .nav-item :deep(.v-icon) {
   font-size: 20px;
+}
+
+/* A tinted background alone (Vuetify's default active treatment) reads
+   pretty faint at a glance — an accent bar down the left edge, like
+   Linear/Notion-style sidebars, makes "you are here" unambiguous without
+   shouting. */
+.nav-item.v-list-item--active {
+  background: rgba(var(--v-theme-primary), 0.12) !important;
+  border-left-color: rgb(var(--v-theme-primary));
+}
+.nav-item.v-list-item--active :deep(.v-list-item-title) {
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary));
+}
+.nav-item.v-list-item--active :deep(.v-icon) {
+  color: rgb(var(--v-theme-primary));
 }
 
 /* Vuetify reserves a fairly wide indent for nested v-list-group items by

@@ -19,6 +19,25 @@
   box-sizing: border-box;
 }
 
+/* Inter instead of Vuetify's default Roboto — Roboto reads as stock
+   Material/Android, Inter is more neutral and a bit more "product" for
+   a technical tool without pulling in a display face that would fight
+   with the data-dense UI. Vuetify picks this up fine at runtime since
+   its components inherit font-family rather than hardcoding it. */
+.v-application {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif !important;
+}
+
+/* Instrument-readout signature: numeric data (cursor values, stats,
+   axis ticks with figures) gets a monospace face so digits line up in a
+   column and read like a measurement display rather than prose. Applied
+   selectively (see ChartCard's Cursorbox) rather than to every number in
+   the app — used everywhere it'd just look like a bug, not a choice. */
+.font-mono {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 17px;

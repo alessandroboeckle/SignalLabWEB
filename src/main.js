@@ -22,13 +22,40 @@ const vuetify = createVuetify({
     aliases,
     sets: { mdi },
   },
+  // Centralizes the "look" decisions that were otherwise being repeated
+  // (or, in ~24 places, forgotten) per-component across every page —
+  // Vuetify only falls back to these when a component doesn't set its
+  // own prop explicitly, so nothing already-specified anywhere changes.
+  defaults: {
+    global: {
+      // Material's classic all-caps button text reads dated now; every
+      // modern interface (including Material 3 itself) uses sentence
+      // case. Vuetify 3's CSS still forces uppercase by default.
+      ripple: true,
+    },
+    VBtn: {
+      class: "text-none",
+      rounded: "lg",
+    },
+    VCard: { rounded: "lg" },
+    VTextField: { variant: "outlined", density: "comfortable" },
+    VSelect: { variant: "outlined", density: "comfortable" },
+    VAutocomplete: { variant: "outlined", density: "comfortable" },
+    VCombobox: { variant: "outlined", density: "comfortable" },
+    VTextarea: { variant: "outlined", density: "comfortable" },
+    VChip: { rounded: "lg" },
+  },
   theme: {
     defaultTheme: "light",
     themes: {
       light: {
         dark: false,
         colors: {
-          primary: "#2563EB",
+          // Refined cyan/teal instead of generic Material blue — reads
+          // closer to an instrument/scope readout than a stock SaaS
+          // dashboard, and stays clearly distinct from the success green
+          // and warning amber already used elsewhere.
+          primary: "#0E7490",
           secondary: "#64748B",
           accent: "#FF6B35",
           error: "#EF4444",
@@ -42,15 +69,15 @@ const vuetify = createVuetify({
       dark: {
         dark: true,
         colors: {
-          primary: "#3B82F6",
+          primary: "#22D3EE",
           secondary: "#94A3B8",
           accent: "#FF6B35",
           error: "#F87171",
           warning: "#FBBF24",
           info: "#60A5FA",
           success: "#34D399",
-          background: "#111827",
-          surface: "#1F2937",
+          background: "#0B1220",
+          surface: "#151F2E",
         },
       },
     },

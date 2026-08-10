@@ -168,21 +168,21 @@
             >
               C{{ i + 1 }}
             </v-chip>
-            <span class="text-caption text-medium-emphasis">x = {{ c.x.toFixed(3) }}</span>
+            <span class="text-caption text-medium-emphasis font-mono">x = {{ c.x.toFixed(3) }}</span>
             <v-spacer></v-spacer>
             <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
           </div>
           <div v-if="c.active" class="cursor-values text-caption text-medium-emphasis ml-6">
             <template v-if="(cursorRows.find((r) => r.id === c.id)?.series || []).length">
               <span v-for="s in cursorRows.find((r) => r.id === c.id).series" :key="s.label" class="mr-3">
-                {{ s.label }}: <strong>{{ s.value.toFixed(3) }}</strong>
+                {{ s.label }}: <strong class="font-mono">{{ s.value.toFixed(3) }}</strong>
               </span>
             </template>
             <span v-else class="text-disabled">(keine Werte an dieser Stelle gefunden)</span>
           </div>
         </div>
         <div v-if="cursorDelta" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
-          Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}
+          <span class="font-mono">Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}</span>
         </div>
         <div v-else-if="cursors.filter((c) => c.active).length === 2" class="text-caption text-disabled mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
           (Δ konnte für diese zwei Cursor nicht berechnet werden)
@@ -194,9 +194,9 @@
           </span>
           <div v-for="(cmp, i) in cursorComparisons" :key="i" class="mt-1">
             <strong>C{{ cmp.aLabel }} → C{{ cmp.bLabel }}:</strong>
-            Δx = {{ cmp.dx.toFixed(4) }}
+            <span class="font-mono">Δx = {{ cmp.dx.toFixed(4) }}</span>
             <span v-for="s in cmp.perSeries" :key="s.label" class="ml-2">
-              · Δ({{ s.label }}) = {{ s.dy.toFixed(4) }}
+              <span class="font-mono">· Δ({{ s.label }}) = {{ s.dy.toFixed(4) }}</span>
             </span>
           </div>
         </div>
@@ -269,21 +269,21 @@
                 >
                   C{{ i + 1 }}
                 </v-chip>
-                <span class="text-caption text-medium-emphasis">x = {{ c.x.toFixed(3) }}</span>
+                <span class="text-caption text-medium-emphasis font-mono">x = {{ c.x.toFixed(3) }}</span>
                 <v-spacer></v-spacer>
                 <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
               </div>
               <div v-if="c.active" class="cursor-values text-caption text-medium-emphasis ml-6">
                 <template v-if="(cursorRows.find((r) => r.id === c.id)?.series || []).length">
                   <span v-for="s in cursorRows.find((r) => r.id === c.id).series" :key="s.label" class="mr-3">
-                    {{ s.label }}: <strong>{{ s.value.toFixed(3) }}</strong>
+                    {{ s.label }}: <strong class="font-mono">{{ s.value.toFixed(3) }}</strong>
                   </span>
                 </template>
                 <span v-else class="text-disabled">(keine Werte an dieser Stelle gefunden)</span>
               </div>
             </div>
             <div v-if="cursorDelta" class="text-caption mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
-              Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}
+              <span class="font-mono">Δx = {{ cursorDelta.dx.toFixed(4) }} · Δ({{ cursorDelta.label }}) = {{ cursorDelta.dy.toFixed(4) }}</span>
             </div>
             <div v-else-if="cursors.filter((c) => c.active).length === 2" class="text-caption text-disabled mt-1 pt-1" style="border-top: 1px solid rgba(128,128,128,0.2)">
               (Δ konnte für diese zwei Cursor nicht berechnet werden)
@@ -294,9 +294,9 @@
               </span>
               <div v-for="(cmp, i) in cursorComparisons" :key="i" class="mt-1">
                 <strong>C{{ cmp.aLabel }} → C{{ cmp.bLabel }}:</strong>
-                Δx = {{ cmp.dx.toFixed(4) }}
+                <span class="font-mono">Δx = {{ cmp.dx.toFixed(4) }}</span>
                 <span v-for="s in cmp.perSeries" :key="s.label" class="ml-2">
-                  · Δ({{ s.label }}) = {{ s.dy.toFixed(4) }}
+                  <span class="font-mono">· Δ({{ s.label }}) = {{ s.dy.toFixed(4) }}</span>
                 </span>
               </div>
             </div>
