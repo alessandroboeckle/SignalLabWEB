@@ -526,7 +526,7 @@
             <v-tooltip location="bottom">
               <template #activator="{ props: tooltipProps }">
                 <v-btn
-                  size="small" variant="tonal" color="primary" icon="mdi-chart-multiple"
+                  size="small" variant="text" color="primary" icon="mdi-chart-multiple"
                   :loading="compareAddingId === f.id"
                   :aria-label="`${f.name} zur Anzeige hinzufügen`"
                   v-bind="tooltipProps"
