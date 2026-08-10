@@ -522,7 +522,7 @@
               {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
             </div>
           </div>
-          <div class="d-flex flex-wrap ga-1">
+          <div class="d-flex flex-wrap align-center ga-1">
             <v-tooltip location="bottom">
               <template #activator="{ props: tooltipProps }">
                 <v-btn
