@@ -136,6 +136,29 @@
   transition: height 0.2s ease;
 }
 
+/* Plain v-table (stat/summary tables) reads better with faint row
+   banding and a header that stays put if the table itself scrolls —
+   Vuetify's default is flat rows with no visual separation beyond a
+   thin bottom border per row. */
+.v-table:not(.v-data-table) tbody tr:nth-child(even) {
+  background: rgba(var(--v-theme-primary), 0.035);
+}
+.v-table:not(.v-data-table) thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgb(var(--v-theme-surface));
+}
+
+/* A very faint dot grid behind the main content area — graph-paper /
+   oscilloscope-graticule texture, subtle enough to disappear the moment
+   there's actual content over it, but ties the whole app back to "signal
+   analysis instrument" rather than a blank SaaS canvas. */
+.main-area {
+  background-image: radial-gradient(rgba(var(--v-theme-primary), 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
 /* Respect reduced-motion preferences across all of the above. */
 @media (prefers-reduced-motion: reduce) {
   .v-list-item:not(.v-list-item--disabled),

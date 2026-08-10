@@ -153,7 +153,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%);
+  background: linear-gradient(135deg, #0b1220 0%, #0c4a5f 50%, #0e7490 85%, #22d3ee 130%);
   overflow: hidden;
 }
 
@@ -236,7 +236,7 @@ onBeforeUnmount(() => {
 }
 .switch-btn.active {
   background: #fff;
-  color: #2563eb;
+  color: #0e7490;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -294,7 +294,7 @@ onBeforeUnmount(() => {
   border: none;
   border-radius: 10px;
   background: #fff;
-  color: #2563eb;
+  color: #0e7490;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -316,8 +316,8 @@ onBeforeUnmount(() => {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(37, 99, 235, 0.3);
-  border-top-color: #2563eb;
+  border: 3px solid rgba(14, 116, 144, 0.3);
+  border-top-color: #0e7490;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }

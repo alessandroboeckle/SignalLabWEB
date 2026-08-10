@@ -838,21 +838,31 @@ function getFullXRange(chart) {
 function applyThemeColors(cfg) {
   const isDark = theme.global.current.value.dark;
   const textColor = isDark ? "#E2E8F0" : "#334155";
-  const gridColor = isDark ? "rgba(148,163,184,0.15)" : "rgba(100,116,139,0.15)";
+  // Grid lines were a fairly generic neutral grey — a faint cyan tint
+  // instead ties the chart canvas itself back to the same "instrument
+  // readout" palette as the rest of the app, not just the UI chrome
+  // around it.
+  const gridColor = isDark ? "rgba(34,211,238,0.10)" : "rgba(14,116,144,0.10)";
+  const uiFont = { family: "'Inter', system-ui, sans-serif" };
+  const numFont = { family: "'JetBrains Mono', ui-monospace, monospace", size: 11 };
 
   cfg.options.color = textColor;
+  cfg.options.font = { ...uiFont, ...(cfg.options.font || {}) };
 
   cfg.options.scales = cfg.options.scales || {};
   for (const key of Object.keys(cfg.options.scales)) {
     const s = cfg.options.scales[key] || {};
-    s.ticks = { color: textColor, ...(s.ticks || {}) };
-    if (s.title) s.title = { color: textColor, ...s.title };
+    // Axis tick labels are numbers (time, values) — the monospace face
+    // reads as measured data; the axis *title* ("Zeit [s]") stays in the
+    // regular UI font since it's a word, not a figure.
+    s.ticks = { color: textColor, font: numFont, ...(s.ticks || {}) };
+    if (s.title) s.title = { color: textColor, font: uiFont, ...s.title };
     s.grid = { color: gridColor, ...(s.grid || {}) };
     cfg.options.scales[key] = s;
   }
 
   cfg.options.plugins.legend = {
-    labels: { color: textColor, ...(cfg.options.plugins.legend?.labels || {}) },
+    labels: { color: textColor, font: uiFont, ...(cfg.options.plugins.legend?.labels || {}) },
     ...(cfg.options.plugins.legend || {}),
   };
 }
@@ -872,6 +882,19 @@ function withInteractions(cfg) {
   cfg.options.plugins.tooltip = Object.assign(
     {
       enabled: true,
+      // Chart.js's default tooltip is a plain dark rectangle regardless
+      // of the app's own theme/palette — restyle it to match rather than
+      // have it look like a leftover from a different app.
+      backgroundColor: theme.global.current.value.dark ? "rgba(21,31,46,0.96)" : "rgba(255,255,255,0.97)",
+      titleColor: theme.global.current.value.dark ? "#E2E8F0" : "#0F172A",
+      bodyColor: theme.global.current.value.dark ? "#CBD5E1" : "#334155",
+      borderColor: theme.global.current.value.colors.primary,
+      borderWidth: 1,
+      cornerRadius: 8,
+      padding: 10,
+      titleFont: { family: "'Inter', system-ui, sans-serif", weight: "600" },
+      bodyFont: { family: "'JetBrains Mono', ui-monospace, monospace", size: 11 },
+      boxPadding: 4,
       callbacks: {
         title: (items) => {
           if (!items.length) return "";

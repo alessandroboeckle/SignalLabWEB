@@ -358,6 +358,13 @@
         </v-card>
       </v-dialog>
 
+      <!-- Command palette (Ctrl/Cmd+K) — jump straight to any page -->
+      <CommandPalette
+        v-model="showCommandPalette"
+        :commands="commandPaletteItems"
+        @select="onCommandPaletteSelect"
+      />
+
       <!-- Keyboard shortcuts overlay (press '?' anywhere) -->
       <v-dialog v-model="showShortcuts" max-width="640">
         <v-card>
@@ -456,6 +463,7 @@ import LoginScreen from "./views/LoginScreen.vue";
 import WaitingScreen from "./views/WaitingScreen.vue";
 import OverviewTab from "./views/OverviewTab.vue";
 import ErrorBoundary from "./components/ErrorBoundary.vue";
+import CommandPalette from "./components/CommandPalette.vue";
 
 const SignalCreationTab = defineAsyncComponent(() => import("./views/SignalCreationTab.vue"));
 const CalculatorTab = defineAsyncComponent(() => import("./views/CalculatorTab.vue"));
@@ -555,6 +563,12 @@ function isEditableTarget(el) {
 }
 
 function onGlobalKeydown(e) {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    showCommandPalette.value = true;
+    return;
+  }
   if (e.key !== "?" || isEditableTarget(e.target)) return;
   e.preventDefault();
   showShortcuts.value = true;
@@ -636,6 +650,28 @@ const messtoolItems = [
     icon: "mdi-content-save-cog-outline",
   },
 ];
+
+// Same list the sidebar already builds from, reused as the command
+// palette's jump targets — one source of truth for "what pages exist"
+// instead of a second hardcoded list that could drift out of sync.
+const showCommandPalette = ref(false);
+const commandPaletteItems = computed(() => {
+  const items = [
+    { value: "start", label: "Start", icon: "mdi-home-outline", group: "" },
+    ...messtoolItems.map((i) => ({ ...i, group: "Messtool" })),
+    { value: "signal", label: "Signal-Generator", icon: "mdi-waveform", group: "Generator" },
+    { value: "comparison", label: "Signal-Vergleich", icon: "mdi-chart-multiple", group: "Generator" },
+    { value: "sessions", label: "Sessions", icon: "mdi-content-save-cog-outline", group: "Generator" },
+    { value: "calculator", label: "Rechner", icon: "mdi-calculator-variant-outline", group: "" },
+    { value: "hilfe", label: "Bedienungsanleitung", icon: "mdi-help-circle-outline", group: "" },
+    { value: "settings", label: "Einstellungen", icon: "mdi-cog-outline", group: "" },
+  ];
+  if (auth.isAdmin) items.push({ value: "admin", label: "Admin", icon: "mdi-shield-account-outline", group: "" });
+  return items;
+});
+function onCommandPaletteSelect(value) {
+  activeTab.value = value;
+}
 
 // Whichever group contains the currently active tab should be expanded —
 // otherwise switching tabs (e.g. via a quick-nav link or session restore)

@@ -3,8 +3,8 @@
     <div class="wait-card">
       <div class="pulse-icon">
         <svg viewBox="0 0 100 100" width="56" height="56">
-          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(37,99,235,0.4)" stroke-width="3" />
-          <path d="M 20 50 Q 32 25 44 50 T 68 50 T 84 50" stroke="#2563eb" stroke-width="5"
+          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(14,116,144,0.4)" stroke-width="3" />
+          <path d="M 20 50 Q 32 25 44 50 T 68 50 T 84 50" stroke="#0E7490" stroke-width="5"
                 fill="none" stroke-linecap="round" />
         </svg>
       </div>
@@ -87,7 +87,7 @@ async function check() {
   padding: 12px 0;
   border: none;
   border-radius: 10px;
-  background: #2563eb;
+  background: #0E7490;
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -99,7 +99,7 @@ async function check() {
   min-height: 46px;
 }
 .refresh-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #0C4A5F;
   transform: translateY(-2px);
 }
 .refresh-btn:disabled {

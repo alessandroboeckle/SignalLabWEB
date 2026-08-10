@@ -1,5 +1,10 @@
 export const keyboardShortcuts = [
   {
+    keys: [{ text: "Strg" }, { text: "K" }],
+    effect: "Befehlspalette öffnen — zu jeder Seite springen",
+    scope: "Überall",
+  },
+  {
     keys: [{ icon: "mdi-arrow-up" }, { icon: "mdi-arrow-down" }],
     keySep: "/",
     effect: "Durchs Signal blättern",
