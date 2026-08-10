@@ -193,6 +193,21 @@
 
       <!-- Main content -->
       <v-main class="main-area">
+        <!-- Admin-triggered announcement (e.g. "new version, please reload") —
+             shown to every currently open tab, dismissible per tab. -->
+        <v-alert
+          v-if="presence.announcement"
+          type="info"
+          variant="tonal"
+          density="comfortable"
+          closable
+          rounded="0"
+          class="announcement-banner"
+          @click:close="presence.dismissAnnouncement()"
+        >
+          {{ presence.announcement.message }}
+        </v-alert>
+
         <ErrorBoundary>
           <v-window
             v-model="activeTab"
@@ -424,6 +439,7 @@ import { useTheme, useDisplay } from "vuetify";
 import { useSignalStore } from "./stores/signalStore";
 import { useAuthStore } from "./stores/authStore";
 import { useUiStore } from "./stores/uiStore.js";
+import { usePresenceStore } from "./stores/presenceStore.js";
 import { useToast } from "./composables/useToast.js";
 
 import LoginScreen from "./views/LoginScreen.vue";
@@ -448,7 +464,22 @@ import MtSessions from "./views/messtool/MtSessions.vue";
 const theme = useTheme();
 const store = useSignalStore();
 const auth = useAuthStore();
+const presence = usePresenceStore();
 const { toast } = useToast();
+
+// Join the shared presence channel once logged in + approved (so the
+// Admin page can show who's online), leave it on logout — watching
+// auth.user rather than doing this at mount time since login itself
+// happens asynchronously after the app boots.
+watch(
+  () => auth.user,
+  (user) => {
+    if (user) presence.join(user);
+    else presence.leave();
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => presence.leave());
 
 const VALID_TABS = new Set([
   "start", "overview", "signal", "calculator", "comparison", "sessions",
@@ -654,6 +685,12 @@ watch(
 </script>
 
 <style scoped>
+.announcement-banner {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin-bottom: 0;
+}
 .boot-screen {
   position: fixed;
   inset: 0;

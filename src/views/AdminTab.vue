@@ -29,6 +29,77 @@
       {{ errorMsg }}
     </v-alert>
 
+    <!-- Online now -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center">
+        <v-icon color="success" class="mr-2">mdi-circle</v-icon>
+        Gerade online
+        <v-chip v-if="presence.onlineUsers.length" size="small" color="success" variant="tonal" class="ml-2">
+          {{ presence.onlineUsers.length }}
+        </v-chip>
+      </v-card-title>
+      <v-divider></v-divider>
+      <div v-if="presence.onlineUsers.length === 0" class="pa-6 text-center text-medium-emphasis">
+        Gerade niemand aktiv (ausser dir, falls dein Tab die Verbindung noch aufbaut).
+      </div>
+      <v-list v-else density="comfortable">
+        <v-list-item v-for="u in presence.onlineUsers" :key="u.id" class="py-1">
+          <template #prepend>
+            <v-avatar color="success" variant="tonal" size="32">
+              <v-icon size="16">mdi-account</v-icon>
+            </v-avatar>
+          </template>
+          <v-list-item-title class="text-body-2">
+            {{ u.email }}
+            <v-chip v-if="u.id === auth.user.id" size="x-small" variant="outlined" class="ml-1">Du</v-chip>
+          </v-list-item-title>
+          <v-list-item-subtitle class="text-caption">
+            online seit {{ formatDate(u.online_at) }}
+          </v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+      <v-card-text class="text-caption text-medium-emphasis pt-0">
+        Nur Nutzer mit gerade offenem Tab — kein Verlauf, niemand wird nachträglich aufgezeichnet.
+      </v-card-text>
+    </v-card>
+
+    <!-- Announcement -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center">
+        <v-icon color="info" class="mr-2">mdi-bullhorn-outline</v-icon>
+        Ankündigung an alle
+      </v-card-title>
+      <v-divider></v-divider>
+      <v-card-text>
+        <p class="text-body-2 text-medium-emphasis mb-3">
+          Schickt ein Banner an alle gerade offenen Tabs — z.B. "Neue Version verfügbar, bitte Seite neu
+          laden". Wird nicht gespeichert: wer die Seite erst später öffnet, sieht nichts davon, und ein
+          Neuladen des eigenen Tabs blendet es dort auch wieder aus.
+        </p>
+        <v-text-field
+          v-model="announcementText"
+          variant="outlined"
+          density="comfortable"
+          label="Nachricht"
+          placeholder="z.B. Neue Version verfügbar — bitte Seite neu laden (Strg+Shift+R)"
+          maxlength="200"
+          hide-details
+          class="mb-3"
+          @keyup.enter="sendAnnouncement"
+        ></v-text-field>
+        <v-btn
+          color="info"
+          variant="tonal"
+          prepend-icon="mdi-send-outline"
+          :loading="sendingAnnouncement"
+          :disabled="!announcementText.trim()"
+          @click="sendAnnouncement"
+        >
+          An alle senden{{ presence.onlineUsers.length ? ` (${presence.onlineUsers.length} online)` : "" }}
+        </v-btn>
+      </v-card-text>
+    </v-card>
+
     <!-- Pending -->
     <v-card class="mb-6" variant="outlined" rounded="lg">
       <v-card-title class="d-flex align-center">
@@ -148,8 +219,27 @@
 import { ref, computed, onMounted } from "vue";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../stores/authStore";
+import { usePresenceStore } from "../stores/presenceStore.js";
+import { showToast } from "../composables/useToast.js";
 
 const auth = useAuthStore();
+const presence = usePresenceStore();
+
+const announcementText = ref("");
+const sendingAnnouncement = ref(false);
+
+async function sendAnnouncement() {
+  if (!announcementText.value.trim()) return;
+  sendingAnnouncement.value = true;
+  const ok = await presence.sendAnnouncement(announcementText.value);
+  sendingAnnouncement.value = false;
+  if (ok) {
+    showToast(`Gesendet an ${presence.onlineUsers.length} online Nutzer.`);
+    announcementText.value = "";
+  } else {
+    errorMsg.value = "Ankündigung konnte nicht gesendet werden — Verbindung noch nicht bereit?";
+  }
+}
 
 const users = ref([]);
 const loading = ref(false);
