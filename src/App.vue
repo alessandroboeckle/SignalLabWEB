@@ -424,6 +424,16 @@
     >
       {{ toast.message }}
       <template #actions>
+        <v-btn
+          v-if="toast.action"
+          variant="text"
+          size="small"
+          @click="
+            toast.action.onClick();
+            toast.show = false;
+          "
+          >{{ toast.action.label }}</v-btn
+        >
         <v-btn variant="text" size="small" @click="toast.show = false"
           >Schliessen</v-btn
         >

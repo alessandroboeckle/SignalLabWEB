@@ -37,7 +37,7 @@
           variant="text"
           color="error"
           prepend-icon="mdi-delete-sweep"
-          @click="mtStore.clearCompare()"
+          @click="clearCompareWithUndo"
         >
           Alle entfernen
         </v-btn>
@@ -293,7 +293,7 @@
                     </template>
                   </v-card>
                 </v-menu>
-                <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} aus Anzeige entfernen`" @click="mtStore.removeCompareFile(f.id)"></v-btn>
+                <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} aus Anzeige entfernen`" @click="removeCompareFileWithUndo(f)"></v-btn>
               </v-col>
             </v-row>
           </v-list-item>
@@ -359,6 +359,7 @@
            for every currently compared signal, overlaid so signals can be
            compared directly in the frequency domain too, not just time. -->
       <template v-if="showFrequencyResponse">
+        <v-progress-linear v-if="freqComputing" indeterminate color="secondary" class="mb-2"></v-progress-linear>
         <ChartCard
           title="Frequenzgang — Amplitude (FFT)"
           :config="freqAmplitudeConfig"
@@ -566,11 +567,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
-import { showToast } from "../../composables/useToast.js";
+import { showToast, showUndoToast } from "../../composables/useToast.js";
 import * as A from "../../utils/messtoolAnalysis.js";
+import { computeFftOffMainThread } from "../../utils/computeFftOffMainThread.js";
 import { formatClockTime } from "../../utils/messtoolParser.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { downsample } from "../../utils/downsample.js";
@@ -588,6 +590,28 @@ defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
 
+// Deleting a file (or all of them) from the comparison is easy to do by
+// accident — one misplaced click and the whole setup (offsets, merge
+// groups, filter settings on it) is gone. Snapshot before removing, offer
+// a real "Rückgängig" for a few seconds instead of it just being final.
+function removeCompareFileWithUndo(f) {
+  const index = mtStore.compareFiles.findIndex((cf) => cf.id === f.id);
+  if (index === -1) return;
+  const [removed] = mtStore.compareFiles.splice(index, 1);
+  showUndoToast(`"${f.name}" aus der Anzeige entfernt.`, () => {
+    mtStore.compareFiles.splice(index, 0, removed);
+  });
+}
+
+function clearCompareWithUndo() {
+  const count = mtStore.compareFiles.length;
+  const snapshot = [...mtStore.compareFiles];
+  mtStore.clearCompare();
+  showUndoToast(`${count} Datei(en) aus der Anzeige entfernt.`, () => {
+    mtStore.compareFiles.push(...snapshot);
+  });
+}
+
 const fileInput = ref(null);
 const errorMsg = ref("");
 const displayMode = ref("overlay"); // 'overlay' | 'stacked'
@@ -601,22 +625,45 @@ const showFrequencyResponse = ref(false);
 // FFT (Hann window) of every currently compared signal's full-resolution
 // data — NOT the downsampled data the time-domain charts use, since
 // downsampling for display would distort the actual spectral content.
-// Recomputes only when the toggle is on and compareSeries changes, not on
-// every render (FFT over long signals isn't free).
-const freqSpectra = computed(() => {
-  if (!showFrequencyResponse.value) return [];
-  return mtStore.compareSeries.map((s) => {
-    const result = A.fft(s.signal.data, s.time, { windowType: "hann", normalize: true });
-    return {
-      key: s.key,
-      label: `${s.fileName} — ${s.signal.name}`,
-      color: s.color,
-      ...result,
-    };
-  });
-});
+// Runs off the main thread (see computeFftOffMainThread.js) so toggling
+// this on with several long signals compared doesn't freeze the tab —
+// only recomputes when the toggle is on and compareSeries changes.
+const freqSpectra = ref([]);
+const freqComputing = ref(false);
+let freqComputeToken = 0;
+watch(
+  [showFrequencyResponse, () => mtStore.compareSeries],
+  async () => {
+    if (!showFrequencyResponse.value || !mtStore.compareSeries.length) {
+      freqSpectra.value = [];
+      freqComputing.value = false;
+      return;
+    }
+    const token = ++freqComputeToken;
+    freqComputing.value = true;
+    const series = mtStore.compareSeries.map((s) => ({ key: s.key, y: s.signal.data, t: s.time }));
+    const results = await computeFftOffMainThread(series, { windowType: "hann", normalize: true });
+    if (token !== freqComputeToken) return; // a newer computation started while this one was running
+    const byKey = new Map(results.map((r) => [r.key, r]));
+    freqSpectra.value = mtStore.compareSeries
+      .map((s) => {
+        const r = byKey.get(s.key);
+        if (!r) return null;
+        return { key: s.key, label: `${s.fileName} — ${s.signal.name}`, color: s.color, ...r };
+      })
+      .filter(Boolean);
+    freqComputing.value = false;
+  },
+  { immediate: true },
+);
 
 function freqChartConfig(field, yLabel) {
+  // Reads freqSpectra.value here (not just inside the returned closure)
+  // so this outer computed actually tracks it as a dependency and
+  // produces a fresh closure — the same "config function identity never
+  // changes, so ChartCard never rebuilds" bug fixed earlier for
+  // xAxisMode/Uhrzeit would otherwise bite here too.
+  void freqSpectra.value;
   return () => {
     const spectra = freqSpectra.value;
     if (!spectra.length) return { type: "line", data: { labels: [], datasets: [] } };

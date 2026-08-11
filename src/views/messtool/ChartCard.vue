@@ -134,7 +134,7 @@
           color="warning"
           variant="tonal"
           closable
-          @click:close="mtStore.removeMarker(m.id)"
+          @click:close="removeMarkerWithUndo(m)"
         >
           <v-icon start size="14">mdi-map-marker</v-icon>
           t={{ m.timeSec.toFixed(2) }}s — {{ m.note }}
@@ -322,11 +322,20 @@ import { subscribeZoomSync, broadcastZoomSync } from "../../composables/useChart
 import { subscribeCursorSync, broadcastCursorSync } from "../../composables/useChartCursorSync.js";
 import { formatClockTime } from "../../utils/messtoolParser.js";
 import { interpolateDatasetsAtX } from "../../utils/interpolateDatasetsAtX.js";
+import { showUndoToast } from "../../composables/useToast.js";
 
 Chart.register(zoomPlugin);
 
 const theme = useTheme();
 const mtStore = useMesstoolStore();
+
+function removeMarkerWithUndo(marker) {
+  mtStore.removeMarker(marker.id);
+  showUndoToast(`Marker "${marker.note}" entfernt.`, () => {
+    mtStore.markers.push(marker);
+    mtStore.markers.sort((a, b) => a.timeSec - b.timeSec);
+  });
+}
 
 const props = defineProps({
   title: { type: String, default: "" },
