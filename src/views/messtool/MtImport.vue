@@ -486,6 +486,42 @@
         Noch keine Dateien in der Cloud.
       </div>
       <template v-else>
+        <!-- Folder filter -->
+        <div class="d-flex flex-wrap align-center ga-2 px-4 py-2">
+          <v-chip
+            :variant="activeFolder === '__all__' ? 'flat' : 'outlined'"
+            :color="activeFolder === '__all__' ? 'primary' : 'default'"
+            size="small"
+            @click="activeFolder = '__all__'"
+          >
+            Alle ({{ cloudFiles.length }})
+          </v-chip>
+          <v-chip
+            v-if="unfiledCount > 0"
+            :variant="activeFolder === '__none__' ? 'flat' : 'outlined'"
+            :color="activeFolder === '__none__' ? 'primary' : 'default'"
+            size="small"
+            prepend-icon="mdi-folder-off-outline"
+            @click="activeFolder = '__none__'"
+          >
+            Ohne Ordner ({{ unfiledCount }})
+          </v-chip>
+          <v-chip
+            v-for="folder in folders"
+            :key="folder"
+            :variant="activeFolder === folder ? 'flat' : 'outlined'"
+            :color="activeFolder === folder ? 'primary' : 'default'"
+            size="small"
+            prepend-icon="mdi-folder-outline"
+            closable
+            @click="activeFolder = folder"
+            @click:close="renameOrDeleteFolder(folder)"
+          >
+            {{ folder }} ({{ cloudFiles.filter((f) => f.folder === folder).length }})
+          </v-chip>
+        </div>
+        <v-divider></v-divider>
+
         <div class="d-flex align-center ga-2 px-4 py-2">
           <v-checkbox-btn
             :model-value="allCloudFilesSelected"
@@ -497,50 +533,88 @@
           <span class="text-caption text-medium-emphasis">Alle auswählen</span>
         </div>
         <v-divider></v-divider>
-        <!-- Plain flex rows instead of v-list-item: v-list-item's fixed
-             prepend/title/append columns don't reflow on narrow screens —
-             the title/subtitle get squeezed to nothing while the append
-             icon buttons keep their size, so on a phone-width viewport
-             you'd end up with just a strip of overlapping icons and no
-             filename in sight. This wraps properly instead. -->
-        <div
-          v-for="f in cloudFiles"
-          :key="f.id"
-          class="d-flex flex-wrap align-center ga-2 px-4 py-3 cloud-file-row"
-        >
-          <v-checkbox-btn
-            :model-value="selectedCloudIds.includes(f.id)"
-            :aria-label="`${f.name} auswählen`"
-            density="compact"
-            @update:model-value="toggleCloudSelection(f.id)"
-          ></v-checkbox-btn>
-          <v-icon color="primary">mdi-file-chart</v-icon>
-          <div class="flex-grow-1" style="min-width: 180px">
-            <div class="font-weight-medium text-body-2 text-truncate">{{ f.name }}</div>
-            <div class="text-caption text-medium-emphasis">
-              {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
-              {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
+
+        <template v-for="group in groupedCloudFiles" :key="group.label">
+          <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
+            {{ group.label }}
+          </div>
+          <!-- Plain flex rows instead of v-list-item: v-list-item's fixed
+               prepend/title/append columns don't reflow on narrow screens —
+               the title/subtitle get squeezed to nothing while the append
+               icon buttons keep their size, so on a phone-width viewport
+               you'd end up with just a strip of overlapping icons and no
+               filename in sight. This wraps properly instead. -->
+          <div
+            v-for="f in group.items"
+            :key="f.id"
+            class="d-flex flex-wrap align-center ga-2 px-4 py-3 cloud-file-row"
+          >
+            <v-checkbox-btn
+              :model-value="selectedCloudIds.includes(f.id)"
+              :aria-label="`${f.name} auswählen`"
+              density="compact"
+              @update:model-value="toggleCloudSelection(f.id)"
+            ></v-checkbox-btn>
+            <v-icon color="primary">mdi-file-chart</v-icon>
+            <div class="flex-grow-1" style="min-width: 180px">
+              <div class="font-weight-medium text-body-2 text-truncate">
+                {{ f.name }}
+                <v-chip v-if="f.folder" size="x-small" variant="tonal" prepend-icon="mdi-folder-outline" class="ml-1">
+                  {{ f.folder }}
+                </v-chip>
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
+                {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
+              </div>
+            </div>
+            <div class="d-flex flex-wrap align-center ga-1">
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props: folderMenuProps }">
+                  <v-tooltip location="bottom">
+                    <template #activator="{ props: tooltipProps }">
+                      <v-btn
+                        size="small" variant="text" icon="mdi-folder-move-outline"
+                        :aria-label="`${f.name} in Ordner verschieben`"
+                        v-bind="{ ...folderMenuProps, ...tooltipProps }"
+                      ></v-btn>
+                    </template>
+                    In Ordner verschieben
+                  </v-tooltip>
+                </template>
+                <v-card min-width="240" class="pa-3">
+                  <v-combobox
+                    :model-value="f.folder"
+                    :items="folders"
+                    density="compact"
+                    variant="outlined"
+                    label="Ordner"
+                    clearable
+                    hide-details
+                    autofocus
+                    @update:model-value="(val) => moveFileToFolder(f, val)"
+                  ></v-combobox>
+                </v-card>
+              </v-menu>
+              <v-tooltip location="bottom">
+                <template #activator="{ props: tooltipProps }">
+                  <v-btn
+                    size="small" variant="text" color="primary" icon="mdi-chart-multiple"
+                    :loading="compareAddingId === f.id"
+                    :aria-label="`${f.name} zur Anzeige hinzufügen`"
+                    v-bind="tooltipProps"
+                    @click="addCloudFileToCompare(f)"
+                  ></v-btn>
+                </template>
+                Zur Anzeige hinzufügen
+              </v-tooltip>
+              <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
+                Öffnen
+              </v-btn>
+              <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} löschen`" @click="removeCloudFile(f)"></v-btn>
             </div>
           </div>
-          <div class="d-flex flex-wrap align-center ga-1">
-            <v-tooltip location="bottom">
-              <template #activator="{ props: tooltipProps }">
-                <v-btn
-                  size="small" variant="text" color="primary" icon="mdi-chart-multiple"
-                  :loading="compareAddingId === f.id"
-                  :aria-label="`${f.name} zur Anzeige hinzufügen`"
-                  v-bind="tooltipProps"
-                  @click="addCloudFileToCompare(f)"
-                ></v-btn>
-              </template>
-              Zur Anzeige hinzufügen
-            </v-tooltip>
-            <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
-              Öffnen
-            </v-btn>
-            <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} löschen`" @click="removeCloudFile(f)"></v-btn>
-          </div>
-        </div>
+        </template>
       </template>
     </v-card>
 
@@ -548,11 +622,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, watch, onMounted } from "vue";
 import { decodeLatin1 } from "../../utils/messtoolParser.js";
 import { listExcelSheets, parseMesstoolExcel } from "../../utils/messtoolExcelParser.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
+import { groupByDate } from "../../utils/groupByDate.js";
 import { withTimeout } from "../../utils/withTimeout.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
@@ -671,6 +746,54 @@ function buildParseOptions() {
 // cloud state
 const cloudFiles = ref([]);
 const recentFiles = ref(listRecentFiles());
+const activeFolder = ref("__all__"); // "__all__" | "__none__" | actual folder name
+
+const folders = computed(() =>
+  [...new Set(cloudFiles.value.map((f) => f.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+);
+const unfiledCount = computed(() => cloudFiles.value.filter((f) => !f.folder).length);
+
+const folderFilteredFiles = computed(() => {
+  if (activeFolder.value === "__all__") return cloudFiles.value;
+  if (activeFolder.value === "__none__") return cloudFiles.value.filter((f) => !f.folder);
+  return cloudFiles.value.filter((f) => f.folder === activeFolder.value);
+});
+const groupedCloudFiles = computed(() => groupByDate(folderFilteredFiles.value));
+
+// If the folder you're currently looking at disappears (its last file got
+// moved/deleted elsewhere), don't keep silently filtering to nothing —
+// fall back to "Alle" instead of showing an empty list with no obvious
+// way out.
+watch(folders, (list) => {
+  if (activeFolder.value !== "__all__" && activeFolder.value !== "__none__" && !list.includes(activeFolder.value)) {
+    activeFolder.value = "__all__";
+  }
+});
+
+async function moveFileToFolder(f, folder) {
+  const previous = f.folder;
+  f.folder = folder || null; // optimistic — feels instant, matches the rest of the list's snappiness
+  try {
+    await mtStorage.setMessfileFolder(f.id, folder);
+  } catch (e) {
+    f.folder = previous; // roll back on failure
+    errorMsg.value = "Ordner konnte nicht gespeichert werden: " + (e.message || e);
+  }
+}
+
+// Folders are just a label on each file, so "deleting" one only means
+// taking every file in it back out — nothing else exists to clean up.
+// Renaming means the same thing with a new label instead of null.
+async function renameOrDeleteFolder(folder) {
+  const newName = prompt(`Ordner "${folder}" umbenennen (leer lassen zum Auflösen):`, folder);
+  if (newName === null) return; // cancelled
+  const target = newName.trim() || null;
+  const affected = cloudFiles.value.filter((f) => f.folder === folder);
+  for (const f of affected) {
+    await moveFileToFolder(f, target);
+  }
+  if (activeFolder.value === folder) activeFolder.value = target || "__none__";
+}
 
 function openRecentFile(entry) {
   if (!entry.storagePath) return; // raw local upload, never saved — nothing to re-fetch

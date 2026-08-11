@@ -57,6 +57,18 @@ export async function listMessfiles() {
   return data || [];
 }
 
+// Moves a file into a folder (or null to take it out of any folder).
+// Folders aren't a separate table — just a text label on the file row —
+// so "creating" a folder is nothing more than assigning a new name here
+// for the first time.
+export async function setMessfileFolder(id, folder) {
+  const { error } = await supabase
+    .from("messfiles")
+    .update({ folder: folder || null })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // Download the raw file content of a messfile row. Returns an ArrayBuffer.
 export async function downloadMessfile(storagePath) {
   const { data, error } = await supabase.storage
