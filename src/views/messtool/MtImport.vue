@@ -285,27 +285,27 @@
 
       <v-row class="mb-4">
         <v-col cols="6" sm="3">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h5 font-weight-bold">{{ parsed.meta.signalCount }}</div>
-            <div class="text-caption">Signale</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">Signale</div>
+            <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ parsed.meta.signalCount }}</div>
           </v-card>
         </v-col>
         <v-col cols="6" sm="3">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h5 font-weight-bold">{{ combinedRowCount.toLocaleString() }}</div>
-            <div class="text-caption">Messpunkte{{ combinedStats ? " (kombiniert)" : "" }}</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">Messpunkte{{ combinedStats ? " (kombiniert)" : "" }}</div>
+            <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ combinedRowCount.toLocaleString() }}</div>
           </v-card>
         </v-col>
         <v-col cols="6" sm="3">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h5 font-weight-bold">{{ formatDuration(combinedDuration) }}</div>
-            <div class="text-caption">Dauer{{ combinedStats ? " (kombiniert)" : "" }}</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">Dauer{{ combinedStats ? " (kombiniert)" : "" }}</div>
+            <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ formatDuration(combinedDuration) }}</div>
           </v-card>
         </v-col>
         <v-col cols="6" sm="3">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h6 font-weight-bold text-truncate">{{ fileName }}</div>
-            <div class="text-caption">Datei</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">Datei</div>
+            <div class="text-body-1 font-weight-bold font-mono text-truncate stat-card__value">{{ fileName }}</div>
           </v-card>
         </v-col>
       </v-row>
