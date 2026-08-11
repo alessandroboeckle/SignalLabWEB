@@ -40,6 +40,17 @@
               persistent-hint
             ></v-autocomplete>
 
+            <v-text-field
+              v-model="customBaseName"
+              label="Dateiname"
+              variant="outlined"
+              density="comfortable"
+              prepend-inner-icon="mdi-form-textbox"
+              hint="Ohne Dateiendung — die wird je nach Format automatisch angehängt"
+              persistent-hint
+              class="mb-4"
+            ></v-text-field>
+
             <v-btn
               class="mb-3 w-100"
               color="primary"
@@ -131,6 +142,15 @@
                   </v-list-item-subtitle>
                 </v-list-item>
               </v-list>
+              <v-text-field
+                v-model="batchZipName"
+                label="ZIP-Dateiname"
+                variant="outlined"
+                density="compact"
+                hint="Ohne .zip — die Namen der einzelnen PDFs darin bleiben pro Signal eindeutig"
+                persistent-hint
+                class="mb-3"
+              ></v-text-field>
               <v-btn
                 class="w-100"
                 color="primary"
@@ -161,7 +181,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useReportSettingsStore } from "../../stores/reportSettingsStore.js";
@@ -199,6 +219,7 @@ const selectedIdx = computed({
 const buildingPdf = ref(false);
 const buildingBatch = ref(false);
 const batchProgress = ref(0);
+const batchZipName = ref("messtool_batch");
 
 const signalOptions = computed(() => {
   if (!mtStore.parsed) return [];
@@ -212,6 +233,20 @@ const sig = computed(() =>
   mtStore.parsed ? mtStore.parsed.signals[selectedIdx.value] : null,
 );
 const time = computed(() => (mtStore.parsed ? mtStore.parsed.time : []));
+
+// Editable filename base (no extension — each export type appends its
+// own). Re-suggests a sensible default whenever the selected signal
+// changes; customizing it right before exporting is the realistic use
+// pattern, so resetting on signal switch (rather than trying to track
+// "did they edit it") keeps this predictable instead of surprising.
+const customBaseName = ref("");
+watch(sig, (s) => {
+  customBaseName.value = s ? s.name.replace(/[^\w.-]+/g, "_") : "";
+}, { immediate: true });
+function exportFilename(extension) {
+  const base = customBaseName.value.trim() || (sig.value ? sig.value.name.replace(/[^\w.-]+/g, "_") : "export");
+  return `${base}.${extension}`;
+}
 
 const exportConfig = computed(() => {
   const s = sig.value, t = time.value;
@@ -322,14 +357,15 @@ function downloadDataUrl(dataUrl, filename) {
 async function exportAllSignalsExcel() {
   if (!mtStore.parsed) return;
   const wb = await buildMultiSignalWorkbook(mtStore.parsed.time, mtStore.parsed.signals);
-  await downloadWorkbook(wb, `${(mtStore.fileName || "signale").replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "")}_alle_signale.xlsx`);
+  const base = customBaseName.value.trim() || (mtStore.fileName || "signale").replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
+  await downloadWorkbook(wb, `${base}_alle_signale.xlsx`);
   showToast("Excel-Datei heruntergeladen.");
 }
 
 async function exportPng() {
   if (!sig.value) return;
   const dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
-  downloadDataUrl(dataUrl, `${sig.value.name.replace(/[^\w.-]+/g, "_")}.png`);
+  downloadDataUrl(dataUrl, exportFilename("png"));
   showToast("PNG heruntergeladen.");
 }
 
@@ -346,7 +382,7 @@ function exportSvg() {
   });
   const blob = new Blob([svg], { type: "image/svg+xml" });
   const url = URL.createObjectURL(blob);
-  downloadDataUrl(url, `${s.name.replace(/[^\w.-]+/g, "_")}.svg`);
+  downloadDataUrl(url, exportFilename("svg"));
   URL.revokeObjectURL(url);
   showToast("SVG heruntergeladen.");
 }
@@ -356,7 +392,7 @@ function exportSvg() {
 // showMarkers should only be true when `s`/`t` genuinely belong to the
 // currently active file (mtStore.markers is scoped to that file) — batch-
 // exporting a different comparison file must leave it off.
-async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUrl = null, fields = [] } = {}) {
+async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUrl = null, logoAspect = null, fields = [] } = {}) {
   const y = s.data.filter((v) => v != null && Number.isFinite(v));
   const mm = A.minMax(y);
   const stats = {
@@ -372,13 +408,17 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
   const margin = 15;
 
   // Logo top-right, if the team has one set (Admin → Report-Vorlage) —
-  // capped to a fixed box so a weirdly-shaped upload can't overrun the
-  // header text next to it.
+  // fitted ("contain") within a max box using its real aspect ratio
+  // instead of being stretched into a fixed box, and always re-encoded
+  // to PNG at upload time (see AdminTab.vue) since jsPDF's addImage has
+  // no real SVG support despite the uploader once accepting it.
   if (logoDataUrl) {
     try {
-      const logoBoxW = 30, logoBoxH = 15;
-      const fmt = logoDataUrl.startsWith("data:image/png") ? "PNG" : logoDataUrl.startsWith("data:image/svg") ? "SVG" : "JPEG";
-      doc.addImage(logoDataUrl, fmt, pageW - margin - logoBoxW, 10, logoBoxW, logoBoxH, undefined, "FAST");
+      const maxW = 40, maxH = 18;
+      const aspect = logoAspect > 0 ? logoAspect : maxW / maxH;
+      let w = maxW, h = maxW / aspect;
+      if (h > maxH) { h = maxH; w = maxH * aspect; }
+      doc.addImage(logoDataUrl, "PNG", pageW - margin - w, 10, w, h, undefined, "FAST");
     } catch {
       // A malformed/unsupported logo shouldn't break the whole report.
     }
@@ -454,9 +494,10 @@ async function exportPdf() {
     const doc = await buildReportPdf(sig.value, time.value, mtStore.fileName, {
       showMarkers: true,
       logoDataUrl: reportSettings.logoDataUrl,
+      logoAspect: reportSettings.logoAspect,
       fields: exportFields.value.filter((f) => f.label.trim()),
     });
-    doc.save(`${sig.value.name.replace(/[^\w.-]+/g, "_")}_report.pdf`);
+    doc.save(exportFilename("pdf"));
     showToast("PDF-Report heruntergeladen.");
   } finally {
     buildingPdf.value = false;
@@ -483,6 +524,7 @@ async function exportBatchZip() {
       const s = series[i];
       const doc = await buildReportPdf(s.signal, s.time, s.fileName, {
         logoDataUrl: reportSettings.logoDataUrl,
+        logoAspect: reportSettings.logoAspect,
         fields,
       });
       const baseName = s.fileName.replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
@@ -497,7 +539,8 @@ async function exportBatchZip() {
     }
     const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);
-    downloadDataUrl(url, `messtool_batch_${Date.now()}.zip`);
+    const zipBase = batchZipName.value.trim().replace(/[^\w.-]+/g, "_") || `messtool_batch_${Date.now()}`;
+    downloadDataUrl(url, `${zipBase}.zip`);
     URL.revokeObjectURL(url);
     showToast(`${series.length} PDF(s) als ZIP heruntergeladen.`);
   } finally {

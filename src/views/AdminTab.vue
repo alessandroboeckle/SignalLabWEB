@@ -91,11 +91,11 @@
               variant="text"
               color="error"
               class="ml-2"
-              @click="logoDraft = null"
+              @click="logoDraft = null; logoAspectDraft = null"
             >
               Entfernen
             </v-btn>
-            <input ref="logoInput" type="file" accept="image/png,image/jpeg,image/svg+xml" class="d-none" @change="onLogoSelected" />
+            <input ref="logoInput" type="file" accept="image/png,image/jpeg" class="d-none" @change="onLogoSelected" />
             <p class="text-caption text-medium-emphasis mt-1 mb-0">PNG/JPG/SVG, unter ~200 KB empfohlen.</p>
           </div>
         </div>
@@ -363,6 +363,7 @@ const messfilesLoading = ref(false);
 const reportSettings = useReportSettingsStore();
 const logoInput = ref(null);
 const logoDraft = ref(null); // data URL, or null — separate from the store's own value so "Entfernen"/a bad upload doesn't touch anything until "speichern" is actually clicked
+const logoAspectDraft = ref(null); // width/height, so the PDF can fit it without distorting it
 const fieldsDraft = ref([]); // [{ label, value }]
 const savingReportSettings = ref(false);
 const MAX_LOGO_BYTES = 300 * 1024; // ~300KB — plenty for a logo, keeps the settings row (and every PDF) small
@@ -370,6 +371,7 @@ const MAX_LOGO_BYTES = 300 * 1024; // ~300KB — plenty for a logo, keeps the se
 async function loadReportSettings() {
   await reportSettings.load();
   logoDraft.value = reportSettings.logoDataUrl;
+  logoAspectDraft.value = reportSettings.logoAspect;
   fieldsDraft.value = reportSettings.defaultFields.map((f) => ({ ...f }));
 }
 
@@ -383,7 +385,30 @@ function onLogoSelected(e) {
   }
   const reader = new FileReader();
   reader.onload = () => {
-    logoDraft.value = reader.result;
+    // Normalize whatever got uploaded (PNG/JPEG/SVG/whatever the browser
+    // will decode) into a clean PNG via canvas — jsPDF's addImage only
+    // actually supports raster formats (no native SVG support at all,
+    // despite the file picker accepting it), and re-encoding through
+    // canvas also sidesteps any PNG color-profile/alpha quirks that were
+    // producing garbage blocks in the exported PDF. White background
+    // fill first so transparency doesn't turn into an unpredictable
+    // black block in the final render.
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      logoDraft.value = canvas.toDataURL("image/png");
+      logoAspectDraft.value = img.naturalWidth / img.naturalHeight;
+    };
+    img.onerror = () => {
+      errorMsg.value = "Logo konnte nicht gelesen werden — Datei beschädigt oder Format nicht unterstützt.";
+    };
+    img.src = reader.result;
   };
   reader.readAsDataURL(file);
 }
@@ -392,7 +417,7 @@ async function saveReportTemplate() {
   savingReportSettings.value = true;
   try {
     const fields = fieldsDraft.value.filter((f) => f.label.trim());
-    await reportSettings.save({ logoDataUrl: logoDraft.value, defaultFields: fields });
+    await reportSettings.save({ logoDataUrl: logoDraft.value, logoAspect: logoAspectDraft.value, defaultFields: fields });
     fieldsDraft.value = fields.map((f) => ({ ...f }));
     showToast("Report-Vorlage gespeichert.");
   } catch (e) {

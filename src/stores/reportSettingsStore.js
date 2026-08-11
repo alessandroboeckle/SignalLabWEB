@@ -11,6 +11,7 @@ const SETTINGS_KEY = "report_template";
 // branding, not a personal setting.
 export const useReportSettingsStore = defineStore("reportSettings", () => {
   const logoDataUrl = ref(null);
+  const logoAspect = ref(null); // width/height — lets the PDF fit the logo without stretching it
   const defaultFields = ref([]); // [{ label, value }]
   const loaded = ref(false);
 
@@ -23,6 +24,7 @@ export const useReportSettingsStore = defineStore("reportSettings", () => {
         .single();
       if (!error && data?.value) {
         logoDataUrl.value = data.value.logoDataUrl || null;
+        logoAspect.value = data.value.logoAspect || null;
         defaultFields.value = Array.isArray(data.value.defaultFields) ? data.value.defaultFields : [];
       }
     } catch {
@@ -32,14 +34,19 @@ export const useReportSettingsStore = defineStore("reportSettings", () => {
     loaded.value = true;
   }
 
-  async function save({ logoDataUrl: logo, defaultFields: fields }) {
+  async function save({ logoDataUrl: logo, logoAspect: aspect, defaultFields: fields }) {
     const { error } = await supabase
       .from("app_settings")
-      .upsert({ key: SETTINGS_KEY, value: { logoDataUrl: logo, defaultFields: fields }, updated_at: new Date().toISOString() });
+      .upsert({
+        key: SETTINGS_KEY,
+        value: { logoDataUrl: logo, logoAspect: aspect, defaultFields: fields },
+        updated_at: new Date().toISOString(),
+      });
     if (error) throw error;
     logoDataUrl.value = logo;
+    logoAspect.value = aspect;
     defaultFields.value = fields;
   }
 
-  return { logoDataUrl, defaultFields, loaded, load, save };
+  return { logoDataUrl, logoAspect, defaultFields, loaded, load, save };
 });

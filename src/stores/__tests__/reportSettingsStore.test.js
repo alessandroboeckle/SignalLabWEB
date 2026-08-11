@@ -58,15 +58,24 @@ describe("reportSettingsStore", () => {
 
     const { useReportSettingsStore } = await import("../reportSettingsStore.js");
     const store = useReportSettingsStore();
-    await store.save({ logoDataUrl: "data:image/png;base64,abc", defaultFields: [{ label: "Projekt", value: "KISS" }] });
+    await store.save({
+      logoDataUrl: "data:image/png;base64,abc",
+      logoAspect: 2.5,
+      defaultFields: [{ label: "Projekt", value: "KISS" }],
+    });
 
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         key: "report_template",
-        value: { logoDataUrl: "data:image/png;base64,abc", defaultFields: [{ label: "Projekt", value: "KISS" }] },
+        value: {
+          logoDataUrl: "data:image/png;base64,abc",
+          logoAspect: 2.5,
+          defaultFields: [{ label: "Projekt", value: "KISS" }],
+        },
       }),
     );
     expect(store.logoDataUrl).toBe("data:image/png;base64,abc");
+    expect(store.logoAspect).toBe(2.5);
     expect(store.defaultFields).toEqual([{ label: "Projekt", value: "KISS" }]);
   });
 
