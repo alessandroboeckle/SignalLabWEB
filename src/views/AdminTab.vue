@@ -25,6 +25,40 @@
       </v-chip>
     </div>
 
+    <!-- Online now -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center">
+        <v-icon color="success" class="mr-2">mdi-circle</v-icon>
+        Gerade online
+        <v-chip v-if="presence.onlineUsers.length" size="small" color="success" variant="tonal" class="ml-2">
+          {{ presence.onlineUsers.length }}
+        </v-chip>
+      </v-card-title>
+      <v-divider></v-divider>
+      <div v-if="presence.onlineUsers.length === 0" class="pa-6 text-center text-medium-emphasis">
+        Gerade niemand aktiv (ausser dir, falls dein Tab die Verbindung noch aufbaut).
+      </div>
+      <v-list v-else density="comfortable">
+        <v-list-item v-for="u in presence.onlineUsers" :key="u.id" class="py-1">
+          <template #prepend>
+            <v-avatar color="success" variant="tonal" size="32">
+              <v-icon size="16">mdi-account</v-icon>
+            </v-avatar>
+          </template>
+          <v-list-item-title class="text-body-2">
+            {{ u.email }}
+            <v-chip v-if="u.id === auth.user.id" size="x-small" variant="outlined" class="ml-1">Du</v-chip>
+          </v-list-item-title>
+          <v-list-item-subtitle class="text-caption">
+            online seit {{ formatDate(u.online_at) }}
+          </v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+      <v-card-text class="text-caption text-medium-emphasis pt-0">
+        Nur Nutzer mit gerade offenem Tab — kein Verlauf, niemand wird nachträglich aufgezeichnet.
+      </v-card-text>
+    </v-card>
+
     <!-- Report template (logo + default custom fields for PDF exports) -->
     <v-card variant="outlined" rounded="lg" class="mb-6">
       <v-card-title class="d-flex align-center">
@@ -127,40 +161,6 @@
         <p class="text-caption text-medium-emphasis mt-2 mb-0">
           Über alle Nutzer hinweg — die Dateiliste selbst ist geräteübergreifend geteilt, nicht pro Person.
         </p>
-      </v-card-text>
-    </v-card>
-
-    <!-- Online now -->
-    <v-card variant="outlined" rounded="lg" class="mb-6">
-      <v-card-title class="d-flex align-center">
-        <v-icon color="success" class="mr-2">mdi-circle</v-icon>
-        Gerade online
-        <v-chip v-if="presence.onlineUsers.length" size="small" color="success" variant="tonal" class="ml-2">
-          {{ presence.onlineUsers.length }}
-        </v-chip>
-      </v-card-title>
-      <v-divider></v-divider>
-      <div v-if="presence.onlineUsers.length === 0" class="pa-6 text-center text-medium-emphasis">
-        Gerade niemand aktiv (ausser dir, falls dein Tab die Verbindung noch aufbaut).
-      </div>
-      <v-list v-else density="comfortable">
-        <v-list-item v-for="u in presence.onlineUsers" :key="u.id" class="py-1">
-          <template #prepend>
-            <v-avatar color="success" variant="tonal" size="32">
-              <v-icon size="16">mdi-account</v-icon>
-            </v-avatar>
-          </template>
-          <v-list-item-title class="text-body-2">
-            {{ u.email }}
-            <v-chip v-if="u.id === auth.user.id" size="x-small" variant="outlined" class="ml-1">Du</v-chip>
-          </v-list-item-title>
-          <v-list-item-subtitle class="text-caption">
-            online seit {{ formatDate(u.online_at) }}
-          </v-list-item-subtitle>
-        </v-list-item>
-      </v-list>
-      <v-card-text class="text-caption text-medium-emphasis pt-0">
-        Nur Nutzer mit gerade offenem Tab — kein Verlauf, niemand wird nachträglich aufgezeichnet.
       </v-card-text>
     </v-card>
 
