@@ -29,6 +29,48 @@
       {{ errorMsg }}
     </v-alert>
 
+    <!-- Storage overview -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center">
+        <v-icon color="secondary" class="mr-2">mdi-database-outline</v-icon>
+        Speicherplatz
+      </v-card-title>
+      <v-divider></v-divider>
+      <v-card-text>
+        <v-row dense>
+          <v-col cols="6" sm="3">
+            <v-card variant="outlined" class="pa-2 text-center stat-card">
+              <div class="text-overline text-medium-emphasis stat-card__label">Dateien</div>
+              <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ messfiles.length }}</div>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card variant="outlined" class="pa-2 text-center stat-card">
+              <div class="text-overline text-medium-emphasis stat-card__label">Belegt</div>
+              <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ formatBytes(totalStorageBytes) }}</div>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card variant="outlined" class="pa-2 text-center stat-card">
+              <div class="text-overline text-medium-emphasis stat-card__label">Ordner</div>
+              <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ folderCount }}</div>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card variant="outlined" class="pa-2 text-center stat-card">
+              <div class="text-overline text-medium-emphasis stat-card__label">Ø Dateigrösse</div>
+              <div class="text-h5 font-weight-bold font-mono stat-card__value">
+                {{ formatBytes(messfiles.length ? totalStorageBytes / messfiles.length : 0) }}
+              </div>
+            </v-card>
+          </v-col>
+        </v-row>
+        <p class="text-caption text-medium-emphasis mt-2 mb-0">
+          Über alle Nutzer hinweg — die Dateiliste selbst ist geräteübergreifend geteilt, nicht pro Person.
+        </p>
+      </v-card-text>
+    </v-card>
+
     <!-- Online now -->
     <v-card variant="outlined" rounded="lg" class="mb-6">
       <v-card-title class="d-flex align-center">
@@ -221,6 +263,8 @@ import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../stores/authStore";
 import { usePresenceStore } from "../stores/presenceStore.js";
 import { showToast } from "../composables/useToast.js";
+import * as mtStorage from "../utils/messtoolStorage.js";
+import { formatBytes } from "../utils/formatBytes.js";
 
 const auth = useAuthStore();
 const presence = usePresenceStore();
@@ -251,6 +295,21 @@ const hardRefreshing = ref(false);
 
 const pending = computed(() => users.value.filter((u) => !u.approved));
 const approvedUsers = computed(() => users.value.filter((u) => u.approved));
+
+const messfiles = ref([]);
+const messfilesLoading = ref(false);
+const totalStorageBytes = computed(() => messfiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
+const folderCount = computed(() => new Set(messfiles.value.map((f) => f.folder).filter(Boolean)).size);
+
+async function loadStorageStats() {
+  messfilesLoading.value = true;
+  try {
+    messfiles.value = await mtStorage.listMessfiles();
+  } catch {
+    // non-critical — the rest of the Admin page still works without this
+  }
+  messfilesLoading.value = false;
+}
 
 async function load() {
   loading.value = true;
@@ -338,5 +397,8 @@ async function hardRefresh() {
   window.location.href = url.toString();
 }
 
-onMounted(load);
+onMounted(() => {
+  load();
+  loadStorageStats();
+});
 </script>

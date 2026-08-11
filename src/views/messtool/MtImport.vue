@@ -481,6 +481,12 @@
         </template>
         <v-btn size="small" variant="text" icon="mdi-refresh" aria-label="Liste aktualisieren" :loading="loadingList" @click="loadList"></v-btn>
       </v-card-title>
+      <v-card-subtitle v-if="cloudFiles.length > 0" class="pb-2">
+        {{ cloudFiles.length }} Datei(en) insgesamt • {{ formatBytes(totalStorageBytes) }} belegt
+        <template v-if="activeFolder !== '__all__' && folderFilteredFiles.length !== cloudFiles.length">
+          — {{ activeFolderLabel }}: {{ folderFilteredFiles.length }} Datei(en), {{ formatBytes(folderStorageBytes) }}
+        </template>
+      </v-card-subtitle>
       <v-divider></v-divider>
       <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
         Noch keine Dateien in der Cloud.
@@ -565,7 +571,7 @@
               </div>
               <div class="text-caption text-medium-emphasis">
                 {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
-                {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
+                {{ formatBytes(f.size_bytes) }} • {{ formatDate(f.created_at) }}
               </div>
             </div>
             <div class="d-flex flex-wrap align-center ga-1">
@@ -628,6 +634,7 @@ import { listExcelSheets, parseMesstoolExcel } from "../../utils/messtoolExcelPa
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { groupByDate } from "../../utils/groupByDate.js";
+import { formatBytes } from "../../utils/formatBytes.js";
 import { withTimeout } from "../../utils/withTimeout.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
@@ -759,6 +766,10 @@ const folderFilteredFiles = computed(() => {
   return cloudFiles.value.filter((f) => f.folder === activeFolder.value);
 });
 const groupedCloudFiles = computed(() => groupByDate(folderFilteredFiles.value));
+
+const totalStorageBytes = computed(() => cloudFiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
+const folderStorageBytes = computed(() => folderFilteredFiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
+const activeFolderLabel = computed(() => (activeFolder.value === "__none__" ? "Ohne Ordner" : activeFolder.value));
 
 // If the folder you're currently looking at disappears (its last file got
 // moved/deleted elsewhere), don't keep silently filtering to nothing —
