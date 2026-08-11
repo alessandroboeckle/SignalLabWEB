@@ -289,7 +289,11 @@ const sections = [
       },
       {
         h: "Gespeicherte Messdateien (Cloud)",
-        p: "Liste aller bisher hochgeladenen Dateien, geräteübergreifend sichtbar (jeder mit Zugriff sieht dieselbe Liste). Pro Zeile: öffnen, zur Anzeige hinzufügen, löschen.\nCheckbox oben links = alle auswählen — damit lassen sich mehrere Dateien auf einmal zur Anzeige-Seite hinzufügen, statt jede einzeln anklicken zu müssen.\n'Zur Anzeige hinzufügen' navigiert NICHT mehr automatisch weg — du bleibst auf der Import-Seite (praktisch, wenn du nacheinander mehrere Dateien auswählen willst) und bekommst stattdessen eine kurze Bestätigung.",
+        p: "Liste aller bisher hochgeladenen Dateien, geräteübergreifend sichtbar (jeder mit Zugriff sieht dieselbe Liste). Automatisch nach Datum gruppiert (Heute / Gestern / Diese Woche / Diesen Monat / Älter), damit man bei vielen Dateien nicht mehr scrollen muss um was Aktuelles zu finden.\nCheckbox oben links = alle auswählen — damit lassen sich mehrere Dateien auf einmal zur Anzeige-Seite hinzufügen, statt jede einzeln anklicken zu müssen.\n'Zur Anzeige hinzufügen' navigiert NICHT mehr automatisch weg — du bleibst auf der Import-Seite (praktisch, wenn du nacheinander mehrere Dateien auswählen willst) und bekommst stattdessen eine kurze Bestätigung.",
+      },
+      {
+        h: "Ordner",
+        p: "Über das Ordner-Symbol (📁 mit Pfeil) bei jeder Datei lässt sich diese einem Ordner zuweisen — bestehenden auswählen oder einen neuen Namen eintippen, beides im selben Feld. Oben in der Liste filtern Ordner-Chips die Ansicht ('Alle', 'Ohne Ordner', dann jeder Ordner mit Anzahl). Ein Ordner umbenennen oder auflösen geht über das X am Chip. Ordner sind nur ein Label an der Datei — kein Ordner kann 'leer' herumliegen, verschwindet automatisch, sobald die letzte Datei draus verschoben ist.",
       },
       {
         p: "Zuletzt geöffnete Dateien erscheinen unten in der Liste 'Zuletzt verwendet' für schnellen Wiedereinstieg.",
@@ -355,6 +359,9 @@ const sections = [
       {
         p: "Jeder Chart hat einen Y-Log-Schalter (Symbol 'log') in der Werkzeugleiste — auch fürs FFT-Spektrum.",
       },
+      {
+        p: "Alle Tabellen (Signal-Übersicht, Ereignis-Liste, Gruppen-Statistik) sind sortierbar — auf eine Spaltenüberschrift klicken.",
+      },
     ],
   },
   {
@@ -383,6 +390,14 @@ const sections = [
       {
         h: "Zoom-Sync",
         p: "'Zoom über alle Plots' hält die Zeitachse aller Gestapelt-Charts synchron — zoomst/verschiebst du einen, ziehen die anderen mit.",
+      },
+      {
+        h: "Frequenzgang (FFT)",
+        p: "Schalter 'Frequenzgang anzeigen' — zwei zusätzliche Plots (Amplitude und Phase) für alle gerade verglichenen Signale, überlagert, gleiche Farben wie in den Zeit-Diagrammen. Rechnet auf den vollen Rohdaten (nicht den für die Anzeige reduzierten Punkten) im Hintergrund, blockiert also auch bei langen Dateien nicht die Seite.",
+      },
+      {
+        h: "Löschen rückgängig machen",
+        p: "Datei entfernen (einzeln oder 'Alle entfernen') und Marker löschen zeigen für ein paar Sekunden einen Hinweis mit 'Rückgängig'-Knopf unten rechts — kein Klick ist mehr sofort endgültig.",
       },
       {
         h: "Pro Datei (Erweiterte Optionen, Zahnrad-Symbol)",
@@ -490,6 +505,18 @@ const sections = [
     page: "admin",
     blocks: [
       { p: "Neue Konten freischalten/sperren, Zugriff auf die Freigabeliste verwalten. Nur sichtbar, wenn dein Konto Admin-Rechte hat." },
+      {
+        h: "Gerade online",
+        p: "Zeigt, wer JETZT gerade einen offenen Tab hat — verschwindet, sobald der Tab geschlossen wird, kein Verlauf. Für einen Überblick über die Zeit ('zuletzt online vor X Std./Tagen') steht das bei jedem Nutzer in der Liste 'Freigegebene Nutzer' weiter unten.",
+      },
+      {
+        h: "Ankündigung an alle",
+        p: "Schickt ein Banner an alle gerade offenen Tabs, z.B. 'Neue Version verfügbar'. Läuft auch automatisch bei jedem erfolgreichen Deploy (Standardtext), zusätzlich jederzeit manuell mit eigenem Text möglich. Wird nicht gespeichert — wer die Seite später öffnet, sieht nichts davon.",
+      },
+      {
+        h: "Wartung — Cache leeren",
+        p: "Löscht Browser-Cache/Service-Worker im eigenen Browser und lädt garantiert frisch vom Server neu — nützlich direkt nach einem Deploy, falls trotz normalem Neuladen noch der alte Stand angezeigt wird. Wirkt nur im eigenen Browser, jeder muss das bei sich selbst auslösen. Rührt keine eigenen Messdaten/Sessions an.",
+      },
     ],
   },
   {
@@ -501,6 +528,7 @@ const sections = [
       {
         h: "Tastenkürzel",
         kbd: [
+          { key: "Strg+K", desc: "Befehlspalette öffnen — tippen und zu jeder Seite springen" },
           { key: "?", desc: "Tastenkürzel-Übersicht öffnen (irgendwo drückbar)" },
           { key: "↑ / ↓", desc: "im Signal-Feld durch Signale blättern" },
         ],
