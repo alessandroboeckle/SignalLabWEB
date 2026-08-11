@@ -84,6 +84,24 @@
               Der PDF-Report enthält den Plot, die Kennzahlen (Mittel, RMS, Min/Max)
               sowie Dateiname und Zeitstempel.
             </v-alert>
+
+            <div class="mt-4">
+              <div class="d-flex align-center ga-2 mb-2">
+                <img v-if="reportSettings.logoDataUrl" :src="reportSettings.logoDataUrl" alt="Logo" style="max-height: 24px; max-width: 80px" />
+                <span class="text-caption text-medium-emphasis">
+                  {{ reportSettings.logoDataUrl ? "Team-Logo wird auf jedem Report angezeigt." : "Kein Team-Logo hinterlegt (Admin → Report-Vorlage)." }}
+                </span>
+              </div>
+              <div class="text-caption font-weight-medium mb-1">Zusätzliche Angaben für diesen Export</div>
+              <div v-for="(field, i) in exportFields" :key="i" class="d-flex align-center ga-2 mb-2">
+                <v-text-field v-model="field.label" density="compact" variant="outlined" label="Feld" hide-details style="max-width: 130px"></v-text-field>
+                <v-text-field v-model="field.value" density="compact" variant="outlined" label="Wert" hide-details></v-text-field>
+                <v-btn icon="mdi-close" size="x-small" variant="text" :aria-label="`Feld ${field.label || i + 1} entfernen`" @click="exportFields.splice(i, 1)"></v-btn>
+              </div>
+              <v-btn size="small" variant="text" prepend-icon="mdi-plus" @click="exportFields.push({ label: '', value: '' })">
+                Feld hinzufügen
+              </v-btn>
+            </div>
           </v-card>
 
           <v-card variant="outlined" rounded="lg" class="pa-4">
@@ -143,9 +161,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { useReportSettingsStore } from "../../stores/reportSettingsStore.js";
 import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
@@ -159,6 +178,16 @@ import MtQuickNav from "./MtQuickNav.vue";
 defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
+const reportSettings = useReportSettingsStore();
+
+// Starts as the team's default fields (Admin → Report-Vorlage), fully
+// editable/removable/extendable here without touching that shared
+// default — this copy only affects the report(s) about to be exported.
+const exportFields = ref([]);
+onMounted(async () => {
+  await reportSettings.load();
+  exportFields.value = reportSettings.defaultFields.map((f) => ({ ...f }));
+});
 useSignalNavigationShortcuts(mtStore);
 
 // Shared across Analyse/Filter/Verarbeitung/Export so switching pages
@@ -327,7 +356,7 @@ function exportSvg() {
 // showMarkers should only be true when `s`/`t` genuinely belong to the
 // currently active file (mtStore.markers is scoped to that file) — batch-
 // exporting a different comparison file must leave it off.
-async function buildReportPdf(s, t, fileLabel, { showMarkers = false } = {}) {
+async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUrl = null, fields = [] } = {}) {
   const y = s.data.filter((v) => v != null && Number.isFinite(v));
   const mm = A.minMax(y);
   const stats = {
@@ -342,6 +371,19 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false } = {}) {
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 15;
 
+  // Logo top-right, if the team has one set (Admin → Report-Vorlage) —
+  // capped to a fixed box so a weirdly-shaped upload can't overrun the
+  // header text next to it.
+  if (logoDataUrl) {
+    try {
+      const logoBoxW = 30, logoBoxH = 15;
+      const fmt = logoDataUrl.startsWith("data:image/png") ? "PNG" : logoDataUrl.startsWith("data:image/svg") ? "SVG" : "JPEG";
+      doc.addImage(logoDataUrl, fmt, pageW - margin - logoBoxW, 10, logoBoxW, logoBoxH, undefined, "FAST");
+    } catch {
+      // A malformed/unsupported logo shouldn't break the whole report.
+    }
+  }
+
   doc.setFontSize(18);
   doc.text("Messtool – Analyse-Report", margin, 20);
 
@@ -351,11 +393,32 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false } = {}) {
   doc.text(`Signal: ${s.name} [${s.unit || "-"}]`, margin, 34);
   doc.text(`Erstellt: ${new Date().toLocaleString("de-DE")}`, margin, 40);
 
+  // Custom fields (Admin defaults + whatever was added/edited just for
+  // this export) — two-column layout so a handful of short fields don't
+  // push the chart image far down the page.
+  let fieldsBottomY = 40;
+  if (fields.length) {
+    const colW = (pageW - 2 * margin) / 2;
+    fields.forEach((f, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const fx = margin + col * colW;
+      const fy = 48 + row * 6;
+      doc.text(`${f.label}:`, fx, fy);
+      doc.text(String(f.value ?? ""), fx + Math.min(colW * 0.4, 35), fy);
+      fieldsBottomY = fy;
+    });
+    fieldsBottomY += 6;
+  } else {
+    fieldsBottomY = 44;
+  }
+
+  const imgY = Math.max(48, fieldsBottomY);
   const imgW = pageW - 2 * margin;
   const imgH = imgW * 0.5;
-  doc.addImage(imgData, "PNG", margin, 48, imgW, imgH);
+  doc.addImage(imgData, "PNG", margin, imgY, imgW, imgH);
 
-  let y0 = 48 + imgH + 12;
+  let y0 = imgY + imgH + 12;
   doc.setFontSize(13);
   doc.setTextColor(30);
   doc.text("Kennzahlen", margin, y0);
@@ -388,7 +451,11 @@ async function exportPdf() {
   if (!sig.value) return;
   buildingPdf.value = true;
   try {
-    const doc = await buildReportPdf(sig.value, time.value, mtStore.fileName, { showMarkers: true });
+    const doc = await buildReportPdf(sig.value, time.value, mtStore.fileName, {
+      showMarkers: true,
+      logoDataUrl: reportSettings.logoDataUrl,
+      fields: exportFields.value.filter((f) => f.label.trim()),
+    });
     doc.save(`${sig.value.name.replace(/[^\w.-]+/g, "_")}_report.pdf`);
     showToast("PDF-Report heruntergeladen.");
   } finally {
@@ -411,9 +478,13 @@ async function exportBatchZip() {
     const { default: JSZip } = await import("jszip");
     const zip = new JSZip();
     const usedNames = new Set();
+    const fields = exportFields.value.filter((f) => f.label.trim());
     for (let i = 0; i < series.length; i++) {
       const s = series[i];
-      const doc = await buildReportPdf(s.signal, s.time, s.fileName);
+      const doc = await buildReportPdf(s.signal, s.time, s.fileName, {
+        logoDataUrl: reportSettings.logoDataUrl,
+        fields,
+      });
       const baseName = s.fileName.replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
       const sigName = s.signal.name.replace(/[^\w.-]+/g, "_");
       let filename = `${baseName}_${sigName}_report.pdf`;

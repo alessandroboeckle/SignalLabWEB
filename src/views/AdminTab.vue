@@ -25,6 +25,65 @@
       </v-chip>
     </div>
 
+    <!-- Report template (logo + default custom fields for PDF exports) -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center">
+        <v-icon color="secondary" class="mr-2">mdi-file-image-outline</v-icon>
+        Report-Vorlage
+      </v-card-title>
+      <v-divider></v-divider>
+      <v-card-text>
+        <p class="text-body-2 text-medium-emphasis mb-4">
+          Logo und Standard-Felder, die auf jedem PDF-Export erscheinen (Export-Seite). Gilt fürs ganze
+          Team — jeder kann beim Exportieren einzelne Felder für diesen einen Report noch anpassen oder
+          ergänzen, aber die Vorgabe hier gilt als Standard.
+        </p>
+
+        <div class="d-flex align-center ga-4 mb-4">
+          <div
+            class="report-logo-preview d-flex align-center justify-center"
+            :class="{ 'report-logo-preview--empty': !logoDraft }"
+          >
+            <img v-if="logoDraft" :src="logoDraft" alt="Logo-Vorschau" />
+            <v-icon v-else size="28" color="medium-emphasis">mdi-image-off-outline</v-icon>
+          </div>
+          <div>
+            <v-btn size="small" variant="outlined" prepend-icon="mdi-upload" @click="logoInput?.click()">
+              Logo hochladen
+            </v-btn>
+            <v-btn
+              v-if="logoDraft"
+              size="small"
+              variant="text"
+              color="error"
+              class="ml-2"
+              @click="logoDraft = null"
+            >
+              Entfernen
+            </v-btn>
+            <input ref="logoInput" type="file" accept="image/png,image/jpeg,image/svg+xml" class="d-none" @change="onLogoSelected" />
+            <p class="text-caption text-medium-emphasis mt-1 mb-0">PNG/JPG/SVG, unter ~200 KB empfohlen.</p>
+          </div>
+        </div>
+
+        <div class="text-subtitle-2 font-weight-medium mb-2">Standard-Felder</div>
+        <div v-for="(field, i) in fieldsDraft" :key="i" class="d-flex align-center ga-2 mb-2">
+          <v-text-field v-model="field.label" density="compact" variant="outlined" label="Feldname" hide-details style="max-width: 200px"></v-text-field>
+          <v-text-field v-model="field.value" density="compact" variant="outlined" label="Wert" hide-details></v-text-field>
+          <v-btn icon="mdi-close" size="small" variant="text" :aria-label="`Feld ${field.label || i + 1} entfernen`" @click="fieldsDraft.splice(i, 1)"></v-btn>
+        </div>
+        <v-btn size="small" variant="text" prepend-icon="mdi-plus" class="mb-4" @click="fieldsDraft.push({ label: '', value: '' })">
+          Feld hinzufügen
+        </v-btn>
+
+        <div>
+          <v-btn color="primary" variant="flat" prepend-icon="mdi-content-save-outline" :loading="savingReportSettings" @click="saveReportTemplate">
+            Vorlage speichern
+          </v-btn>
+        </div>
+      </v-card-text>
+    </v-card>
+
     <v-alert v-if="errorMsg" type="error" variant="tonal" class="mb-4" closable @click:close="errorMsg = ''">
       {{ errorMsg }}
     </v-alert>
@@ -265,6 +324,7 @@ import { usePresenceStore } from "../stores/presenceStore.js";
 import { showToast } from "../composables/useToast.js";
 import * as mtStorage from "../utils/messtoolStorage.js";
 import { formatBytes } from "../utils/formatBytes.js";
+import { useReportSettingsStore } from "../stores/reportSettingsStore.js";
 
 const auth = useAuthStore();
 const presence = usePresenceStore();
@@ -298,6 +358,48 @@ const approvedUsers = computed(() => users.value.filter((u) => u.approved));
 
 const messfiles = ref([]);
 const messfilesLoading = ref(false);
+
+// Report template (logo + default custom fields)
+const reportSettings = useReportSettingsStore();
+const logoInput = ref(null);
+const logoDraft = ref(null); // data URL, or null — separate from the store's own value so "Entfernen"/a bad upload doesn't touch anything until "speichern" is actually clicked
+const fieldsDraft = ref([]); // [{ label, value }]
+const savingReportSettings = ref(false);
+const MAX_LOGO_BYTES = 300 * 1024; // ~300KB — plenty for a logo, keeps the settings row (and every PDF) small
+
+async function loadReportSettings() {
+  await reportSettings.load();
+  logoDraft.value = reportSettings.logoDataUrl;
+  fieldsDraft.value = reportSettings.defaultFields.map((f) => ({ ...f }));
+}
+
+function onLogoSelected(e) {
+  const file = e.target.files?.[0];
+  e.target.value = ""; // allow re-selecting the same file later
+  if (!file) return;
+  if (file.size > MAX_LOGO_BYTES) {
+    errorMsg.value = `Logo ist zu gross (${formatBytes(file.size)}) — bitte unter ${formatBytes(MAX_LOGO_BYTES)} bleiben.`;
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    logoDraft.value = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveReportTemplate() {
+  savingReportSettings.value = true;
+  try {
+    const fields = fieldsDraft.value.filter((f) => f.label.trim());
+    await reportSettings.save({ logoDataUrl: logoDraft.value, defaultFields: fields });
+    fieldsDraft.value = fields.map((f) => ({ ...f }));
+    showToast("Report-Vorlage gespeichert.");
+  } catch (e) {
+    errorMsg.value = "Vorlage konnte nicht gespeichert werden: " + (e.message || e);
+  }
+  savingReportSettings.value = false;
+}
 const totalStorageBytes = computed(() => messfiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
 const folderCount = computed(() => new Set(messfiles.value.map((f) => f.folder).filter(Boolean)).size);
 
@@ -400,5 +502,25 @@ async function hardRefresh() {
 onMounted(() => {
   load();
   loadStorageStats();
+  loadReportSettings();
 });
 </script>
+
+<style scoped>
+.report-logo-preview {
+  width: 96px;
+  height: 64px;
+  border: 1px dashed rgba(128, 128, 128, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.report-logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.report-logo-preview--empty {
+  background: rgba(128, 128, 128, 0.06);
+}
+</style>
