@@ -177,6 +177,50 @@
         </v-col>
       </v-row>
     </template>
+
+    <v-dialog v-model="showPngLogoDialog" max-width="360">
+      <v-card>
+        <v-card-title class="text-subtitle-1">PNG exportieren</v-card-title>
+        <v-card-text class="text-body-2 text-medium-emphasis">
+          Mit dem Team-Logo oben rechts, oder nur der reine Plot?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="doExportPng(false)">Nur Plot</v-btn>
+          <v-btn color="primary" variant="flat" @click="doExportPng(true)">Mit Logo</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="showPdfScopeDialog" max-width="380">
+      <v-card>
+        <v-card-title class="text-subtitle-1">PDF exportieren</v-card-title>
+        <v-card-text class="text-body-2 text-medium-emphasis">
+          Vollständiger Report (Logo, Datei-/Signal-Angaben, Zusatzfelder, Kennzahlen)
+          oder nur der Plot selbst?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="doExportPdf(false)">Nur Plot</v-btn>
+          <v-btn color="primary" variant="flat" @click="doExportPdf(true)">Vollständiger Report</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="showBatchScopeDialog" max-width="380">
+      <v-card>
+        <v-card-title class="text-subtitle-1">PDFs exportieren</v-card-title>
+        <v-card-text class="text-body-2 text-medium-emphasis">
+          Gilt für alle {{ mtStore.compareSeries.length }} PDFs im ZIP: vollständiger Report
+          oder nur der jeweilige Plot?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="doExportBatchZip(false)">Nur Plot</v-btn>
+          <v-btn color="primary" variant="flat" @click="doExportBatchZip(true)">Vollständiger Report</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -220,6 +264,9 @@ const buildingPdf = ref(false);
 const buildingBatch = ref(false);
 const batchProgress = ref(0);
 const batchZipName = ref("messtool_batch");
+const showPngLogoDialog = ref(false);
+const showPdfScopeDialog = ref(false);
+const showBatchScopeDialog = ref(false);
 
 const signalOptions = computed(() => {
   if (!mtStore.parsed) return [];
@@ -364,9 +411,56 @@ async function exportAllSignalsExcel() {
 
 async function exportPng() {
   if (!sig.value) return;
-  const dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
+  // Only worth asking if there's actually a logo to choose between —
+  // otherwise the question is meaningless, just export straight away.
+  if (reportSettings.logoDataUrl) {
+    showPngLogoDialog.value = true;
+  } else {
+    await doExportPng(false);
+  }
+}
+
+async function doExportPng(withLogo) {
+  showPngLogoDialog.value = false;
+  let dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
+  if (withLogo && reportSettings.logoDataUrl) {
+    dataUrl = await compositeLogoOntoPng(dataUrl, reportSettings.logoDataUrl, reportSettings.logoAspect);
+  }
   downloadDataUrl(dataUrl, exportFilename("png"));
   showToast("PNG heruntergeladen.");
+}
+
+// Draws the team logo into the top-right corner of an already-rendered
+// chart PNG — same "contain, don't stretch" fit as the PDF logo, sized
+// relative to the chart image itself rather than a fixed mm box (which
+// only makes sense on a physical page, not a raw pixel image).
+function compositeLogoOntoPng(chartDataUrl, logoDataUrl, logoAspect) {
+  return new Promise((resolve, reject) => {
+    const chartImg = new Image();
+    chartImg.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = chartImg.width;
+      canvas.height = chartImg.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(chartImg, 0, 0);
+
+      const logoImg = new Image();
+      logoImg.onload = () => {
+        const maxW = canvas.width * 0.2;
+        const maxH = canvas.height * 0.16;
+        const aspect = logoAspect > 0 ? logoAspect : maxW / maxH;
+        let w = maxW, h = maxW / aspect;
+        if (h > maxH) { h = maxH; w = maxH * aspect; }
+        const pad = canvas.width * 0.02;
+        ctx.drawImage(logoImg, canvas.width - w - pad, pad, w, h);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      logoImg.onerror = () => resolve(chartDataUrl); // logo failed to draw — still deliver the plot itself
+      logoImg.src = logoDataUrl;
+    };
+    chartImg.onerror = reject;
+    chartImg.src = chartDataUrl;
+  });
 }
 
 function exportSvg() {
@@ -392,20 +486,35 @@ function exportSvg() {
 // showMarkers should only be true when `s`/`t` genuinely belong to the
 // currently active file (mtStore.markers is scoped to that file) — batch-
 // exporting a different comparison file must leave it off.
-async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUrl = null, logoAspect = null, fields = [] } = {}) {
-  const y = s.data.filter((v) => v != null && Number.isFinite(v));
-  const mm = A.minMax(y);
-  const stats = {
-    mean: A.mean(y), rms: A.rms(y), std: A.stddev(y),
-    variance: A.variance(y), min: mm.min, max: mm.max,
-  };
-
+async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUrl = null, logoAspect = null, fields = [], fullReport = true } = {}) {
   const imgData = await renderOffscreenChart(s, t, 1000, 500, { showMarkers });
 
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 15;
+
+  // "Nur Plot" — the chart, as large as the page allows, with just the
+  // signal name as a minimal label. No logo, no header, no custom
+  // fields, no Kennzahlen — genuinely just the plot, for when someone
+  // wants to drop it straight into their own document instead of a
+  // standalone report.
+  if (!fullReport) {
+    doc.setFontSize(12);
+    doc.setTextColor(60);
+    doc.text(`${s.name}${s.unit ? ` [${s.unit}]` : ""}`, margin, 18);
+    const imgW = pageW - 2 * margin;
+    const imgH = imgW * 0.6;
+    doc.addImage(imgData, "PNG", margin, 24, imgW, imgH);
+    return doc;
+  }
+
+  const y = s.data.filter((v) => v != null && Number.isFinite(v));
+  const mm = A.minMax(y);
+  const stats = {
+    mean: A.mean(y), rms: A.rms(y), std: A.stddev(y),
+    variance: A.variance(y), min: mm.min, max: mm.max,
+  };
 
   // Logo top-right, if the team has one set (Admin → Report-Vorlage) —
   // fitted ("contain") within a max box using its real aspect ratio
@@ -427,33 +536,37 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
   doc.setFontSize(18);
   doc.text("Messtool – Analyse-Report", margin, 20);
 
+  doc.setFontSize(11);
+  doc.setTextColor(90);
+  doc.text("Fachgruppe Antrieb", margin, 26);
+
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text(`Datei: ${fileLabel || "-"}`, margin, 28);
-  doc.text(`Signal: ${s.name} [${s.unit || "-"}]`, margin, 34);
-  doc.text(`Erstellt: ${new Date().toLocaleString("de-DE")}`, margin, 40);
+  doc.text(`Datei: ${fileLabel || "-"}`, margin, 33);
+  doc.text(`Signal: ${s.name} [${s.unit || "-"}]`, margin, 39);
+  doc.text(`Erstellt: ${new Date().toLocaleString("de-DE")}`, margin, 45);
 
   // Custom fields (Admin defaults + whatever was added/edited just for
   // this export) — two-column layout so a handful of short fields don't
   // push the chart image far down the page.
-  let fieldsBottomY = 40;
+  let fieldsBottomY = 45;
   if (fields.length) {
     const colW = (pageW - 2 * margin) / 2;
     fields.forEach((f, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const fx = margin + col * colW;
-      const fy = 48 + row * 6;
+      const fy = 53 + row * 6;
       doc.text(`${f.label}:`, fx, fy);
       doc.text(String(f.value ?? ""), fx + Math.min(colW * 0.4, 35), fy);
       fieldsBottomY = fy;
     });
     fieldsBottomY += 6;
   } else {
-    fieldsBottomY = 44;
+    fieldsBottomY = 49;
   }
 
-  const imgY = Math.max(48, fieldsBottomY);
+  const imgY = Math.max(53, fieldsBottomY);
   const imgW = pageW - 2 * margin;
   const imgH = imgW * 0.5;
   doc.addImage(imgData, "PNG", margin, imgY, imgW, imgH);
@@ -487,8 +600,13 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
   return doc;
 }
 
-async function exportPdf() {
+function exportPdf() {
   if (!sig.value) return;
+  showPdfScopeDialog.value = true;
+}
+
+async function doExportPdf(fullReport) {
+  showPdfScopeDialog.value = false;
   buildingPdf.value = true;
   try {
     const doc = await buildReportPdf(sig.value, time.value, mtStore.fileName, {
@@ -496,9 +614,10 @@ async function exportPdf() {
       logoDataUrl: reportSettings.logoDataUrl,
       logoAspect: reportSettings.logoAspect,
       fields: exportFields.value.filter((f) => f.label.trim()),
+      fullReport,
     });
     doc.save(exportFilename("pdf"));
-    showToast("PDF-Report heruntergeladen.");
+    showToast("PDF heruntergeladen.");
   } finally {
     buildingPdf.value = false;
   }
@@ -511,6 +630,12 @@ async function exportPdf() {
 // Vergleich page — so picking two signals from the same file there
 // produces two PDFs here too, not just one.
 async function exportBatchZip() {
+  if (mtStore.compareSeries.length === 0) return;
+  showBatchScopeDialog.value = true;
+}
+
+async function doExportBatchZip(fullReport) {
+  showBatchScopeDialog.value = false;
   const series = mtStore.compareSeries;
   if (series.length === 0) return;
   buildingBatch.value = true;
@@ -526,6 +651,7 @@ async function exportBatchZip() {
         logoDataUrl: reportSettings.logoDataUrl,
         logoAspect: reportSettings.logoAspect,
         fields,
+        fullReport,
       });
       const baseName = s.fileName.replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
       const sigName = s.signal.name.replace(/[^\w.-]+/g, "_");
