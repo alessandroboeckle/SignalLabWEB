@@ -390,6 +390,13 @@ async function renderOffscreenChart(s, t, width = 1000, height = 500, { showMark
 
   const chart = new Chart(canvas.getContext("2d"), {
     type: "line",
+    // Forces 2x supersampling regardless of the exporting screen's own
+    // pixel density — Chart.js otherwise defaults to window.devicePixelRatio,
+    // so a "1200x600" export on a plain 1x monitor would come out at
+    // native 1200x600 with soft, slightly fuzzy text/lines once printed
+    // or zoomed in. This doubles the actual backing canvas resolution
+    // while keeping the layout math (font sizes, padding) the same.
+    devicePixelRatio: 2,
     data: {
       labels: rx,
       datasets: [{
@@ -445,7 +452,7 @@ async function exportPng() {
 async function doExportPng(withLogo) {
   if (!pngTitleInput.value.trim()) return; // required — the dialog's own button is disabled without it too, this is just the safety net
   showPngDialog.value = false;
-  const chartDataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
+  const chartDataUrl = await renderOffscreenChart(sig.value, time.value, 1800, 900, { showMarkers: true });
   const dataUrl = await composePngExport(chartDataUrl, {
     title: pngTitleInput.value.trim(),
     logoDataUrl: withLogo ? reportSettings.logoDataUrl : null,
@@ -466,8 +473,15 @@ function composePngExport(chartDataUrl, { title, logoDataUrl, logoAspect }) {
   return new Promise((resolve, reject) => {
     const chartImg = new Image();
     chartImg.onload = () => {
-      const frame = 24;
-      const titleH = 64;
+      // Frame/title/font sizes scale with the chart's own resolution
+      // (not fixed pixel counts) — otherwise a thin 24px frame that
+      // looked right against a 1200px-wide export reads as a hairline
+      // sliver against the higher-resolution export this now produces.
+      const scale = chartImg.width / 1800;
+      const frame = Math.round(24 * scale);
+      const titleH = Math.round(64 * scale);
+      const fontPx = Math.round(30 * scale);
+
       const canvas = document.createElement("canvas");
       canvas.width = chartImg.width + frame * 2;
       canvas.height = chartImg.height + titleH + frame * 2;
@@ -476,15 +490,15 @@ function composePngExport(chartDataUrl, { title, logoDataUrl, logoAspect }) {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.font = "600 30px Inter, system-ui, sans-serif";
+      ctx.font = `600 ${fontPx}px Inter, system-ui, sans-serif`;
       ctx.fillStyle = "#1e293b";
       ctx.textBaseline = "middle";
-      ctx.fillText(title, frame, frame + titleH / 2, canvas.width - frame * 2 - 160);
+      ctx.fillText(title, frame, frame + titleH / 2, canvas.width - frame * 2 - Math.round(160 * scale));
 
       ctx.drawImage(chartImg, frame, frame + titleH);
 
       ctx.strokeStyle = "#cbd5e1";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = Math.max(2, Math.round(2 * scale));
       ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
 
       const finish = () => resolve(canvas.toDataURL("image/png"));
@@ -492,7 +506,7 @@ function composePngExport(chartDataUrl, { title, logoDataUrl, logoAspect }) {
       if (logoDataUrl) {
         const logoImg = new Image();
         logoImg.onload = () => {
-          const maxW = 140, maxH = titleH - 16;
+          const maxW = Math.round(140 * scale), maxH = titleH - Math.round(16 * scale);
           const aspect = logoAspect > 0 ? logoAspect : maxW / maxH;
           let w = maxW, h = maxW / aspect;
           if (h > maxH) { h = maxH; w = maxH * aspect; }
@@ -534,7 +548,7 @@ function exportSvg() {
 // currently active file (mtStore.markers is scoped to that file) — batch-
 // exporting a different comparison file must leave it off.
 async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUrl = null, logoAspect = null, fields = [], fullReport = true } = {}) {
-  const imgData = await renderOffscreenChart(s, t, 1000, 500, { showMarkers });
+  const imgData = await renderOffscreenChart(s, t, 1600, 800, { showMarkers });
 
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
