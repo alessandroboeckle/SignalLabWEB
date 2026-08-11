@@ -178,16 +178,42 @@
       </v-row>
     </template>
 
-    <v-dialog v-model="showPngLogoDialog" max-width="360">
+    <v-dialog v-model="showPngDialog" max-width="420">
       <v-card>
         <v-card-title class="text-subtitle-1">PNG exportieren</v-card-title>
-        <v-card-text class="text-body-2 text-medium-emphasis">
-          Mit dem Team-Logo oben rechts, oder nur der reine Plot?
+        <v-card-text>
+          <v-text-field
+            v-model="pngTitleInput"
+            label="Überschrift"
+            variant="outlined"
+            density="comfortable"
+            :rules="[(v) => !!v.trim() || 'Überschrift ist erforderlich']"
+            autofocus
+            hide-details="auto"
+            class="mb-3"
+          ></v-text-field>
+          <p class="text-caption text-medium-emphasis mb-0">
+            Erscheint als Titel oben im Bild, mit Rahmen ums Ganze.
+          </p>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="doExportPng(false)">Nur Plot</v-btn>
-          <v-btn color="primary" variant="flat" @click="doExportPng(true)">Mit Logo</v-btn>
+          <v-btn
+            v-if="reportSettings.logoDataUrl"
+            variant="text"
+            :disabled="!pngTitleInput.trim()"
+            @click="doExportPng(false)"
+          >
+            Ohne Logo
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :disabled="!pngTitleInput.trim()"
+            @click="doExportPng(!!reportSettings.logoDataUrl)"
+          >
+            {{ reportSettings.logoDataUrl ? "Mit Logo" : "Exportieren" }}
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -264,7 +290,8 @@ const buildingPdf = ref(false);
 const buildingBatch = ref(false);
 const batchProgress = ref(0);
 const batchZipName = ref("messtool_batch");
-const showPngLogoDialog = ref(false);
+const showPngDialog = ref(false);
+const pngTitleInput = ref("");
 const showPdfScopeDialog = ref(false);
 const showBatchScopeDialog = ref(false);
 
@@ -411,52 +438,72 @@ async function exportAllSignalsExcel() {
 
 async function exportPng() {
   if (!sig.value) return;
-  // Only worth asking if there's actually a logo to choose between —
-  // otherwise the question is meaningless, just export straight away.
-  if (reportSettings.logoDataUrl) {
-    showPngLogoDialog.value = true;
-  } else {
-    await doExportPng(false);
-  }
+  pngTitleInput.value = `${sig.value.name}${sig.value.unit ? ` [${sig.value.unit}]` : ""}`;
+  showPngDialog.value = true;
 }
 
 async function doExportPng(withLogo) {
-  showPngLogoDialog.value = false;
-  let dataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
-  if (withLogo && reportSettings.logoDataUrl) {
-    dataUrl = await compositeLogoOntoPng(dataUrl, reportSettings.logoDataUrl, reportSettings.logoAspect);
-  }
+  if (!pngTitleInput.value.trim()) return; // required — the dialog's own button is disabled without it too, this is just the safety net
+  showPngDialog.value = false;
+  const chartDataUrl = await renderOffscreenChart(sig.value, time.value, 1200, 600, { showMarkers: true });
+  const dataUrl = await composePngExport(chartDataUrl, {
+    title: pngTitleInput.value.trim(),
+    logoDataUrl: withLogo ? reportSettings.logoDataUrl : null,
+    logoAspect: reportSettings.logoAspect,
+  });
   downloadDataUrl(dataUrl, exportFilename("png"));
   showToast("PNG heruntergeladen.");
 }
 
-// Draws the team logo into the top-right corner of an already-rendered
-// chart PNG — same "contain, don't stretch" fit as the PDF logo, sized
-// relative to the chart image itself rather than a fixed mm box (which
-// only makes sense on a physical page, not a raw pixel image).
-function compositeLogoOntoPng(chartDataUrl, logoDataUrl, logoAspect) {
+// Builds the actual exported PNG on its own canvas rather than just
+// handing out the bare Chart.js render: a title bar (the chart's own
+// legend text was the only "heading" before — easy to miss, not
+// something you'd choose yourself) and a frame around the whole thing,
+// so the export reads as a finished image rather than a screenshot of a
+// chart. Logo (if requested) sits in the title bar, vertically centered
+// against it rather than overlapping the plot area.
+function composePngExport(chartDataUrl, { title, logoDataUrl, logoAspect }) {
   return new Promise((resolve, reject) => {
     const chartImg = new Image();
     chartImg.onload = () => {
+      const frame = 24;
+      const titleH = 64;
       const canvas = document.createElement("canvas");
-      canvas.width = chartImg.width;
-      canvas.height = chartImg.height;
+      canvas.width = chartImg.width + frame * 2;
+      canvas.height = chartImg.height + titleH + frame * 2;
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(chartImg, 0, 0);
 
-      const logoImg = new Image();
-      logoImg.onload = () => {
-        const maxW = canvas.width * 0.2;
-        const maxH = canvas.height * 0.16;
-        const aspect = logoAspect > 0 ? logoAspect : maxW / maxH;
-        let w = maxW, h = maxW / aspect;
-        if (h > maxH) { h = maxH; w = maxH * aspect; }
-        const pad = canvas.width * 0.02;
-        ctx.drawImage(logoImg, canvas.width - w - pad, pad, w, h);
-        resolve(canvas.toDataURL("image/png"));
-      };
-      logoImg.onerror = () => resolve(chartDataUrl); // logo failed to draw — still deliver the plot itself
-      logoImg.src = logoDataUrl;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = "600 30px Inter, system-ui, sans-serif";
+      ctx.fillStyle = "#1e293b";
+      ctx.textBaseline = "middle";
+      ctx.fillText(title, frame, frame + titleH / 2, canvas.width - frame * 2 - 160);
+
+      ctx.drawImage(chartImg, frame, frame + titleH);
+
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+
+      const finish = () => resolve(canvas.toDataURL("image/png"));
+
+      if (logoDataUrl) {
+        const logoImg = new Image();
+        logoImg.onload = () => {
+          const maxW = 140, maxH = titleH - 16;
+          const aspect = logoAspect > 0 ? logoAspect : maxW / maxH;
+          let w = maxW, h = maxW / aspect;
+          if (h > maxH) { h = maxH; w = maxH * aspect; }
+          ctx.drawImage(logoImg, canvas.width - frame - w, frame + (titleH - h) / 2, w, h);
+          finish();
+        };
+        logoImg.onerror = finish; // logo failed to draw — still deliver the framed+titled export
+        logoImg.src = logoDataUrl;
+      } else {
+        finish();
+      }
     };
     chartImg.onerror = reject;
     chartImg.src = chartDataUrl;
