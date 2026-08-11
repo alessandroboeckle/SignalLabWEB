@@ -339,6 +339,14 @@
           ></v-switch>
         </template>
 
+        <v-switch
+          v-model="showFrequencyResponse"
+          color="secondary"
+          density="compact"
+          hide-details
+          label="Frequenzgang anzeigen"
+        ></v-switch>
+
         <span class="text-caption text-medium-emphasis">
           {{ displayMode === "overlay" ? "Alle Signale in einem Chart übereinander" : "Jedes Signal als eigenes Chart untereinander" }}
           <template v-if="xAxisMode === 'uhrzeit' && displayMode === 'overlay' && mtStore.compareFiles.length > 1">
@@ -346,6 +354,26 @@
           </template>
         </span>
       </div>
+
+      <!-- Frequency response — amplitude + phase spectrum (Hann window)
+           for every currently compared signal, overlaid so signals can be
+           compared directly in the frequency domain too, not just time. -->
+      <template v-if="showFrequencyResponse">
+        <ChartCard
+          title="Frequenzgang — Amplitude (FFT)"
+          :config="freqAmplitudeConfig"
+          :height="260"
+          hide-playback
+          class="mb-4"
+        />
+        <ChartCard
+          title="Frequenzgang — Phase (FFT)"
+          :config="freqPhaseConfig"
+          :height="260"
+          hide-playback
+          class="mb-4"
+        />
+      </template>
 
       <!-- Overlay chart -->
       <ChartCard v-if="displayMode === 'overlay'" title="Überlagerte Signale" :config="overlayConfig" :height="bigMode ? 700 : 380" />
@@ -567,6 +595,58 @@ const xAxisMode = ref("zeit"); // 'zeit' (elapsed seconds) | 'uhrzeit' (real clo
 const bigMode = ref(false); // show every chart bigger, one page's worth at a time
 const syncCursors = ref(false); // cursors placed on one Gestapelt chart appear on all of them
 const syncZoom = ref(true); // zoom/pan on one Gestapelt chart applies to all of them (existing default behavior)
+
+const showFrequencyResponse = ref(false);
+
+// FFT (Hann window) of every currently compared signal's full-resolution
+// data — NOT the downsampled data the time-domain charts use, since
+// downsampling for display would distort the actual spectral content.
+// Recomputes only when the toggle is on and compareSeries changes, not on
+// every render (FFT over long signals isn't free).
+const freqSpectra = computed(() => {
+  if (!showFrequencyResponse.value) return [];
+  return mtStore.compareSeries.map((s) => {
+    const result = A.fft(s.signal.data, s.time, { windowType: "hann", normalize: true });
+    return {
+      key: s.key,
+      label: `${s.fileName} — ${s.signal.name}`,
+      color: s.color,
+      ...result,
+    };
+  });
+});
+
+function freqChartConfig(field, yLabel) {
+  return () => {
+    const spectra = freqSpectra.value;
+    if (!spectra.length) return { type: "line", data: { labels: [], datasets: [] } };
+    return {
+      type: "line",
+      data: {
+        datasets: spectra.map((sp) => ({
+          label: sp.label,
+          data: sp.freq.map((f, i) => ({ x: f, y: sp[field][i] })),
+          borderColor: sp.color,
+          backgroundColor: sp.color,
+          borderWidth: 1.5,
+          pointRadius: 0,
+        })),
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        parsing: false,
+        scales: {
+          x: { type: "logarithmic", title: { display: true, text: "Frequenz [Hz] (log)" } },
+          y: { title: { display: true, text: yLabel } },
+        },
+      },
+    };
+  };
+}
+
+const freqAmplitudeConfig = computed(() => freqChartConfig("amp", "Amplitude"));
+const freqPhaseConfig = computed(() => freqChartConfig("phaseDeg", "Phase [°]"));
 
 // Lets specific signals share a chart within the Gestapelt view instead
 // of every signal always getting its own row — e.g. plot #3 together

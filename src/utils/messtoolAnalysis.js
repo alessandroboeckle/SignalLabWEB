@@ -231,11 +231,11 @@ function fftRadix2(re, im) {
   return { re, im };
 }
 
-// Compute single-sided amplitude spectrum.
-// Returns { freq:[Hz], amp:[], sampleRate }.
+// Compute single-sided amplitude (+ phase) spectrum.
+// Returns { freq:[Hz], amp:[], phaseDeg:[], sampleRate }.
 export function fft(y, t, { windowType = "hann", normalize = true } = {}) {
   const N = y.length;
-  if (N < 2) return { freq: [], amp: [], sampleRate: 0 };
+  if (N < 2) return { freq: [], amp: [], phaseDeg: [], sampleRate: 0 };
 
   const T = t[t.length - 1] - t[0];
   const sampleRate = N / T;
@@ -252,6 +252,7 @@ export function fft(y, t, { windowType = "hann", normalize = true } = {}) {
   const half = Math.floor(N / 2) + 1;
   const freq = new Array(half);
   const amp = new Array(half);
+  const phaseDeg = new Array(half);
   for (let k = 0; k < half; k++) {
     freq[k] = (k * sampleRate) / N;
     let a = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
@@ -261,6 +262,7 @@ export function fft(y, t, { windowType = "hann", normalize = true } = {}) {
     // uniformly to every bin the same way that code does.
     if (normalize) a = (a * 2) / N;
     amp[k] = a;
+    phaseDeg[k] = (Math.atan2(im[k], re[k]) * 180) / Math.PI;
   }
-  return { freq, amp, sampleRate };
+  return { freq, amp, phaseDeg, sampleRate };
 }

@@ -102,6 +102,26 @@ describe("fft — amplitude scaling and non-power-of-2 lengths", () => {
     expect(amp[peakIdx]).toBeCloseTo(amplitude, 1);
   });
 
+  it("phase spectrum: a pure cosine (phase 0) peaks near 0°, a pure sine (phase -90°) peaks near -90°, at the tone's own bin", () => {
+    // Used by the Anzeige page's new phase-frequency-response plot —
+    // this locks in that phaseDeg is actually meaningful (matches the
+    // real phase of a known tone), not just present.
+    const N = 300;
+    const fs = 100;
+    const freqHz = 10;
+    const t = Array.from({ length: N }, (_, i) => i / fs);
+
+    const yCos = t.map((ti) => Math.cos(2 * Math.PI * freqHz * ti));
+    const cosResult = fft(yCos, t, { windowType: "none", normalize: true });
+    const cosPeakIdx = cosResult.amp.indexOf(Math.max(...cosResult.amp));
+    expect(cosResult.phaseDeg[cosPeakIdx]).toBeCloseTo(0, 0);
+
+    const ySin = t.map((ti) => Math.sin(2 * Math.PI * freqHz * ti));
+    const sinResult = fft(ySin, t, { windowType: "none", normalize: true });
+    const sinPeakIdx = sinResult.amp.indexOf(Math.max(...sinResult.amp));
+    expect(sinResult.phaseDeg[sinPeakIdx]).toBeCloseTo(-90, 0);
+  });
+
   it("has exactly N//2 + 1 bins (matches numpy/scipy's rfft convention), not a power-of-2-padded count", () => {
     const N = 137; // prime, nowhere near a power of 2
     const t = Array.from({ length: N }, (_, i) => i / 50);
