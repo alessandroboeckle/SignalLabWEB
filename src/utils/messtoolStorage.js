@@ -58,14 +58,36 @@ export async function listMessfiles() {
 }
 
 // Moves a file into a folder (or null to take it out of any folder).
-// Folders aren't a separate table — just a text label on the file row —
-// so "creating" a folder is nothing more than assigning a new name here
-// for the first time.
 export async function setMessfileFolder(id, folder) {
   const { error } = await supabase
     .from("messfiles")
     .update({ folder: folder || null })
     .eq("id", id);
+  if (error) throw error;
+}
+
+// Folders registered independently of any file (see add_folder_registry.sql)
+// — lets "Ordner erstellen" make a genuinely empty folder, and a folder
+// created this way still shows up in the list even before anything's
+// been moved into it.
+export async function listFolders() {
+  const { data, error } = await supabase
+    .from("messfile_folders")
+    .select("name")
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data || []).map((row) => row.name);
+}
+
+export async function createFolder(name) {
+  const { error } = await supabase.from("messfile_folders").insert({ name });
+  // Someone else already created a folder with this exact name — that's
+  // fine, not an error worth surfacing, the folder exists either way.
+  if (error && error.code !== "23505") throw error;
+}
+
+export async function deleteFolder(name) {
+  const { error } = await supabase.from("messfile_folders").delete().eq("name", name);
   if (error) throw error;
 }
 

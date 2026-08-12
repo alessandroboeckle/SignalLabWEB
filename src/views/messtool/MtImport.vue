@@ -525,6 +525,9 @@
           >
             {{ folder }} ({{ cloudFiles.filter((f) => f.folder === folder).length }})
           </v-chip>
+          <v-btn size="small" variant="outlined" prepend-icon="mdi-folder-plus-outline" @click="showCreateFolderDialog = true">
+            Ordner erstellen
+          </v-btn>
         </div>
         <v-divider></v-divider>
 
@@ -606,6 +609,35 @@
       </template>
     </v-card>
 
+    <v-dialog v-model="showCreateFolderDialog" max-width="360">
+      <v-card>
+        <v-card-title class="text-subtitle-1">Ordner erstellen</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="newFolderNameInput"
+            label="Ordnername"
+            variant="outlined"
+            density="comfortable"
+            autofocus
+            hide-details
+            @keyup.enter="createFolderNow"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showCreateFolderDialog = false">Abbrechen</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :disabled="!newFolderNameInput.trim()"
+            :loading="creatingFolder"
+            @click="createFolderNow"
+          >
+            Erstellen
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -737,11 +769,37 @@ function buildParseOptions() {
 const cloudFiles = ref([]);
 const recentFiles = ref(listRecentFiles());
 const activeFolder = ref("__all__"); // "__all__" | "__none__" | actual folder name
+const registeredFolders = ref([]); // folders that exist even with zero files in them (see add_folder_registry.sql)
+const showCreateFolderDialog = ref(false);
+const newFolderNameInput = ref("");
+const creatingFolder = ref(false);
 
-const folders = computed(() =>
-  [...new Set(cloudFiles.value.map((f) => f.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
-);
+// Registered (possibly-empty) folders merged with anything already on a
+// file — covers data from before add_folder_registry.sql existed, or if
+// that migration hasn't been run yet, without treating either source as
+// the sole truth.
+const folders = computed(() => {
+  const fromFiles = cloudFiles.value.map((f) => f.folder).filter(Boolean);
+  return [...new Set([...registeredFolders.value, ...fromFiles])].sort((a, b) => a.localeCompare(b));
+});
 const unfiledCount = computed(() => cloudFiles.value.filter((f) => !f.folder).length);
+
+async function createFolderNow() {
+  const name = newFolderNameInput.value.trim();
+  if (!name) return;
+  creatingFolder.value = true;
+  try {
+    await mtStorage.createFolder(name);
+    if (!registeredFolders.value.includes(name)) registeredFolders.value.push(name);
+    activeFolder.value = name;
+    showCreateFolderDialog.value = false;
+    newFolderNameInput.value = "";
+    showToast(`Ordner "${name}" erstellt.`);
+  } catch (e) {
+    errorMsg.value = "Ordner konnte nicht erstellt werden: " + (e.message || e);
+  }
+  creatingFolder.value = false;
+}
 
 const folderFilteredFiles = computed(() => {
   if (activeFolder.value === "__all__") return cloudFiles.value;
@@ -797,15 +855,19 @@ async function moveFileToFolder(f, folder) {
   f.folder = folder || null; // optimistic — feels instant, matches the rest of the list's snappiness
   try {
     await mtStorage.setMessfileFolder(f.id, folder);
+    if (folder && !registeredFolders.value.includes(folder)) {
+      registeredFolders.value.push(folder);
+      mtStorage.createFolder(folder).catch(() => {}); // best effort — worst case it just falls back to file-derived next reload
+    }
   } catch (e) {
     f.folder = previous; // roll back on failure
     errorMsg.value = "Ordner konnte nicht gespeichert werden: " + (e.message || e);
   }
 }
 
-// Folders are just a label on each file, so "deleting" one only means
-// taking every file in it back out — nothing else exists to clean up.
-// Renaming means the same thing with a new label instead of null.
+// Renaming/dissolving touches both the registry entry and every file
+// still carrying the old name — otherwise a renamed folder would keep
+// existing under its old name too (now empty, but still registered).
 async function renameOrDeleteFolder(folder) {
   const newName = prompt(`Ordner "${folder}" umbenennen (leer lassen zum Auflösen):`, folder);
   if (newName === null) return; // cancelled
@@ -814,6 +876,14 @@ async function renameOrDeleteFolder(folder) {
   for (const f of affected) {
     await moveFileToFolder(f, target);
   }
+  try {
+    if (target) await mtStorage.createFolder(target);
+    await mtStorage.deleteFolder(folder);
+  } catch (e) {
+    errorMsg.value = "Ordner-Registrierung konnte nicht aktualisiert werden: " + (e.message || e);
+  }
+  registeredFolders.value = registeredFolders.value.filter((f) => f !== folder);
+  if (target && !registeredFolders.value.includes(target)) registeredFolders.value.push(target);
   if (activeFolder.value === folder) activeFolder.value = target || "__none__";
 }
 
@@ -1129,6 +1199,13 @@ async function loadList() {
     cloudFiles.value = await withTimeout(mtStorage.listMessfiles(), 25000, "Zeitüberschreitung beim Laden der Cloud-Liste.");
   } catch (e) {
     errorMsg.value = "Liste konnte nicht geladen werden: " + (e.message || e);
+  }
+  try {
+    registeredFolders.value = await mtStorage.listFolders();
+  } catch {
+    // Migration (add_folder_registry.sql) not run yet, or offline —
+    // folders just fall back to whatever's inferred from the files
+    // themselves instead of blocking the whole file list on this.
   }
   loadingList.value = false;
 }
