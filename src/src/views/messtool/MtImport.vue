@@ -3,6 +3,9 @@
     <div class="d-flex align-center mb-2">
       <v-icon color="primary" size="28" class="mr-3">mdi-file-upload</v-icon>
       <h2 class="text-h5 font-weight-bold">Import</h2>
+    
+      <v-spacer></v-spacer>
+      <HelpIconButton section="messtool-import" label="Import" />
     </div>
     <p class="text-medium-emphasis mb-6">Messdatei laden (LOGDATA-CSV oder Excel/.xlsx)</p>
 
@@ -248,7 +251,7 @@
         <v-spacer></v-spacer>
         <v-btn
           variant="outlined"
-          prepend-icon="mdi-chart-multiple-outline"
+          prepend-icon="mdi-chart-multiple"
           class="mr-2"
           :disabled="mtStore.compareFiles.some((f) => f.name === fileName)"
           @click="addCurrentToCompare"
@@ -282,27 +285,27 @@
 
       <v-row class="mb-4">
         <v-col cols="6" sm="3">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h5 font-weight-bold">{{ parsed.meta.signalCount }}</div>
-            <div class="text-caption">Signale</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">Signale</div>
+            <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ parsed.meta.signalCount }}</div>
           </v-card>
         </v-col>
         <v-col cols="6" sm="3">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h5 font-weight-bold">{{ combinedRowCount.toLocaleString() }}</div>
-            <div class="text-caption">Messpunkte{{ combinedStats ? " (kombiniert)" : "" }}</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">Messpunkte{{ combinedStats ? " (kombiniert)" : "" }}</div>
+            <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ combinedRowCount.toLocaleString() }}</div>
           </v-card>
         </v-col>
         <v-col cols="6" sm="3">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h5 font-weight-bold">{{ formatDuration(combinedDuration) }}</div>
-            <div class="text-caption">Dauer{{ combinedStats ? " (kombiniert)" : "" }}</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">Dauer{{ combinedStats ? " (kombiniert)" : "" }}</div>
+            <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ formatDuration(combinedDuration) }}</div>
           </v-card>
         </v-col>
         <v-col cols="6" sm="3">
-          <v-card variant="tonal" color="primary" class="pa-3 text-center">
-            <div class="text-h6 font-weight-bold text-truncate">{{ fileName }}</div>
-            <div class="text-caption">Datei</div>
+          <v-card variant="outlined" class="pa-3 text-center stat-card">
+            <div class="text-overline text-medium-emphasis stat-card__label">Datei</div>
+            <div class="text-body-1 font-weight-bold font-mono text-truncate stat-card__value">{{ fileName }}</div>
           </v-card>
         </v-col>
       </v-row>
@@ -395,27 +398,27 @@
           />
           <v-row v-if="selectedSignal" dense class="mt-1">
             <v-col cols="6" sm="3">
-              <v-card variant="outlined" class="pa-2 text-center">
-                <div class="text-body-2 font-weight-bold">{{ previewStats.mean }}</div>
-                <div class="text-caption text-medium-emphasis">Mittel</div>
+              <v-card variant="outlined" class="pa-2 text-center stat-card">
+                <div class="text-overline text-medium-emphasis stat-card__label">Mittel</div>
+                <div class="text-body-1 font-weight-bold font-mono stat-card__value">{{ previewStats.mean }}</div>
               </v-card>
             </v-col>
             <v-col cols="6" sm="3">
-              <v-card variant="outlined" class="pa-2 text-center">
-                <div class="text-body-2 font-weight-bold">{{ previewStats.rms }}</div>
-                <div class="text-caption text-medium-emphasis">RMS</div>
+              <v-card variant="outlined" class="pa-2 text-center stat-card">
+                <div class="text-overline text-medium-emphasis stat-card__label">RMS</div>
+                <div class="text-body-1 font-weight-bold font-mono stat-card__value">{{ previewStats.rms }}</div>
               </v-card>
             </v-col>
             <v-col cols="6" sm="3">
-              <v-card variant="outlined" class="pa-2 text-center">
-                <div class="text-body-2 font-weight-bold">{{ previewStats.min }}</div>
-                <div class="text-caption text-medium-emphasis">Min</div>
+              <v-card variant="outlined" class="pa-2 text-center stat-card">
+                <div class="text-overline text-medium-emphasis stat-card__label">Min</div>
+                <div class="text-body-1 font-weight-bold font-mono stat-card__value">{{ previewStats.min }}</div>
               </v-card>
             </v-col>
             <v-col cols="6" sm="3">
-              <v-card variant="outlined" class="pa-2 text-center">
-                <div class="text-body-2 font-weight-bold">{{ previewStats.max }}</div>
-                <div class="text-caption text-medium-emphasis">Max</div>
+              <v-card variant="outlined" class="pa-2 text-center stat-card">
+                <div class="text-overline text-medium-emphasis stat-card__label">Max</div>
+                <div class="text-body-1 font-weight-bold font-mono stat-card__value">{{ previewStats.max }}</div>
               </v-card>
             </v-col>
           </v-row>
@@ -478,11 +481,53 @@
         </template>
         <v-btn size="small" variant="text" icon="mdi-refresh" aria-label="Liste aktualisieren" :loading="loadingList" @click="loadList"></v-btn>
       </v-card-title>
+      <v-card-subtitle v-if="cloudFiles.length > 0" class="pb-2">
+        {{ cloudFiles.length }} Datei(en) insgesamt • {{ formatBytes(totalStorageBytes) }} belegt
+        <template v-if="activeFolder !== '__all__' && folderFilteredFiles.length !== cloudFiles.length">
+          — {{ activeFolderLabel }}: {{ folderFilteredFiles.length }} Datei(en), {{ formatBytes(folderStorageBytes) }}
+        </template>
+      </v-card-subtitle>
       <v-divider></v-divider>
       <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
         Noch keine Dateien in der Cloud.
       </div>
       <template v-else>
+        <!-- Folder filter -->
+        <div class="d-flex flex-wrap align-center ga-2 px-4 py-2">
+          <v-chip
+            :variant="activeFolder === '__all__' ? 'flat' : 'outlined'"
+            :color="activeFolder === '__all__' ? 'primary' : 'default'"
+            size="small"
+            @click="activeFolder = '__all__'"
+          >
+            Alle ({{ cloudFiles.length }})
+          </v-chip>
+          <v-chip
+            v-if="unfiledCount > 0"
+            :variant="activeFolder === '__none__' ? 'flat' : 'outlined'"
+            :color="activeFolder === '__none__' ? 'primary' : 'default'"
+            size="small"
+            prepend-icon="mdi-folder-off-outline"
+            @click="activeFolder = '__none__'"
+          >
+            Ohne Ordner ({{ unfiledCount }})
+          </v-chip>
+          <v-chip
+            v-for="folder in folders"
+            :key="folder"
+            :variant="activeFolder === folder ? 'flat' : 'outlined'"
+            :color="activeFolder === folder ? 'primary' : 'default'"
+            size="small"
+            prepend-icon="mdi-folder-outline"
+            closable
+            @click="activeFolder = folder"
+            @click:close="renameOrDeleteFolder(folder)"
+          >
+            {{ folder }} ({{ cloudFiles.filter((f) => f.folder === folder).length }})
+          </v-chip>
+        </div>
+        <v-divider></v-divider>
+
         <div class="d-flex align-center ga-2 px-4 py-2">
           <v-checkbox-btn
             :model-value="allCloudFilesSelected"
@@ -494,46 +539,70 @@
           <span class="text-caption text-medium-emphasis">Alle auswählen</span>
         </div>
         <v-divider></v-divider>
-        <!-- Plain flex rows instead of v-list-item: v-list-item's fixed
-             prepend/title/append columns don't reflow on narrow screens —
-             the title/subtitle get squeezed to nothing while the append
-             icon buttons keep their size, so on a phone-width viewport
-             you'd end up with just a strip of overlapping icons and no
-             filename in sight. This wraps properly instead. -->
-        <div
-          v-for="f in cloudFiles"
-          :key="f.id"
-          class="d-flex flex-wrap align-center ga-2 px-4 py-3 cloud-file-row"
-        >
-          <v-checkbox-btn
-            :model-value="selectedCloudIds.includes(f.id)"
-            :aria-label="`${f.name} auswählen`"
-            density="compact"
-            @update:model-value="toggleCloudSelection(f.id)"
-          ></v-checkbox-btn>
-          <v-icon color="primary">mdi-file-chart</v-icon>
-          <div class="flex-grow-1" style="min-width: 180px">
-            <div class="font-weight-medium text-body-2 text-truncate">{{ f.name }}</div>
-            <div class="text-caption text-medium-emphasis">
-              {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
-              {{ (f.size_bytes / 1048576).toFixed(1) }} MB • {{ formatDate(f.created_at) }}
+
+        <!-- "Alle" gets real folder structure — a collapsible section per
+             folder (+ "Ohne Ordner"), each date-grouped inside — instead
+             of just a flat chronological list with filter chips as the
+             only sense of organization. Filtering to one specific folder
+             via the chips above skips this extra layer since it'd just
+             be one section containing everything anyway. -->
+        <v-expansion-panels v-if="activeFolder === '__all__'" v-model="openFolderSections" multiple variant="accordion">
+          <v-expansion-panel v-for="section in folderSections" :key="section.key" :value="section.key">
+            <v-expansion-panel-title>
+              <v-icon size="18" class="mr-2">{{ section.key === "__none__" ? "mdi-folder-off-outline" : "mdi-folder-outline" }}</v-icon>
+              <span class="font-weight-medium">{{ section.label }}</span>
+              <span class="text-caption text-medium-emphasis ml-2">
+                {{ section.files.length }} Datei(en) • {{ formatBytes(section.bytes) }}
+              </span>
+            </v-expansion-panel-title>
+            <v-expansion-panel-text class="pa-0">
+              <template v-for="group in groupByDate(section.files)" :key="group.label">
+                <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
+                  {{ group.label }}
+                </div>
+                <CloudFileRow
+                  v-for="f in group.items"
+                  :key="f.id"
+                  :file="f"
+                  :selected="selectedCloudIds.includes(f.id)"
+                  :folders="folders"
+                  :adding="compareAddingId === f.id"
+                  :opening="busyId === f.id"
+                  :format-date="formatDate"
+                  :show-folder-chip="false"
+                  @toggle-select="toggleCloudSelection(f.id)"
+                  @move-folder="(val) => moveFileToFolder(f, val)"
+                  @add-to-compare="addCloudFileToCompare(f)"
+                  @open="openCloudFile(f)"
+                  @remove="removeCloudFile(f)"
+                />
+              </template>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+
+        <template v-else>
+          <template v-for="group in groupedCloudFiles" :key="group.label">
+            <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
+              {{ group.label }}
             </div>
-          </div>
-          <div class="d-flex flex-wrap ga-1">
-            <v-btn
-              size="small" variant="text" icon="mdi-chart-multiple-outline"
-              :loading="compareAddingId === f.id"
-              @click="addCloudFileToCompare(f)"
-            >
-              <v-icon>mdi-chart-multiple-outline</v-icon>
-              <v-tooltip activator="parent" location="bottom">Zur Anzeige hinzufügen</v-tooltip>
-            </v-btn>
-            <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
-              Öffnen
-            </v-btn>
-            <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} löschen`" @click="removeCloudFile(f)"></v-btn>
-          </div>
-        </div>
+            <CloudFileRow
+              v-for="f in group.items"
+              :key="f.id"
+              :file="f"
+              :selected="selectedCloudIds.includes(f.id)"
+              :folders="folders"
+              :adding="compareAddingId === f.id"
+              :opening="busyId === f.id"
+              :format-date="formatDate"
+              @toggle-select="toggleCloudSelection(f.id)"
+              @move-folder="(val) => moveFileToFolder(f, val)"
+              @add-to-compare="addCloudFileToCompare(f)"
+              @open="openCloudFile(f)"
+              @remove="removeCloudFile(f)"
+            />
+          </template>
+        </template>
       </template>
     </v-card>
 
@@ -541,16 +610,21 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, watch, onMounted } from "vue";
 import { decodeLatin1 } from "../../utils/messtoolParser.js";
 import { listExcelSheets, parseMesstoolExcel } from "../../utils/messtoolExcelParser.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
+import { groupByDate } from "../../utils/groupByDate.js";
+import { formatBytes } from "../../utils/formatBytes.js";
+import { withTimeout } from "../../utils/withTimeout.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { showToast } from "../../composables/useToast.js";
 import { listRecentFiles, addRecentFile } from "../../utils/recentFiles.js";
 import ChartCard from "./ChartCard.vue";
+import HelpIconButton from "../../components/HelpIconButton.vue";
+import CloudFileRow from "../../components/CloudFileRow.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const emit = defineEmits(["navigate"]);
@@ -662,6 +736,86 @@ function buildParseOptions() {
 // cloud state
 const cloudFiles = ref([]);
 const recentFiles = ref(listRecentFiles());
+const activeFolder = ref("__all__"); // "__all__" | "__none__" | actual folder name
+
+const folders = computed(() =>
+  [...new Set(cloudFiles.value.map((f) => f.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+);
+const unfiledCount = computed(() => cloudFiles.value.filter((f) => !f.folder).length);
+
+const folderFilteredFiles = computed(() => {
+  if (activeFolder.value === "__all__") return cloudFiles.value;
+  if (activeFolder.value === "__none__") return cloudFiles.value.filter((f) => !f.folder);
+  return cloudFiles.value.filter((f) => f.folder === activeFolder.value);
+});
+const groupedCloudFiles = computed(() => groupByDate(folderFilteredFiles.value));
+
+// Folder-first structure for the "Alle" view — one section per folder
+// (+ "Ohne Ordner" last, only if it has anything), each carrying its own
+// file count/size so you don't have to expand it just to see how big it
+// is.
+const folderSections = computed(() => {
+  const sections = folders.value.map((folder) => {
+    const files = cloudFiles.value.filter((f) => f.folder === folder);
+    return { key: folder, label: folder, files, bytes: files.reduce((sum, f) => sum + (f.size_bytes || 0), 0) };
+  });
+  const unfiled = cloudFiles.value.filter((f) => !f.folder);
+  if (unfiled.length) {
+    sections.push({ key: "__none__", label: "Ohne Ordner", files: unfiled, bytes: unfiled.reduce((sum, f) => sum + (f.size_bytes || 0), 0) });
+  }
+  return sections;
+});
+// All sections start expanded — collapsing is for tidying away a folder
+// you're not currently interested in, not a default "everything hidden"
+// state that would just hide files people expect to see immediately.
+const openFolderSections = ref([]);
+const seenFolderKeys = new Set(); // tracks which folders we've ever shown, so a later reload doesn't force-reopen ones the user deliberately collapsed
+watch(folderSections, (sections) => {
+  const currentKeys = new Set(sections.map((s) => s.key));
+  const newlyAppeared = sections.filter((s) => !seenFolderKeys.has(s.key)).map((s) => s.key);
+  for (const k of currentKeys) seenFolderKeys.add(k);
+  const stillOpen = openFolderSections.value.filter((k) => currentKeys.has(k));
+  openFolderSections.value = [...new Set([...stillOpen, ...newlyAppeared])];
+}, { immediate: true });
+
+const totalStorageBytes = computed(() => cloudFiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
+const folderStorageBytes = computed(() => folderFilteredFiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
+const activeFolderLabel = computed(() => (activeFolder.value === "__none__" ? "Ohne Ordner" : activeFolder.value));
+
+// If the folder you're currently looking at disappears (its last file got
+// moved/deleted elsewhere), don't keep silently filtering to nothing —
+// fall back to "Alle" instead of showing an empty list with no obvious
+// way out.
+watch(folders, (list) => {
+  if (activeFolder.value !== "__all__" && activeFolder.value !== "__none__" && !list.includes(activeFolder.value)) {
+    activeFolder.value = "__all__";
+  }
+});
+
+async function moveFileToFolder(f, folder) {
+  const previous = f.folder;
+  f.folder = folder || null; // optimistic — feels instant, matches the rest of the list's snappiness
+  try {
+    await mtStorage.setMessfileFolder(f.id, folder);
+  } catch (e) {
+    f.folder = previous; // roll back on failure
+    errorMsg.value = "Ordner konnte nicht gespeichert werden: " + (e.message || e);
+  }
+}
+
+// Folders are just a label on each file, so "deleting" one only means
+// taking every file in it back out — nothing else exists to clean up.
+// Renaming means the same thing with a new label instead of null.
+async function renameOrDeleteFolder(folder) {
+  const newName = prompt(`Ordner "${folder}" umbenennen (leer lassen zum Auflösen):`, folder);
+  if (newName === null) return; // cancelled
+  const target = newName.trim() || null;
+  const affected = cloudFiles.value.filter((f) => f.folder === folder);
+  for (const f of affected) {
+    await moveFileToFolder(f, target);
+  }
+  if (activeFolder.value === folder) activeFolder.value = target || "__none__";
+}
 
 function openRecentFile(entry) {
   if (!entry.storagePath) return; // raw local upload, never saved — nothing to re-fetch
@@ -877,7 +1031,7 @@ async function addSelectedToCompare() {
   for (const f of files) {
     if (mtStore.compareFiles.some((c) => c.name === f.name)) continue; // already added
     try {
-      const buffer = await mtStorage.downloadMessfile(f.storage_path);
+      const buffer = await withTimeout(mtStorage.downloadMessfile(f.storage_path), 25000, `"${f.name}": Zeitüberschreitung beim Download.`);
       const text = decodeLatin1(buffer);
       const result = await parseCsvOffMainThread(text, {});
       mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
@@ -907,7 +1061,7 @@ async function addCloudFileToCompare(f) {
   compareAddingId.value = f.id;
   errorMsg.value = "";
   try {
-    const buffer = await mtStorage.downloadMessfile(f.storage_path);
+    const buffer = await withTimeout(mtStorage.downloadMessfile(f.storage_path), 25000, `"${f.name}": Zeitüberschreitung beim Download.`);
     const text = decodeLatin1(buffer);
     const result = await parseCsvOffMainThread(text, {});
     mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
@@ -972,7 +1126,7 @@ async function handleFile(file) {
 async function loadList() {
   loadingList.value = true;
   try {
-    cloudFiles.value = await mtStorage.listMessfiles();
+    cloudFiles.value = await withTimeout(mtStorage.listMessfiles(), 25000, "Zeitüberschreitung beim Laden der Cloud-Liste.");
   } catch (e) {
     errorMsg.value = "Liste konnte nicht geladen werden: " + (e.message || e);
   }
@@ -1000,7 +1154,7 @@ async function openCloudFile(f) {
   errorMsg.value = "";
   importProgress.value = 0;
   try {
-    const buffer = await mtStorage.downloadMessfile(f.storage_path);
+    const buffer = await withTimeout(mtStorage.downloadMessfile(f.storage_path), 25000, `"${f.name}": Zeitüberschreitung beim Download.`);
     const result = /\.xlsx?$/i.test(f.name)
       ? await parseMesstoolExcel(buffer, undefined, buildParseOptions())
       : await parseCsvOffMainThread(decodeLatin1(buffer), buildParseOptions(), (frac) => {
