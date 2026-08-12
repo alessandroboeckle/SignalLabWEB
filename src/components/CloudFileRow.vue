@@ -34,17 +34,15 @@
           </v-tooltip>
         </template>
         <v-card min-width="240" class="pa-3">
-          <v-combobox
+          <v-select
             :model-value="file.folder"
-            :items="folders"
+            :items="[{ title: 'Kein Ordner', value: null }, ...folders.map((f) => ({ title: f, value: f }))]"
             density="compact"
             variant="outlined"
             label="Ordner"
-            clearable
             hide-details
-            autofocus
             @update:model-value="(val) => $emit('move-folder', val)"
-          ></v-combobox>
+          ></v-select>
         </v-card>
       </v-menu>
       <v-tooltip location="bottom">
