@@ -540,86 +540,68 @@
         </div>
         <v-divider></v-divider>
 
-        <template v-for="group in groupedCloudFiles" :key="group.label">
-          <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
-            {{ group.label }}
-          </div>
-          <!-- Plain flex rows instead of v-list-item: v-list-item's fixed
-               prepend/title/append columns don't reflow on narrow screens —
-               the title/subtitle get squeezed to nothing while the append
-               icon buttons keep their size, so on a phone-width viewport
-               you'd end up with just a strip of overlapping icons and no
-               filename in sight. This wraps properly instead. -->
-          <div
-            v-for="f in group.items"
-            :key="f.id"
-            class="d-flex flex-wrap align-center ga-2 px-4 py-3 cloud-file-row"
-          >
-            <v-checkbox-btn
-              :model-value="selectedCloudIds.includes(f.id)"
-              :aria-label="`${f.name} auswählen`"
-              density="compact"
-              @update:model-value="toggleCloudSelection(f.id)"
-            ></v-checkbox-btn>
-            <v-icon color="primary">mdi-file-chart</v-icon>
-            <div class="flex-grow-1" style="min-width: 180px">
-              <div class="font-weight-medium text-body-2 text-truncate">
-                {{ f.name }}
-                <v-chip v-if="f.folder" size="x-small" variant="tonal" prepend-icon="mdi-folder-outline" class="ml-1">
-                  {{ f.folder }}
-                </v-chip>
-              </div>
-              <div class="text-caption text-medium-emphasis">
-                {{ f.signal_count }} Signale • {{ f.row_count?.toLocaleString() }} Punkte •
-                {{ formatBytes(f.size_bytes) }} • {{ formatDate(f.created_at) }}
-              </div>
+        <!-- "Alle" gets real folder structure — a collapsible section per
+             folder (+ "Ohne Ordner"), each date-grouped inside — instead
+             of just a flat chronological list with filter chips as the
+             only sense of organization. Filtering to one specific folder
+             via the chips above skips this extra layer since it'd just
+             be one section containing everything anyway. -->
+        <v-expansion-panels v-if="activeFolder === '__all__'" v-model="openFolderSections" multiple variant="accordion">
+          <v-expansion-panel v-for="section in folderSections" :key="section.key" :value="section.key">
+            <v-expansion-panel-title>
+              <v-icon size="18" class="mr-2">{{ section.key === "__none__" ? "mdi-folder-off-outline" : "mdi-folder-outline" }}</v-icon>
+              <span class="font-weight-medium">{{ section.label }}</span>
+              <span class="text-caption text-medium-emphasis ml-2">
+                {{ section.files.length }} Datei(en) • {{ formatBytes(section.bytes) }}
+              </span>
+            </v-expansion-panel-title>
+            <v-expansion-panel-text class="pa-0">
+              <template v-for="group in groupByDate(section.files)" :key="group.label">
+                <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
+                  {{ group.label }}
+                </div>
+                <CloudFileRow
+                  v-for="f in group.items"
+                  :key="f.id"
+                  :file="f"
+                  :selected="selectedCloudIds.includes(f.id)"
+                  :folders="folders"
+                  :adding="compareAddingId === f.id"
+                  :opening="busyId === f.id"
+                  :format-date="formatDate"
+                  :show-folder-chip="false"
+                  @toggle-select="toggleCloudSelection(f.id)"
+                  @move-folder="(val) => moveFileToFolder(f, val)"
+                  @add-to-compare="addCloudFileToCompare(f)"
+                  @open="openCloudFile(f)"
+                  @remove="removeCloudFile(f)"
+                />
+              </template>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+
+        <template v-else>
+          <template v-for="group in groupedCloudFiles" :key="group.label">
+            <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
+              {{ group.label }}
             </div>
-            <div class="d-flex flex-wrap align-center ga-1">
-              <v-menu :close-on-content-click="false">
-                <template #activator="{ props: folderMenuProps }">
-                  <v-tooltip location="bottom">
-                    <template #activator="{ props: tooltipProps }">
-                      <v-btn
-                        size="small" variant="text" icon="mdi-folder-move-outline"
-                        :aria-label="`${f.name} in Ordner verschieben`"
-                        v-bind="{ ...folderMenuProps, ...tooltipProps }"
-                      ></v-btn>
-                    </template>
-                    In Ordner verschieben
-                  </v-tooltip>
-                </template>
-                <v-card min-width="240" class="pa-3">
-                  <v-combobox
-                    :model-value="f.folder"
-                    :items="folders"
-                    density="compact"
-                    variant="outlined"
-                    label="Ordner"
-                    clearable
-                    hide-details
-                    autofocus
-                    @update:model-value="(val) => moveFileToFolder(f, val)"
-                  ></v-combobox>
-                </v-card>
-              </v-menu>
-              <v-tooltip location="bottom">
-                <template #activator="{ props: tooltipProps }">
-                  <v-btn
-                    size="small" variant="text" color="primary" icon="mdi-chart-multiple"
-                    :loading="compareAddingId === f.id"
-                    :aria-label="`${f.name} zur Anzeige hinzufügen`"
-                    v-bind="tooltipProps"
-                    @click="addCloudFileToCompare(f)"
-                  ></v-btn>
-                </template>
-                Zur Anzeige hinzufügen
-              </v-tooltip>
-              <v-btn size="small" variant="text" prepend-icon="mdi-download" :loading="busyId === f.id" @click="openCloudFile(f)">
-                Öffnen
-              </v-btn>
-              <v-btn size="small" variant="text" color="error" icon="mdi-delete" :aria-label="`${f.name} löschen`" @click="removeCloudFile(f)"></v-btn>
-            </div>
-          </div>
+            <CloudFileRow
+              v-for="f in group.items"
+              :key="f.id"
+              :file="f"
+              :selected="selectedCloudIds.includes(f.id)"
+              :folders="folders"
+              :adding="compareAddingId === f.id"
+              :opening="busyId === f.id"
+              :format-date="formatDate"
+              @toggle-select="toggleCloudSelection(f.id)"
+              @move-folder="(val) => moveFileToFolder(f, val)"
+              @add-to-compare="addCloudFileToCompare(f)"
+              @open="openCloudFile(f)"
+              @remove="removeCloudFile(f)"
+            />
+          </template>
         </template>
       </template>
     </v-card>
@@ -642,6 +624,7 @@ import { showToast } from "../../composables/useToast.js";
 import { listRecentFiles, addRecentFile } from "../../utils/recentFiles.js";
 import ChartCard from "./ChartCard.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
+import CloudFileRow from "../../components/CloudFileRow.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const emit = defineEmits(["navigate"]);
@@ -766,6 +749,34 @@ const folderFilteredFiles = computed(() => {
   return cloudFiles.value.filter((f) => f.folder === activeFolder.value);
 });
 const groupedCloudFiles = computed(() => groupByDate(folderFilteredFiles.value));
+
+// Folder-first structure for the "Alle" view — one section per folder
+// (+ "Ohne Ordner" last, only if it has anything), each carrying its own
+// file count/size so you don't have to expand it just to see how big it
+// is.
+const folderSections = computed(() => {
+  const sections = folders.value.map((folder) => {
+    const files = cloudFiles.value.filter((f) => f.folder === folder);
+    return { key: folder, label: folder, files, bytes: files.reduce((sum, f) => sum + (f.size_bytes || 0), 0) };
+  });
+  const unfiled = cloudFiles.value.filter((f) => !f.folder);
+  if (unfiled.length) {
+    sections.push({ key: "__none__", label: "Ohne Ordner", files: unfiled, bytes: unfiled.reduce((sum, f) => sum + (f.size_bytes || 0), 0) });
+  }
+  return sections;
+});
+// All sections start expanded — collapsing is for tidying away a folder
+// you're not currently interested in, not a default "everything hidden"
+// state that would just hide files people expect to see immediately.
+const openFolderSections = ref([]);
+const seenFolderKeys = new Set(); // tracks which folders we've ever shown, so a later reload doesn't force-reopen ones the user deliberately collapsed
+watch(folderSections, (sections) => {
+  const currentKeys = new Set(sections.map((s) => s.key));
+  const newlyAppeared = sections.filter((s) => !seenFolderKeys.has(s.key)).map((s) => s.key);
+  for (const k of currentKeys) seenFolderKeys.add(k);
+  const stillOpen = openFolderSections.value.filter((k) => currentKeys.has(k));
+  openFolderSections.value = [...new Set([...stillOpen, ...newlyAppeared])];
+}, { immediate: true });
 
 const totalStorageBytes = computed(() => cloudFiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
 const folderStorageBytes = computed(() => folderFilteredFiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
