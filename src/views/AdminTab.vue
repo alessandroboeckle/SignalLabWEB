@@ -269,6 +269,26 @@
           <template #append>
             <v-btn
               v-if="u.id !== auth.user.id && !u.is_admin"
+              color="primary"
+              variant="text"
+              prepend-icon="mdi-shield-account"
+              :loading="busyId === u.id"
+              @click="setAdminRole(u, true)"
+            >
+              Zum Admin machen
+            </v-btn>
+            <v-btn
+              v-if="u.id !== auth.user.id && u.is_admin"
+              color="secondary"
+              variant="text"
+              prepend-icon="mdi-shield-off-outline"
+              :loading="busyId === u.id"
+              @click="setAdminRole(u, false)"
+            >
+              Admin entziehen
+            </v-btn>
+            <v-btn
+              v-if="u.id !== auth.user.id && !u.is_admin"
               color="error"
               variant="text"
               prepend-icon="mdi-cancel"
@@ -464,6 +484,25 @@ async function setApproval(u, approved) {
     snackbarMessage.value = approved
       ? `${u.email} freigegeben`
       : `${u.email} gesperrt`;
+    showSnackbar.value = true;
+  }
+  busyId.value = null;
+}
+
+async function setAdminRole(u, makeAdmin) {
+  busyId.value = u.id;
+  const { error } = await supabase.rpc("admin_set_admin", {
+    target_user_id: u.id,
+    make_admin: makeAdmin,
+  });
+
+  if (error) {
+    errorMsg.value = "Fehler: " + error.message;
+  } else {
+    u.is_admin = makeAdmin;
+    snackbarMessage.value = makeAdmin
+      ? `${u.email} ist jetzt Admin`
+      : `${u.email} ist kein Admin mehr`;
     showSnackbar.value = true;
   }
   busyId.value = null;
