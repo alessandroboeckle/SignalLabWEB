@@ -31,7 +31,7 @@
         <v-menu :close-on-content-click="false">
           <template #activator="{ props: menuProps }">
             <v-btn v-bind="menuProps" size="small" variant="outlined" prepend-icon="mdi-view-grid-outline">
-              Abschnitte
+              Anzeigeoptionen
             </v-btn>
           </template>
           <v-card min-width="300" class="pa-4">
@@ -72,6 +72,11 @@
             density="comfortable"
             prepend-inner-icon="mdi-window-maximize"
           ></v-select>
+          <div v-if="windowInfo" class="d-flex flex-wrap ga-3 text-caption text-medium-emphasis font-mono mt-1 ml-1">
+            <span>dt = {{ windowInfo.dt }} s</span>
+            <span>df = {{ windowInfo.df }} Hz</span>
+            <span>N = {{ windowInfo.n }} Samples</span>
+          </div>
         </v-col>
       </v-row>
 
@@ -249,7 +254,7 @@
 
       <v-row>
         <v-col v-if="sectionsVisible.derivative" cols="12" md="6">
-          <ChartCard title="Signal & Ableitung" :config="derivConfig" :height="260" sync-group="analyse-zeit">
+          <ChartCard title="Signal" :config="signalConfig" :height="260" sync-group="analyse-zeit">
             <template #extra-toolbar>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props: lineMenuProps }">
@@ -267,30 +272,23 @@
                   <div class="text-subtitle-2 font-weight-bold mb-2">Linien im Signal-Chart</div>
                   <v-checkbox v-model="showAvgLine" label="Mittelwert-Linie" density="comfortable" hide-details class="mb-1"></v-checkbox>
                   <v-checkbox v-model="showRmsLine" label="RMS-Linie" density="comfortable" hide-details class="mb-1"></v-checkbox>
-                  <v-checkbox v-model="showStdBand" label="±1σ-Band" density="comfortable" hide-details class="mb-1"></v-checkbox>
-                  <v-checkbox v-model="showDerivativeLine" label="Ableitung im Chart zeigen" density="comfortable" hide-details class="mb-1"></v-checkbox>
-                  <v-checkbox v-model="smoothDeriv" label="Ableitung glätten" density="comfortable" hide-details></v-checkbox>
-                  <v-text-field
-                    v-if="smoothDeriv"
-                    v-model.number="smoothDerivWindow"
-                    type="number"
-                    label="Glättungs-Fensterlänge"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    min="3"
-                    class="mt-2"
-                  ></v-text-field>
+                  <v-checkbox v-model="showStdBand" label="±1σ-Band" density="comfortable" hide-details></v-checkbox>
                 </v-card>
               </v-menu>
             </template>
           </ChartCard>
         </v-col>
+        <v-col v-if="sectionsVisible.derivative" cols="12" md="6">
+          <ChartCard title="Ableitung" :config="derivConfig" :height="260" sync-group="analyse-zeit" />
+        </v-col>
         <v-col v-if="sectionsVisible.integral" cols="12" md="6">
           <ChartCard title="Integral" :config="integralConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
-        <v-col v-if="sectionsVisible.fft" cols="12">
+        <v-col v-if="sectionsVisible.fft" cols="12" md="6">
           <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" hide-playback />
+        </v-col>
+        <v-col v-if="sectionsVisible.fft" cols="12" md="6">
+          <ChartCard title="Phase" :config="phaseConfig" :height="240" hide-playback />
         </v-col>
       </v-row>
 
@@ -360,7 +358,6 @@ import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
-import { SmoothOp } from "../../utils/messtoolProcessing.js";
 import { findWindowBounds } from "../../utils/timeWindow.js";
 import { findEvents } from "../../utils/eventDetection.js";
 import ChartCard from "./ChartCard.vue";
@@ -464,9 +461,6 @@ const zeitbereichEnd = ref(null);
 const showAvgLine = ref(false);
 const showRmsLine = ref(false);
 const showStdBand = ref(false);
-const showDerivativeLine = ref(true);
-const smoothDeriv = ref(false);
-const smoothDerivWindow = ref(11);
 
 const sectionsVisible = reactive({
   stats: true,
@@ -682,6 +676,22 @@ function windowedYT(s, t) {
   return { y: s.data.slice(i0, i1).map((v) => (v == null ? 0 : v)), t: t.slice(i0, i1) };
 }
 
+// Compact dt/df/N readout for the currently selected time window — dt is
+// the sample interval, df the FFT frequency resolution (1/(N·dt)), N the
+// number of samples that'll actually go into the FFT. Lets you sanity-check
+// frequency resolution before reading the spectrum, instead of guessing.
+const windowInfo = computed(() => {
+  if (!sig.value) return null;
+  const [i0, i1] = findWindowBounds(time.value, zeitbereichStart.value, zeitbereichEnd.value);
+  const t = time.value.slice(i0, i1);
+  const n = t.length;
+  if (n < 2) return null;
+  const dt = (t[t.length - 1] - t[0]) / (n - 1);
+  if (!(dt > 0)) return null;
+  const df = 1 / (n * dt);
+  return { dt: dt.toFixed(4), df: df.toFixed(4), n };
+});
+
 const stats = computed(() => {
   if (!sig.value) return [];
   const [i0, i1] = findWindowBounds(time.value, zeitbereichStart.value, zeitbereichEnd.value);
@@ -707,22 +717,15 @@ function down(arr, xs, mode) {
 // When signal/window/data changes, the function identity changes and
 // ChartCard rebuilds automatically.
 
-const derivConfig = computed(() => {
+const signalConfig = computed(() => {
   const s = sig.value, t = time.value;
-  // read here (not just inside the returned function below) so changing
-  // the Zeitbereich actually triggers ChartCard to rebuild
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void showAvgLine.value; void showRmsLine.value; void showStdBand.value;
-  void smoothDeriv.value; void smoothDerivWindow.value; void showDerivativeLine.value;
   return (peakMode) => {
     if (!s) return { type: "line", data: { labels: [], datasets: [] } };
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
-    const deriv = A.derivative(y, wt);
-    const derivForDisplay = smoothDeriv.value
-      ? new SmoothOp({ windowLen: smoothDerivWindow.value }).apply(deriv)
-      : deriv;
-    const sD = down(y, wt, peakMode), dD = down(derivForDisplay, wt, peakMode);
+    const sD = down(y, wt, peakMode);
 
     const validY = y.filter((v) => Number.isFinite(v));
     const meanVal = A.mean(validY);
@@ -746,9 +749,6 @@ const derivConfig = computed(() => {
       });
     }
     datasets.push({ label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, yAxisID: "y" });
-    if (showDerivativeLine.value) {
-      datasets.push({ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1, pointRadius: 0, yAxisID: "y1" });
-    }
     if (showAvgLine.value && meanVal != null) {
       datasets.push({
         label: `Mittelwert [${unit}]`, data: sD.rx.map(() => meanVal),
@@ -769,8 +769,34 @@ const derivConfig = computed(() => {
         responsive: true, animation: false,
         scales: {
           x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
-          y: { position: "left", title: { display: true, text: unit } },
-          y1: { display: showDerivativeLine.value, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: `${unit}/s` } },
+          y: { title: { display: true, text: unit } },
+        },
+      },
+    };
+  };
+});
+
+const derivConfig = computed(() => {
+  const s = sig.value, t = time.value;
+  void zeitbereichStart.value; void zeitbereichEnd.value;
+  return (peakMode) => {
+    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    const { y, t: wt } = windowedYT(s, t);
+    const unit = s.unit || "";
+    const deriv = A.derivative(y, wt);
+    const dD = down(deriv, wt, peakMode);
+
+    return {
+      type: "line",
+      data: {
+        labels: dD.rx,
+        datasets: [{ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1.5, pointRadius: 0 }],
+      },
+      options: {
+        responsive: true, animation: false,
+        scales: {
+          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
+          y: { title: { display: true, text: `${unit}/s` } },
         },
       },
     };
@@ -823,6 +849,41 @@ const fftConfig = computed(() => {
         scales: {
           x: { title: { display: true, text: "Frequenz [Hz]" }, ticks: { maxTicksLimit: 12 } },
           y: { title: { display: true, text: `Amplitude [${unit}]` } },
+        },
+      },
+    };
+  };
+});
+
+// Phase spectrum — A.fft already computes phaseDeg alongside amp, this
+// was just never plotted. Bins where the amplitude is negligible have an
+// essentially random/meaningless phase (numerical noise dominates), so
+// those are filtered out rather than cluttering the plot with noise.
+const phaseConfig = computed(() => {
+  const s = sig.value, t = time.value, wt = windowType.value;
+  void zeitbereichStart.value; void zeitbereichEnd.value;
+  return (peakMode) => {
+    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    const { y, t: wt4 } = windowedYT(s, t);
+    const { freq, amp, phaseDeg } = A.fft(y, wt4, { windowType: wt, normalize: true });
+    const ampMax = Math.max(0, ...amp.filter((v) => Number.isFinite(v)));
+    const threshold = ampMax * 0.01; // below 1% of peak amplitude, phase is just noise
+    const freqF = [], phaseF = [];
+    for (let i = 0; i < freq.length; i++) {
+      if (amp[i] >= threshold) { freqF.push(freq[i]); phaseF.push(phaseDeg[i]); }
+    }
+    const fD = down(phaseF, freqF, peakMode);
+    return {
+      type: "line",
+      data: {
+        labels: fD.rx.map((f) => f.toFixed(1)),
+        datasets: [{ label: "Phase", data: fD.ry, borderColor: "#F59E0B", borderWidth: 1, pointRadius: 0 }],
+      },
+      options: {
+        responsive: true, animation: false,
+        scales: {
+          x: { title: { display: true, text: "Frequenz [Hz]" }, ticks: { maxTicksLimit: 12 } },
+          y: { title: { display: true, text: "Phase [°]" }, min: -180, max: 180 },
         },
       },
     };
