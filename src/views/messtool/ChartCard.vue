@@ -78,6 +78,21 @@
         </template>
         Y-Log {{ yLogMode ? "AN" : "AUS" }} — logarithmische Y-Achse (Werte ≤ 0 werden dabei nicht angezeigt)
       </v-tooltip>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-btn
+            size="small"
+            :variant="yZoomMode ? 'flat' : 'outlined'"
+            :color="yZoomMode ? 'secondary' : 'default'"
+            icon="mdi-arrow-expand-vertical"
+            :aria-label="`Mausrad-Zoom auf Y-Achse ${yZoomMode ? 'ausschalten' : 'einschalten'}`"
+            :aria-pressed="yZoomMode"
+            v-bind="tooltipProps"
+            @click="toggleYZoomMode"
+          ></v-btn>
+        </template>
+        Y-Achsen-Zoom {{ yZoomMode ? "AN" : "AUS" }} — Mausrad & Rechteck-Zoom wirken dann auch auf die Y-Achse
+      </v-tooltip>
       <template v-if="!hidePlayback">
         <v-btn
           size="small"
@@ -168,11 +183,19 @@
             >
               C{{ i + 1 }}
             </v-chip>
-            <span class="text-caption text-medium-emphasis font-mono">x = {{ c.x.toFixed(3) }}</span>
+            <v-btn
+              size="x-small"
+              variant="text"
+              class="text-caption text-medium-emphasis font-mono px-1"
+              :append-icon="expandedCursors.has(c.id) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+              @click="toggleCursorExpanded(c.id)"
+            >
+              x = {{ c.x.toFixed(3) }}
+            </v-btn>
             <v-spacer></v-spacer>
             <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
           </div>
-          <div v-if="c.active" class="cursor-values text-caption text-medium-emphasis ml-6">
+          <div v-if="c.active && expandedCursors.has(c.id)" class="cursor-values text-caption text-medium-emphasis ml-6">
             <template v-if="(cursorRows.find((r) => r.id === c.id)?.series || []).length">
               <span v-for="s in cursorRows.find((r) => r.id === c.id).series" :key="s.label" class="mr-3">
                 {{ s.label }}: <strong class="font-mono">{{ s.value.toFixed(3) }}</strong>
@@ -269,11 +292,19 @@
                 >
                   C{{ i + 1 }}
                 </v-chip>
-                <span class="text-caption text-medium-emphasis font-mono">x = {{ c.x.toFixed(3) }}</span>
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  class="text-caption text-medium-emphasis font-mono px-1"
+                  :append-icon="expandedCursors.has(c.id) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+                  @click="toggleCursorExpanded(c.id)"
+                >
+                  x = {{ c.x.toFixed(3) }}
+                </v-btn>
                 <v-spacer></v-spacer>
                 <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
               </div>
-              <div v-if="c.active" class="cursor-values text-caption text-medium-emphasis ml-6">
+              <div v-if="c.active && expandedCursors.has(c.id)" class="cursor-values text-caption text-medium-emphasis ml-6">
                 <template v-if="(cursorRows.find((r) => r.id === c.id)?.series || []).length">
                   <span v-for="s in cursorRows.find((r) => r.id === c.id).series" :key="s.label" class="mr-3">
                     {{ s.label }}: <strong class="font-mono">{{ s.value.toFixed(3) }}</strong>
@@ -362,7 +393,18 @@ const cursorMode = ref(false);
 const markerMode = ref(false);
 const outlierMode = ref(false);
 const yLogMode = ref(false);
+const yZoomMode = ref(false); // false = wheel zooms X (default), true = wheel zooms Y
 const cursors = ref([]); // [{id, x, active}] — click adds a new one, unlimited, each toggleable
+// Per-series value breakdown is collapsed by default — with several
+// cursors active it used to push the whole panel very tall. Click a
+// cursor's x-value to expand just that one.
+const expandedCursors = ref(new Set());
+function toggleCursorExpanded(id) {
+  const next = new Set(expandedCursors.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  expandedCursors.value = next;
+}
 const markerDialogOpen = ref(false);
 const markerDialogX = ref(null);
 const markerNoteInput = ref("");
@@ -491,6 +533,12 @@ function toggleYLog() {
   yLogMode.value = !yLogMode.value;
   buildInline();
   if (fullscreen.value) buildFullscreen();
+}
+
+// No rebuild needed — the zoom mode callback below reads yZoomMode.value
+// live on every wheel event, since it closes over the ref itself.
+function toggleYZoomMode() {
+  yZoomMode.value = !yZoomMode.value;
 }
 
 const playing = ref(false);
@@ -913,7 +961,11 @@ function withInteractions(cfg) {
         },
         label: (item) => {
           const v = item.parsed.y;
-          return `${item.dataset.label}: ${typeof v === "number" ? v.toFixed(3) : v}`;
+          // Color swatch (Chart.js draws this automatically per dataset)
+          // already identifies which series this is — the old label also
+          // repeated "<filename> — <signal>" here, which just duplicated
+          // the legend and made multi-series tooltips hard to scan.
+          return typeof v === "number" ? v.toFixed(3) : String(v);
         },
       },
     },
@@ -940,16 +992,22 @@ function withInteractions(cfg) {
       // rendered scale range) — see applyZoomLimits(). Left empty here so
       // Chart.js still has the key present before that runs.
       x: {},
+      y: {},
     },
     zoom: {
+      // chartjs-plugin-zoom uses ONE shared "mode" for both wheel and
+      // drag-rectangle zoom (drag has no independent mode of its own,
+      // despite what its own option might suggest) — so this toggle
+      // switches both together: off (default) behaves exactly as before
+      // (X only), on lets you zoom into Y as well as X.
       wheel: { enabled: true },
-      drag: { enabled: true, backgroundColor: "rgba(37,99,235,0.15)" }, // rectangle select
-      mode: "x",
+      drag: { enabled: true, backgroundColor: "rgba(37,99,235,0.15)" },
+      mode: () => (yZoomMode.value ? "xy" : "x"),
       onZoomComplete: ({ chart }) => broadcastOwnRange(chart),
     },
     pan: {
       enabled: true,
-      mode: "x",
+      mode: () => (yZoomMode.value ? "xy" : "x"),
       modifierKey: "shift",
       onPanComplete: ({ chart }) => broadcastOwnRange(chart),
     },
@@ -963,15 +1021,14 @@ function withInteractions(cfg) {
 // you can go to a small fraction of the chart's own full data range, and
 // keep pan/zoom from wandering past the actual data on either side.
 function applyZoomLimits(chart) {
-  const xScale = chart.scales?.x;
-  if (!xScale || typeof xScale.min !== "number" || typeof xScale.max !== "number") return;
-  const span = xScale.max - xScale.min;
-  if (!(span > 0)) return;
-  chart.options.plugins.zoom.limits.x = {
-    min: xScale.min,
-    max: xScale.max,
-    minRange: span * 0.01, // never zoom in past ~1% of the full range
-  };
+  const limits = chart.options.plugins.zoom.limits;
+  for (const key of Object.keys(chart.scales || {})) {
+    const scale = chart.scales[key];
+    if (!scale || typeof scale.min !== "number" || typeof scale.max !== "number") continue;
+    const span = scale.max - scale.min;
+    if (!(span > 0)) continue;
+    limits[key] = { min: scale.min, max: scale.max, minRange: span * 0.01 };
+  }
 }
 
 // --- synchronized zoom across charts sharing props.syncGroup ---
