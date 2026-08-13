@@ -353,7 +353,7 @@ const exportConfig = computed(() => {
 // Render a standalone offscreen chart to get a clean PNG (not the interactive one).
 // Takes explicit (s, t) so it can be reused for the batch export over other files.
 async function renderOffscreenChart(s, t, width = 1000, height = 500, { showMarkers = false } = {}) {
-  const { default: Chart } = await import("chart.js/auto");
+  const { default: Chart } = await import("../../utils/chartSetup.js");
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;

@@ -106,10 +106,7 @@
 import { ref, computed, watch, nextTick } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as storage from "../utils/storage";
-import Chart from "chart.js/auto";
-import zoomPlugin from "chartjs-plugin-zoom";
-
-Chart.register(zoomPlugin);
+import Chart from "../utils/chartSetup.js";
 
 const store = useSignalStore();
 const selectedSignals = ref([]);

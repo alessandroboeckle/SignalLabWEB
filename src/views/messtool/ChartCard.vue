@@ -314,8 +314,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { useTheme } from "vuetify";
-import Chart from "chart.js/auto";
-import zoomPlugin from "chartjs-plugin-zoom";
+import Chart from "../../utils/chartSetup.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { findOutlierIndices } from "../../utils/outlierDetection.js";
 import { subscribeZoomSync, broadcastZoomSync } from "../../composables/useChartZoomSync.js";
@@ -323,8 +322,6 @@ import { subscribeCursorSync, broadcastCursorSync } from "../../composables/useC
 import { formatClockTime } from "../../utils/messtoolParser.js";
 import { interpolateDatasetsAtX } from "../../utils/interpolateDatasetsAtX.js";
 import { showUndoToast } from "../../composables/useToast.js";
-
-Chart.register(zoomPlugin);
 
 const theme = useTheme();
 const mtStore = useMesstoolStore();

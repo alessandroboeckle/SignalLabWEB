@@ -441,10 +441,7 @@ import { ref, computed, onMounted, watch, reactive } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as signalProcessing from "../utils/signalProcessing";
 import { buildLogDataFromSignal } from "../utils/generatorToLogdata.js";
-import Chart from "chart.js/auto";
-import zoomPlugin from "chartjs-plugin-zoom";
-
-Chart.register(zoomPlugin);
+import Chart from "../utils/chartSetup.js";
 import { generateBrakeTestCsv, downloadBrakeTestCsv } from "../utils/messtoolTestGenerator.js";
 
 const brakeGen = reactive({
