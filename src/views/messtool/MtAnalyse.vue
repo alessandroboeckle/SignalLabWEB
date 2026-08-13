@@ -207,14 +207,17 @@
         </v-card-text>
       </v-card>
 
-      <v-row v-if="sectionsVisible.stats" class="mb-4">
-        <v-col v-for="stat in stats" :key="stat.label" cols="6" sm="4" md="2">
-          <v-card variant="outlined" class="pa-3 text-center stat-card">
-            <div class="text-overline text-medium-emphasis stat-card__label">{{ stat.label }}</div>
-            <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ stat.value }}</div>
-          </v-card>
-        </v-col>
-      </v-row>
+      <div v-if="sectionsVisible.stats" class="d-flex flex-nowrap ga-2 mb-4 stat-strip">
+        <v-card
+          v-for="stat in stats"
+          :key="stat.label"
+          variant="outlined"
+          class="pa-3 text-center stat-card"
+        >
+          <div class="text-overline text-medium-emphasis stat-card__label">{{ stat.label }}</div>
+          <div class="text-h5 font-weight-bold font-mono stat-card__value">{{ stat.value }}</div>
+        </v-card>
+      </div>
 
       <v-expansion-panels v-if="sectionsVisible.overview" class="mb-4" variant="accordion">
         <v-expansion-panel>
@@ -1045,3 +1048,20 @@ const phaseConfig = computed(() => {
   };
 });
 </script>
+
+<style scoped>
+/* Stat tiles in one horizontally-scrollable row instead of wrapping onto
+   a second line — with a variable number of tiles (6 normally, 9 once
+   dt/df/N are included) a wrapping grid left an awkward half-empty
+   second row. Each tile keeps a sane minimum width so labels/values
+   stay readable; if there genuinely isn't room for all of them the
+   strip scrolls horizontally instead of squeezing text unreadably. */
+.stat-strip {
+  overflow-x: auto;
+  padding-bottom: 4px; /* keeps the scrollbar from touching the card border */
+}
+.stat-strip .stat-card {
+  flex: 1 1 150px; /* grow to fill available width when there's room, shrink down to the floor below */
+  min-width: 150px; /* below this, the strip scrolls instead of squeezing labels unreadable */
+}
+</style>
