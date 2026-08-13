@@ -23,7 +23,8 @@
                 <span class="text-h6">{{ (auth.user?.email || "?")[0].toUpperCase() }}</span>
               </v-avatar>
               <div>
-                <div class="font-weight-medium">{{ auth.user?.email }}</div>
+                <div class="font-weight-medium">{{ usernameFromEmail(auth.user?.email) }}</div>
+                <div class="text-caption text-medium-emphasis">{{ auth.user?.email }}</div>
                 <v-chip v-if="auth.isAdmin" size="x-small" color="primary" variant="tonal" class="mt-1">
                   Admin
                 </v-chip>
@@ -261,6 +262,7 @@ import { ref, computed, reactive, watch } from "vue";
 import { useTheme } from "vuetify";
 import { useSignalStore } from "../stores/signalStore";
 import { useAuthStore } from "../stores/authStore";
+import { usernameFromEmail } from "../utils/formatUsername.js";
 import * as storage from "../utils/storage";
 import * as groupsApi from "../utils/messtoolSignalGroups.js";
 import { keyboardShortcuts as shortcuts } from "../utils/keyboardShortcuts.js";

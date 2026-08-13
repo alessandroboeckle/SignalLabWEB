@@ -58,7 +58,7 @@
 
         <v-spacer></v-spacer>
 
-        <span class="user-email d-none d-sm-inline">{{ auth.user.email }}</span>
+        <span class="user-email d-none d-sm-inline">{{ usernameFromEmail(auth.user.email) }}</span>
 
         <v-btn icon variant="text" @click="toggleTheme">
           <v-icon color="white">{{
@@ -459,6 +459,7 @@ import { useAuthStore } from "./stores/authStore";
 import { useUiStore } from "./stores/uiStore.js";
 import { usePresenceStore } from "./stores/presenceStore.js";
 import { useToast } from "./composables/useToast.js";
+import { usernameFromEmail } from "./utils/formatUsername.js";
 
 // Kept as regular (eager) imports: these three are either on the
 // critical first-paint path (Login/Waiting screens show before anything

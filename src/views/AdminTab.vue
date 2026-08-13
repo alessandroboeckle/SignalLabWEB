@@ -46,7 +46,7 @@
             </v-avatar>
           </template>
           <v-list-item-title class="text-body-2">
-            {{ u.email }}
+            {{ usernameFromEmail(u.email) }}
             <v-chip v-if="u.id === auth.user.id" size="x-small" variant="outlined" class="ml-1">Du</v-chip>
           </v-list-item-title>
           <v-list-item-subtitle class="text-caption">
@@ -220,7 +220,7 @@
               <v-icon>mdi-account-clock</v-icon>
             </v-avatar>
           </template>
-          <v-list-item-title class="font-weight-medium">{{ u.email }}</v-list-item-title>
+          <v-list-item-title class="font-weight-medium">{{ usernameFromEmail(u.email) }}</v-list-item-title>
           <v-list-item-subtitle>
             registriert {{ formatDate(u.created_at) }}
           </v-list-item-subtitle>
@@ -259,7 +259,7 @@
             </v-avatar>
           </template>
           <v-list-item-title class="font-weight-medium">
-            {{ u.email }}
+            {{ usernameFromEmail(u.email) }}
             <v-chip v-if="u.is_admin" size="x-small" color="primary" class="ml-2">Admin</v-chip>
             <v-chip v-if="u.id === auth.user.id" size="x-small" variant="outlined" class="ml-1">Du</v-chip>
           </v-list-item-title>
@@ -364,6 +364,7 @@ import { showToast } from "../composables/useToast.js";
 import * as mtStorage from "../utils/messtoolStorage.js";
 import { formatBytes } from "../utils/formatBytes.js";
 import { useReportSettingsStore } from "../stores/reportSettingsStore.js";
+import { usernameFromEmail } from "../utils/formatUsername.js";
 
 const emit = defineEmits(["navigate"]);
 const auth = useAuthStore();
@@ -502,8 +503,8 @@ async function setApproval(u, approved) {
   } else {
     u.approved = approved;
     snackbarMessage.value = approved
-      ? `${u.email} freigegeben`
-      : `${u.email} gesperrt`;
+      ? `${usernameFromEmail(u.email)} freigegeben`
+      : `${usernameFromEmail(u.email)} gesperrt`;
     showSnackbar.value = true;
   }
   busyId.value = null;
@@ -521,8 +522,8 @@ async function setAdminRole(u, makeAdmin) {
   } else {
     u.is_admin = makeAdmin;
     snackbarMessage.value = makeAdmin
-      ? `${u.email} ist jetzt Admin`
-      : `${u.email} ist kein Admin mehr`;
+      ? `${usernameFromEmail(u.email)} ist jetzt Admin`
+      : `${usernameFromEmail(u.email)} ist kein Admin mehr`;
     showSnackbar.value = true;
   }
   busyId.value = null;
