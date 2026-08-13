@@ -73,11 +73,6 @@
             density="comfortable"
             prepend-inner-icon="mdi-window-maximize"
           ></v-select>
-          <div v-if="windowInfo" class="d-flex flex-wrap ga-3 text-caption text-medium-emphasis font-mono mt-1 ml-1">
-            <span>dt = {{ windowInfo.dt }} s</span>
-            <span>df = {{ windowInfo.df }} Hz</span>
-            <span>N = {{ windowInfo.n }} Samples</span>
-          </div>
         </v-col>
       </v-row>
 
@@ -754,6 +749,7 @@ const stats = computed(() => {
   const mm = A.minMax(y);
   const u = sig.value.unit || "";
   const f = (v) => (v == null ? "-" : v.toFixed(3));
+  const wi = windowInfo.value;
   return [
     { label: `Mittel [${u}]`, value: f(A.mean(y)) },
     { label: `RMS [${u}]`, value: f(A.rms(y)) },
@@ -761,6 +757,9 @@ const stats = computed(() => {
     { label: `Varianz`, value: f(A.variance(y)) },
     { label: `Min [${u}]`, value: f(mm.min) },
     { label: `Max [${u}]`, value: f(mm.max) },
+    { label: `dt [s]`, value: wi ? wi.dt : "-" },
+    { label: `df [Hz]`, value: wi ? wi.df : "-" },
+    { label: `N [Samples]`, value: wi ? String(wi.n) : "-" },
   ];
 });
 

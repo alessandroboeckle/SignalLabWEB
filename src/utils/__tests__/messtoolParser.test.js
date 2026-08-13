@@ -141,6 +141,32 @@ describe("parseMesstoolCsv", () => {
     expect(realSig.data).toEqual([50.1, 50.2]);
     expect(result.meta.qualityWarnings.allNullSignals).toEqual([]);
   });
+
+  // Regression test: a digital/boolean signal's LOGITEM description can
+  // carry a PLC I/O address in brackets (e.g. hardware channel "111/A92S1
+  // DO 13") instead of — or alongside — a real unit. The old last-resort
+  // "any [bracketed] text" fallback picked that up as if it were a unit
+  // (e.g. showing "[111/A92S1 DO 13]" on stat tiles), which is nonsense.
+  it("doesn't mistake a PLC I/O address in brackets for a unit", async () => {
+    const csv = [
+      "SECTION;LOGITEMS",
+      "LOGITEM;xLueftKuehlTurm1;;BOOL;Kuehlturm Lueftung [111/A92S1 DO 13]",
+      "LOGITEM;rMotorStrom;;REAL;Motorstrom [unit: A] [111/A92S1 AI 4]",
+      "SECTION;LOGDATA",
+      "Nb;Type;Date;Time;xLueftKuehlTurm1;rMotorStrom",
+      "1;+;07.03.2025;14:34:28:090;TRUE;12.5",
+      "2;+;07.03.2025;14:34:29:090;FALSE;12.7",
+    ].join("\n");
+    const result = await parseMesstoolCsv(csv, {});
+    const noUnitSig = result.signals.find((s) => s.name === "xLueftKuehlTurm1");
+    const realUnitSig = result.signals.find((s) => s.name === "rMotorStrom");
+    // No genuine [unit: X] or (X) present for the digital signal -> empty,
+    // not the address string.
+    expect(noUnitSig.unit).toBe("");
+    // An explicit "[unit: A]" still wins even with an address bracket
+    // elsewhere in the same description.
+    expect(realUnitSig.unit).toBe("A");
+  });
 });
 
 describe("formatClockTime", () => {

@@ -19,10 +19,14 @@ function extractUnit(text) {
   // 2. (unit) anywhere
   m = text.match(/\(([^)]{1,20})\)/);
   if (m && m[1].trim()) return m[1].trim();
-  // 3. [unit] in brackets
+  // 3. [unit] in brackets — last resort. Real units (V, A, %, l/min, Nm, ...)
+  // never contain whitespace; PLC I/O addresses often mistaken for units
+  // here do (e.g. "[111/A92S1 DO 13]" is a hardware channel address, not
+  // a unit) — skip anything with a space rather than plotting bogus units.
   const all = [...text.matchAll(/\[([^\]]{1,20})\]/g)];
   for (const bm of all) {
-    if (bm[1].trim()) return bm[1].trim();
+    const candidate = bm[1].trim();
+    if (candidate && !/\s/.test(candidate)) return candidate;
   }
   return "";
 }
