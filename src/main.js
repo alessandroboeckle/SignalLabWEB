@@ -1,10 +1,10 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
+import "vuetify/styles";
 import { createVuetify } from "vuetify";
+import * as components from "vuetify/components";
+import * as directives from "vuetify/directives";
 import { aliases, mdi } from "vuetify/iconsets/mdi";
-// Components, directives, and per-component styles are now injected
-// automatically per-usage by vite-plugin-vuetify (see vite.config.js),
-// instead of the full "vuetify/components" + "vuetify/styles" bundle.
 
 // Import MDI icon font (THIS makes icons visible!)
 import "@mdi/font/css/materialdesignicons.css";
@@ -15,6 +15,8 @@ import "./styles/global.css";
 import App from "./App.vue";
 
 const vuetify = createVuetify({
+  components,
+  directives,
   icons: {
     defaultSet: "mdi",
     aliases,
