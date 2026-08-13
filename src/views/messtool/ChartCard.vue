@@ -1040,7 +1040,29 @@ let unsubscribeCursorSync = null;
 
 const buildError = ref(null);
 
+// Rebuilding destroys and recreates the Chart.js instance from scratch —
+// necessary because props.config is a full config object, not a diff —
+// but that means chartjs-plugin-zoom loses all memory of the user's
+// current zoom/pan on every single rebuild. Since props.config recomputes
+// on ANY relevant reactive change (offset, filter toggle, second axis,
+// even just moving a cursor), that used to reset the view constantly —
+// most confusingly right after typing a time offset, where the view
+// would jump to auto-fit the shifted data instead of staying put.
+// Capture the outgoing chart's actual visible range and re-apply it
+// after the new one is built, so only genuinely new data (nothing to
+// carry over) falls back to auto-fit.
+function captureXRange(chart) {
+  const xScale = chart?.scales?.x;
+  if (!xScale || typeof xScale.min !== "number" || typeof xScale.max !== "number") return null;
+  return { min: xScale.min, max: xScale.max };
+}
+function restoreXRange(chart, range) {
+  if (!chart || !range || typeof chart.zoomScale !== "function") return;
+  chart.zoomScale("x", range, "none");
+}
+
 function buildInline() {
+  const previousRange = captureXRange(inlineChart);
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
   try {
@@ -1048,6 +1070,7 @@ function buildInline() {
     cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
     inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
     applyZoomLimits(inlineChart);
+    restoreXRange(inlineChart, previousRange);
     buildError.value = null;
   } catch (err) {
     // A single bad chart (malformed data, a config bug) shouldn't take
@@ -1060,6 +1083,7 @@ function buildInline() {
 }
 
 function buildFullscreen() {
+  const previousRange = captureXRange(fsChart);
   if (fsChart) { fsChart.destroy(); fsChart = null; }
   if (!fsCanvas.value) return;
   try {
@@ -1067,6 +1091,7 @@ function buildFullscreen() {
     cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
     fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
     applyZoomLimits(fsChart);
+    restoreXRange(fsChart, previousRange);
     buildError.value = null;
   } catch (err) {
     // eslint-disable-next-line no-console
