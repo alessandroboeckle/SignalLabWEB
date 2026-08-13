@@ -471,10 +471,12 @@ import { useToast } from "./composables/useToast.js";
 // actually came to use.
 import LoginScreen from "./views/LoginScreen.vue";
 import WaitingScreen from "./views/WaitingScreen.vue";
-import OverviewTab from "./views/OverviewTab.vue";
 import ErrorBoundary from "./components/ErrorBoundary.vue";
 import CommandPalette from "./components/CommandPalette.vue";
 
+// Lazy like every other tab below — OverviewTab pulls in Chart.js (~240 KB)
+// for its preview chart, so it shouldn't be in the eager startup bundle.
+const OverviewTab = defineAsyncComponent(() => import("./views/OverviewTab.vue"));
 const SignalCreationTab = defineAsyncComponent(() => import("./views/SignalCreationTab.vue"));
 const CalculatorTab = defineAsyncComponent(() => import("./views/CalculatorTab.vue"));
 const ComparisonTab = defineAsyncComponent(() => import("./views/ComparisonTab.vue"));
