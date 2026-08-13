@@ -263,10 +263,14 @@
           color="primary"
           prepend-icon="mdi-cloud-upload"
           :loading="uploading"
+          :disabled="quotaExceeded"
           @click="saveToCloud"
         >
           In Cloud speichern
         </v-btn>
+        <span v-if="quotaExceeded" class="text-caption text-warning ml-2 align-self-center">
+          Speicherlimit (30 MB) erreicht
+        </span>
       </div>
 
       <div v-if="batchUpload.uploadedFiles.length > 0" class="d-flex align-center mb-3">
@@ -482,11 +486,25 @@
         <v-btn size="small" variant="text" icon="mdi-refresh" aria-label="Liste aktualisieren" :loading="loadingList" @click="loadList"></v-btn>
       </v-card-title>
       <v-card-subtitle v-if="cloudFiles.length > 0" class="pb-2">
-        {{ cloudFiles.length }} Datei(en) insgesamt • {{ formatBytes(totalStorageBytes) }} belegt
+        {{ cloudFiles.length }} Datei(en) insgesamt •
+        <template v-if="auth.isAdmin">
+          {{ formatBytes(totalStorageBytes) }} belegt (alle Nutzer) · eigene: {{ formatBytes(myStorageBytes) }} / {{ formatBytes(QUOTA_BYTES) }}
+        </template>
+        <template v-else>{{ formatBytes(myStorageBytes) }} / {{ formatBytes(QUOTA_BYTES) }} belegt</template>
         <template v-if="activeFolder !== '__all__' && folderFilteredFiles.length !== cloudFiles.length">
           — {{ activeFolderLabel }}: {{ folderFilteredFiles.length }} Datei(en), {{ formatBytes(folderStorageBytes) }}
         </template>
       </v-card-subtitle>
+      <v-progress-linear
+        v-if="cloudFiles.length > 0"
+        :model-value="quotaUsedPct"
+        :color="quotaUsedPct >= 100 ? 'error' : quotaUsedPct >= 80 ? 'warning' : 'primary'"
+        height="4"
+        class="mb-2"
+      ></v-progress-linear>
+      <v-alert v-if="quotaExceeded" type="warning" variant="tonal" density="compact" class="text-caption mx-4 mb-2">
+        Speicherlimit ({{ formatBytes(QUOTA_BYTES) }}) erreicht — erst Dateien löschen, bevor du neue hochladen kannst.
+      </v-alert>
       <v-divider></v-divider>
       <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
         Noch keine Dateien in der Cloud.
@@ -652,6 +670,7 @@ import { formatBytes } from "../../utils/formatBytes.js";
 import { withTimeout } from "../../utils/withTimeout.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { useAuthStore } from "../../stores/authStore.js";
 import { showToast } from "../../composables/useToast.js";
 import { listRecentFiles, addRecentFile } from "../../utils/recentFiles.js";
 import ChartCard from "./ChartCard.vue";
@@ -662,6 +681,7 @@ import { downsample } from "../../utils/downsample.js";
 const emit = defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
+const auth = useAuthStore();
 
 const fileInput = ref(null);
 const isDragging = ref(false);
@@ -837,6 +857,17 @@ watch(folderSections, (sections) => {
 }, { immediate: true });
 
 const totalStorageBytes = computed(() => cloudFiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
+// For a regular user cloudFiles already only contains their own rows (RLS), but an
+// admin sees everyone's files here — quota must always be based on just their own.
+const myStorageBytes = computed(() =>
+  cloudFiles.value
+    .filter((f) => f.uploaded_by === auth.user?.id)
+    .reduce((sum, f) => sum + (f.size_bytes || 0), 0),
+);
+// Kept in sync with supabase/messfiles_per_user_visibility_and_quota.sql
+const QUOTA_BYTES = computed(() => (auth.isAdmin ? 100 : 30) * 1024 * 1024);
+const quotaUsedPct = computed(() => Math.min(100, (myStorageBytes.value / QUOTA_BYTES.value) * 100));
+const quotaExceeded = computed(() => myStorageBytes.value >= QUOTA_BYTES.value);
 const folderStorageBytes = computed(() => folderFilteredFiles.value.reduce((sum, f) => sum + (f.size_bytes || 0), 0));
 const activeFolderLabel = computed(() => (activeFolder.value === "__none__" ? "Ohne Ordner" : activeFolder.value));
 
