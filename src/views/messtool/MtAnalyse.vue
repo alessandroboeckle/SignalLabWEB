@@ -331,6 +331,9 @@
             </template>
           </ChartCard>
         </v-col>
+        <v-col v-if="sectionsVisible.rollingRms" cols="12" md="6">
+          <ChartCard title="Fenster-Überlappung" :config="rmsWindowsOverlayConfig" :height="260" sync-group="analyse-zeit" />
+        </v-col>
         <v-col v-if="sectionsVisible.fft" cols="12" md="6">
           <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" hide-playback />
         </v-col>
@@ -906,6 +909,76 @@ const rollingRmsConfig = computed(() => {
         scales: {
           x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
           y: { title: { display: true, text: unit } },
+        },
+      },
+    };
+  };
+});
+
+// Signal with each sliding RMS window drawn as a shaded band behind it —
+// makes the actual overlap between neighboring windows visible instead of
+// only seeing the resulting RMS-over-time trend. With heavy overlap there
+// can be hundreds of windows; drawing all of them would be an unreadable
+// smear and would tank rendering performance, so this samples down to a
+// manageable number of representative bands, evenly spread across time —
+// the RMS *calculation* itself (in rollingRmsConfig above) always uses
+// every window regardless, this display cap only affects this picture.
+const MAX_DISPLAYED_WINDOWS = 40;
+const rmsWindowsOverlayConfig = computed(() => {
+  const s = sig.value, t = time.value;
+  void zeitbereichStart.value; void zeitbereichEnd.value;
+  void rmsWindowSec.value; void rmsOverlapPct.value;
+  return (peakMode) => {
+    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    const { y, t: wt } = windowedYT(s, t);
+    const unit = s.unit || "";
+    const sD = down(y, wt, peakMode);
+
+    const validY = y.filter((v) => Number.isFinite(v));
+    const mm = A.minMax(validY);
+    const pad = (mm.max - mm.min) * 0.05 || 1;
+    const yMax = mm.max + pad, yMin = mm.min - pad;
+
+    const allRanges = A.rmsWindowRanges(wt, rmsWindowSec.value, rmsOverlapPct.value);
+    let ranges = allRanges;
+    if (allRanges.length > MAX_DISPLAYED_WINDOWS) {
+      const step = allRanges.length / MAX_DISPLAYED_WINDOWS;
+      ranges = Array.from({ length: MAX_DISPLAYED_WINDOWS }, (_, i) => allRanges[Math.floor(i * step)]);
+    }
+
+    const bandDatasets = ranges.map((r, i) => ({
+      label: i === 0 ? "Zeitfenster" : undefined, // one legend entry is enough, not one per band
+      data: [{ x: r.start, y: yMax }, { x: r.end, y: yMax }],
+      fill: { target: { value: yMin } },
+      backgroundColor: i % 2 === 0 ? "rgba(37,99,235,0.10)" : "rgba(236,72,153,0.10)",
+      borderWidth: 0,
+      pointRadius: 0,
+      order: 10, // bands drawn first (Chart.js: lower order = on top), signal line stays visible above them
+    }));
+
+    return {
+      type: "line",
+      data: {
+        labels: sD.rx,
+        datasets: [
+          ...bandDatasets,
+          { label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, order: 0 },
+        ],
+      },
+      options: {
+        responsive: true, animation: false,
+        plugins: {
+          legend: {
+            labels: {
+              // Chart.js can't dedupe legend entries on its own — hide the
+              // per-band "undefined"-labeled ones by filtering here instead.
+              filter: (item) => item.text != null,
+            },
+          },
+        },
+        scales: {
+          x: { type: "linear", title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
+          y: { min: yMin, max: yMax, title: { display: true, text: unit } },
         },
       },
     };

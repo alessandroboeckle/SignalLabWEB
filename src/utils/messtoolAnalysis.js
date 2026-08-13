@@ -29,19 +29,33 @@ export function rms(y) {
 // windowSec must be > 0. overlapPct is clamped to [0, 95) — 100% overlap
 // would mean the window never advances (infinite loop), and even 95%+
 // makes for an enormous number of near-duplicate windows for little gain.
-export function rollingRms(y, t, windowSec, overlapPct = 0) {
-  if (!y?.length || !t?.length || y.length !== t.length || !(windowSec > 0)) {
-    return { t: [], rms: [] };
-  }
+// The [start, end] time boundaries of each sliding window, given the
+// signal's time array — shared by rollingRms() (which needs them to know
+// what to sum over) and the "windows overlaid on the signal" visualization
+// (which needs them to actually draw the shaded bands). Kept in one place
+// so both always agree on exactly where each window sits.
+export function rmsWindowRanges(t, windowSec, overlapPct = 0) {
+  if (!t?.length || !(windowSec > 0)) return [];
   const overlap = Math.min(95, Math.max(0, overlapPct)) / 100;
   const stepSec = windowSec * (1 - overlap);
   const t0 = t[0], tEnd = t[t.length - 1];
-  if (!(stepSec > 0) || tEnd <= t0) return { t: [], rms: [] };
+  if (!(stepSec > 0) || tEnd <= t0) return [];
+
+  const ranges = [];
+  for (let winStart = t0; winStart + windowSec <= tEnd + 1e-9; winStart += stepSec) {
+    ranges.push({ start: winStart, end: winStart + windowSec });
+  }
+  return ranges;
+}
+
+export function rollingRms(y, t, windowSec, overlapPct = 0) {
+  if (!y?.length || !t?.length || y.length !== t.length) return { t: [], rms: [] };
+  const ranges = rmsWindowRanges(t, windowSec, overlapPct);
+  if (!ranges.length) return { t: [], rms: [] };
 
   const outT = [], outRms = [];
   let i0 = 0; // sliding start index — avoids re-scanning from 0 every window
-  for (let winStart = t0; winStart + windowSec <= tEnd + 1e-9; winStart += stepSec) {
-    const winEnd = winStart + windowSec;
+  for (const { start: winStart, end: winEnd } of ranges) {
     while (i0 < t.length && t[i0] < winStart) i0++;
     let s = 0, n = 0, i = i0;
     while (i < t.length && t[i] <= winEnd) {
@@ -50,7 +64,7 @@ export function rollingRms(y, t, windowSec, overlapPct = 0) {
       i++;
     }
     if (n > 0) {
-      outT.push(winStart + windowSec / 2);
+      outT.push(winStart + (winEnd - winStart) / 2);
       outRms.push(Math.sqrt(s / n));
     }
   }
