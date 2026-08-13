@@ -278,7 +278,7 @@
               ><SessionManagementTab
             /></v-window-item>
             <v-window-item value="settings"><SettingsTab /></v-window-item>
-            <v-window-item value="admin"><AdminTab /></v-window-item>
+            <v-window-item value="admin"><AdminTab @navigate="activeTab = $event" /></v-window-item>
             <v-window-item value="hilfe"><HilfeTab /></v-window-item>
 
             <!-- Messtool sub-pages (placeholders for now) -->
@@ -653,7 +653,6 @@ const messtoolItems = [
   { value: "mt-import", label: "Import", icon: "mdi-file-upload" },
   { value: "mt-filter", label: "Filter", icon: "mdi-tune-variant" },
   { value: "mt-analyse", label: "Analyse", icon: "mdi-chart-bell-curve" },
-  { value: "mt-verarbeitung", label: "Verarbeitung", icon: "mdi-cog-transfer" },
   { value: "mt-vergleich", label: "Anzeige", icon: "mdi-chart-multiple" },
   { value: "mt-export", label: "Export", icon: "mdi-file-export" },
   {

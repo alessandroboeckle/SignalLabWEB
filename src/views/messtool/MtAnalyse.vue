@@ -146,6 +146,18 @@
                 hide-details
               ></v-select>
             </v-col>
+            <v-col cols="6" sm="3">
+              <v-text-field
+                v-model.number="eventMinDuration"
+                type="number"
+                step="0.001"
+                min="0"
+                label="Mindestdauer [s]"
+                variant="outlined"
+                density="compact"
+                hide-details
+              ></v-text-field>
+            </v-col>
             <v-col cols="12" sm="6">
               <v-btn color="primary" variant="tonal" prepend-icon="mdi-magnify-scan" @click="runEventDetection">
                 Ereignisse finden
@@ -164,6 +176,10 @@
 
           <v-alert v-if="eventNoThreshold" type="warning" variant="tonal" density="compact" class="mt-3">
             Bitte zuerst einen Schwellwert eingeben.
+          </v-alert>
+          <v-alert v-if="eventTruncated" type="warning" variant="tonal" density="compact" class="mt-3">
+            Sehr viele Treffer ({{ MAX_DISPLAYED_EVENTS }}+) — nur die ersten {{ MAX_DISPLAYED_EVENTS }} werden angezeigt.
+            Schwellwert erhöhen oder Mindestdauer verlängern für ein sinnvolleres Ergebnis.
           </v-alert>
           <v-alert v-if="eventSearchDone && foundEvents.length === 0" type="info" variant="tonal" density="compact" class="mt-3">
             Keine Ereignisse über diesem Schwellwert gefunden.
@@ -619,12 +635,17 @@ const groupFftConfig = computed(() => {
 
 const eventThreshold = ref(null);
 const eventMode = ref("abs");
+const eventMinDuration = ref(0.05); // filters sample-to-sample noise chatter around the threshold
 const foundEvents = ref([]);
 const eventSearchDone = ref(false);
 const eventNoThreshold = ref(false);
+const eventTruncated = ref(false);
+
+const MAX_DISPLAYED_EVENTS = 500; // safety cap so a badly-chosen threshold can't freeze the table
 
 function runEventDetection() {
   foundEvents.value = [];
+  eventTruncated.value = false;
   if (!sig.value) return;
   if (eventThreshold.value == null || eventThreshold.value === "") {
     eventSearchDone.value = false;
@@ -634,7 +655,16 @@ function runEventDetection() {
   eventNoThreshold.value = false;
   eventSearchDone.value = true;
   const { y, t } = windowedYT(sig.value, time.value);
-  foundEvents.value = findEvents(y, t, eventThreshold.value, { mode: eventMode.value });
+  const results = findEvents(y, t, eventThreshold.value, {
+    mode: eventMode.value,
+    minDurationSec: eventMinDuration.value || 0,
+  });
+  if (results.length > MAX_DISPLAYED_EVENTS) {
+    eventTruncated.value = true;
+    foundEvents.value = results.slice(0, MAX_DISPLAYED_EVENTS);
+  } else {
+    foundEvents.value = results;
+  }
 }
 
 function markEvent(ev, i) {

@@ -302,6 +302,25 @@
       </v-list>
     </v-card>
 
+    <!-- Verarbeitung: seit dem Umbau nur noch von hier aus erreichbar, nicht
+         mehr in der normalen Messtool-Sidebar für alle Nutzer sichtbar. -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center">
+        <v-icon color="secondary" class="mr-2">mdi-cog-transfer</v-icon>
+        Verarbeitung
+      </v-card-title>
+      <v-divider></v-divider>
+      <v-card-text>
+        <p class="text-body-2 text-medium-emphasis mb-3">
+          Die Verarbeitungskette (Detrend, Skalieren, etc.) ist nur noch von hier aus zugänglich,
+          nicht mehr direkt in der Messtool-Sidebar.
+        </p>
+        <v-btn color="secondary" variant="tonal" prepend-icon="mdi-cog-transfer" @click="emit('navigate', 'mt-verarbeitung')">
+          Verarbeitung öffnen
+        </v-btn>
+      </v-card-text>
+    </v-card>
+
     <!-- Wartung -->
     <v-card variant="outlined" rounded="lg">
       <v-card-title class="d-flex align-center">
@@ -346,6 +365,7 @@ import * as mtStorage from "../utils/messtoolStorage.js";
 import { formatBytes } from "../utils/formatBytes.js";
 import { useReportSettingsStore } from "../stores/reportSettingsStore.js";
 
+const emit = defineEmits(["navigate"]);
 const auth = useAuthStore();
 const presence = usePresenceStore();
 
