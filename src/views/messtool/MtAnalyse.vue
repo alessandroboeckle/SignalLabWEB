@@ -22,7 +22,7 @@
       <div class="d-flex align-center flex-wrap ga-2 mb-2">
         <MtQuickNav
           :items="[
-            { target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' },
+            ...(auth.isAdmin ? [{ target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' }] : []),
             { target: 'mt-filter', label: 'Filter', icon: 'mdi-tune-variant' },
           ]"
           @navigate="$emit('navigate', $event)"
@@ -404,6 +404,7 @@
 import { ref, computed, reactive } from "vue";
 import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { useAuthStore } from "../../stores/authStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { findWindowBounds } from "../../utils/timeWindow.js";
@@ -416,6 +417,7 @@ import { downsample } from "../../utils/downsample.js";
 defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
+const auth = useAuthStore();
 useSignalNavigationShortcuts(mtStore);
 
 const overviewHeaders = [

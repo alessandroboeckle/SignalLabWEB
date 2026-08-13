@@ -12,6 +12,11 @@
       speichern und später — auch geräteübergreifend oder mit Kollegen geteilt — wieder laden.
     </p>
 
+    <MtQuickNav
+      :items="[{ target: 'mt-import', label: 'Import', icon: 'mdi-file-upload' }]"
+      @navigate="$emit('navigate', $event)"
+    />
+
     <!-- Save current state -->
     <v-card variant="outlined" rounded="lg" class="mb-6">
       <v-card-title class="text-subtitle-1 d-flex align-center">
@@ -219,6 +224,7 @@ import { ref, computed, onMounted } from "vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useAuthStore } from "../../stores/authStore.js";
 import HelpIconButton from "../../components/HelpIconButton.vue";
+import MtQuickNav from "./MtQuickNav.vue";
 import * as sessionsApi from "../../utils/messtoolSessionStorage.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { withTimeout } from "../../utils/withTimeout.js";

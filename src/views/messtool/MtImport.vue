@@ -9,6 +9,29 @@
     </div>
     <p class="text-medium-emphasis mb-6">Messdatei laden (LOGDATA-CSV oder Excel/.xlsx)</p>
 
+    <v-alert
+      v-if="showWorkflowHint"
+      type="info"
+      variant="tonal"
+      density="comfortable"
+      closable
+      class="mb-4"
+      @click:close="showWorkflowHint = false"
+    >
+      <strong>So geht's:</strong> Datei laden (unten reinziehen oder aus der Cloud öffnen) →
+      optional filtern/verarbeiten → auf <strong>Analyse</strong> auswerten oder unter
+      <strong>Anzeige</strong> mit anderen Dateien vergleichen → bei Bedarf <strong>exportieren</strong>.
+    </v-alert>
+
+    <MtQuickNav
+      v-if="lastFile || mtStore.parsed"
+      :items="[
+        { target: 'mt-filter', label: 'Filter', icon: 'mdi-tune-variant' },
+        { target: 'mt-analyse', label: 'Analyse', icon: 'mdi-chart-bell-curve' },
+      ]"
+      @navigate="$emit('navigate', $event)"
+    />
+
     <div v-if="recentFiles.some((f) => f.storagePath)" class="mb-4">
       <div class="text-caption text-medium-emphasis mb-1">Zuletzt geöffnet</div>
       <div class="d-flex flex-wrap ga-2">
@@ -706,12 +729,14 @@ import { listRecentFiles, addRecentFile } from "../../utils/recentFiles.js";
 import ChartCard from "./ChartCard.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import CloudFileRow from "../../components/CloudFileRow.vue";
+import MtQuickNav from "./MtQuickNav.vue";
 import { downsample } from "../../utils/downsample.js";
 
 const emit = defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
 const auth = useAuthStore();
+const showWorkflowHint = ref(true);
 
 const fileInput = ref(null);
 const isDragging = ref(false);

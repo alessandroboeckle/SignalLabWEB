@@ -21,7 +21,7 @@
     <template v-else>
       <MtQuickNav
         :items="[
-          { target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' },
+          ...(auth.isAdmin ? [{ target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' }] : []),
           { target: 'mt-export', label: 'Export', icon: 'mdi-file-export' },
         ]"
         @navigate="$emit('navigate', $event)"
@@ -165,6 +165,7 @@
 import { ref, computed, watch } from "vue";
 import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
+import { useAuthStore } from "../../stores/authStore.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import { applyFilter, designSOS, computeFrequencyResponse } from "../../utils/messtoolFilter.js";
 import { useDebounced } from "../../composables/useDebounced.js";
@@ -178,6 +179,7 @@ defineEmits(["navigate"]);
 import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
+const auth = useAuthStore();
 useSignalNavigationShortcuts(mtStore);
 
 // Shared across Analyse/Filter/Verarbeitung/Export so switching pages
