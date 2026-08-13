@@ -36,9 +36,7 @@
             </div>
 
             <v-alert type="info" variant="tonal" density="compact" class="text-caption mb-3">
-              Diese Einstellungen gehören zur aktuellen Datei und bleiben beim Seitenwechsel
-              erhalten. Auf der Seite <strong>Sessions</strong> kannst du sie zusammen mit der
-              Datei benannt speichern (auch geteilt mit Kollegen).
+              Bleibt beim Seitenwechsel erhalten. Benannt speichern & teilen: Seite <strong>Sessions</strong>.
             </v-alert>
 
             <v-autocomplete
@@ -83,7 +81,7 @@
 
             <v-select
               v-model="order"
-              :items="[1,2,3,4,5,6,7,8,9,10]"
+              :items="Array.from({length: 20}, (_, i) => i + 1)"
               label="Ordnung"
               variant="outlined"
               density="comfortable"
@@ -281,14 +279,14 @@ const cutoffWarning = computed(() => {
   const maxHz = (nyq * 0.95).toFixed(2); // safe practical max
   if (btype.value === "band") {
     if (cutoff2.value >= nyq || cutoff.value >= nyq) {
-      return `Grenzfrequenz zu hoch! Bei dieser Datei muss sie unter der Nyquist-Frequenz (${nyq.toFixed(2)} Hz) liegen. Empfohlen: max. ${maxHz} Hz.`;
+      return `Grenzfrequenz zu hoch — muss unter Nyquist (${nyq.toFixed(2)} Hz) liegen, empfohlen ≤ ${maxHz} Hz.`;
     }
     if (cutoff.value >= cutoff2.value) {
       return "Untere Grenzfrequenz muss kleiner als die obere sein.";
     }
   } else {
     if (cutoff.value >= nyq) {
-      return `Grenzfrequenz zu hoch! Bei dieser Datei muss sie unter der Nyquist-Frequenz (${nyq.toFixed(2)} Hz) liegen. Empfohlen: max. ${maxHz} Hz. — Der Filter macht sonst nichts.`;
+      return `Grenzfrequenz zu hoch — muss unter Nyquist (${nyq.toFixed(2)} Hz) liegen, empfohlen ≤ ${maxHz} Hz. Filter wirkt sonst nicht.`;
     }
   }
   return "";
