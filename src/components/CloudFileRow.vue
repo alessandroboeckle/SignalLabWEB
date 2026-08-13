@@ -13,6 +13,9 @@
         <v-chip v-if="file.folder && showFolderChip" size="x-small" variant="tonal" prepend-icon="mdi-folder-outline" class="ml-1">
           {{ file.folder }}
         </v-chip>
+        <v-chip v-if="ownerLabel" size="x-small" variant="tonal" color="secondary" prepend-icon="mdi-account-outline" class="ml-1">
+          {{ ownerLabel }}
+        </v-chip>
       </div>
       <div class="text-caption text-medium-emphasis">
         {{ file.signal_count }} Signale • {{ file.row_count?.toLocaleString() }} Punkte •
@@ -78,6 +81,8 @@ defineProps({
   // Off inside an already-expanded folder section (the folder is obvious
   // from context there); on in the flat "Alle"/single-folder-filtered view.
   showFolderChip: { type: Boolean, default: true },
+  // Set only for admins viewing other users' files — shows who the file belongs to.
+  ownerLabel: { type: String, default: null },
 });
 defineEmits(["toggle-select", "move-folder", "add-to-compare", "open", "remove"]);
 </script>

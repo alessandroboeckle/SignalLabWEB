@@ -50,168 +50,6 @@
     </v-alert>
 
 
-    <!-- Cloud files (shared) -->
-    <v-card variant="outlined" rounded="lg" class="mb-6">
-      <v-card-title class="d-flex align-center flex-wrap ga-2">
-        <v-icon class="mr-2">mdi-cloud</v-icon>
-        Gespeicherte Messdateien
-        <v-spacer></v-spacer>
-        <template v-if="selectedCloudIds.length > 0">
-          <span class="text-caption text-medium-emphasis mr-2">{{ selectedCloudIds.length }} ausgewählt</span>
-          <v-btn
-            size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple"
-            :loading="bulkAddingCompare"
-            class="mr-2"
-            @click="addSelectedToCompare"
-          >
-            Zur Anzeige hinzufügen
-          </v-btn>
-          <v-btn size="small" variant="text" @click="selectedCloudIds = []">Auswahl aufheben</v-btn>
-        </template>
-        <v-btn size="small" variant="text" icon="mdi-refresh" aria-label="Liste aktualisieren" :loading="loadingList" @click="loadList"></v-btn>
-      </v-card-title>
-      <v-card-subtitle v-if="cloudFiles.length > 0" class="pb-2">
-        {{ cloudFiles.length }} Datei(en) insgesamt •
-        <template v-if="auth.isAdmin">
-          {{ formatBytes(totalStorageBytes) }} belegt (alle Nutzer) · eigene: {{ formatBytes(myStorageBytes) }} / {{ formatBytes(QUOTA_BYTES) }}
-        </template>
-        <template v-else>{{ formatBytes(myStorageBytes) }} / {{ formatBytes(QUOTA_BYTES) }} belegt</template>
-        <template v-if="activeFolder !== '__all__' && folderFilteredFiles.length !== cloudFiles.length">
-          — {{ activeFolderLabel }}: {{ folderFilteredFiles.length }} Datei(en), {{ formatBytes(folderStorageBytes) }}
-        </template>
-      </v-card-subtitle>
-      <v-progress-linear
-        v-if="cloudFiles.length > 0"
-        :model-value="quotaUsedPct"
-        :color="quotaUsedPct >= 100 ? 'error' : quotaUsedPct >= 80 ? 'warning' : 'primary'"
-        height="4"
-        class="mb-2"
-      ></v-progress-linear>
-      <v-alert v-if="quotaExceeded" type="warning" variant="tonal" density="compact" class="text-caption mx-4 mb-2">
-        Speicherlimit ({{ formatBytes(QUOTA_BYTES) }}) erreicht — erst Dateien löschen, bevor du neue hochladen kannst.
-      </v-alert>
-      <v-divider></v-divider>
-      <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
-        Noch keine Dateien in der Cloud.
-      </div>
-      <template v-else>
-        <!-- Folder filter -->
-        <div class="d-flex flex-wrap align-center ga-2 px-4 py-2">
-          <v-chip
-            :variant="activeFolder === '__all__' ? 'flat' : 'outlined'"
-            :color="activeFolder === '__all__' ? 'primary' : 'default'"
-            size="small"
-            @click="activeFolder = '__all__'"
-          >
-            Alle ({{ cloudFiles.length }})
-          </v-chip>
-          <v-chip
-            v-if="unfiledCount > 0"
-            :variant="activeFolder === '__none__' ? 'flat' : 'outlined'"
-            :color="activeFolder === '__none__' ? 'primary' : 'default'"
-            size="small"
-            prepend-icon="mdi-folder-off-outline"
-            @click="activeFolder = '__none__'"
-          >
-            Ohne Ordner ({{ unfiledCount }})
-          </v-chip>
-          <v-chip
-            v-for="folder in folders"
-            :key="folder"
-            :variant="activeFolder === folder ? 'flat' : 'outlined'"
-            :color="activeFolder === folder ? 'primary' : 'default'"
-            size="small"
-            prepend-icon="mdi-folder-outline"
-            closable
-            @click="activeFolder = folder"
-            @click:close="renameOrDeleteFolder(folder)"
-          >
-            {{ folder }} ({{ cloudFiles.filter((f) => f.folder === folder).length }})
-          </v-chip>
-          <v-btn size="small" variant="outlined" prepend-icon="mdi-folder-plus-outline" @click="showCreateFolderDialog = true">
-            Ordner erstellen
-          </v-btn>
-        </div>
-        <v-divider></v-divider>
-
-        <div class="d-flex align-center ga-2 px-4 py-2">
-          <v-checkbox-btn
-            :model-value="allCloudFilesSelected"
-            :indeterminate="selectedCloudIds.length > 0 && !allCloudFilesSelected"
-            density="compact"
-            aria-label="Alle auswählen"
-            @update:model-value="toggleSelectAllCloudFiles"
-          ></v-checkbox-btn>
-          <span class="text-caption text-medium-emphasis">Alle auswählen</span>
-        </div>
-        <v-divider></v-divider>
-
-        <!-- "Alle" gets real folder structure — a collapsible section per
-             folder (+ "Ohne Ordner"), each date-grouped inside — instead
-             of just a flat chronological list with filter chips as the
-             only sense of organization. Filtering to one specific folder
-             via the chips above skips this extra layer since it'd just
-             be one section containing everything anyway. -->
-        <v-expansion-panels v-if="activeFolder === '__all__'" v-model="openFolderSections" multiple variant="accordion">
-          <v-expansion-panel v-for="section in folderSections" :key="section.key" :value="section.key">
-            <v-expansion-panel-title>
-              <v-icon size="18" class="mr-2">{{ section.key === "__none__" ? "mdi-folder-off-outline" : "mdi-folder-outline" }}</v-icon>
-              <span class="font-weight-medium">{{ section.label }}</span>
-              <span class="text-caption text-medium-emphasis ml-2">
-                {{ section.files.length }} Datei(en) • {{ formatBytes(section.bytes) }}
-              </span>
-            </v-expansion-panel-title>
-            <v-expansion-panel-text class="pa-0">
-              <template v-for="group in groupByDate(section.files)" :key="group.label">
-                <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
-                  {{ group.label }}
-                </div>
-                <CloudFileRow
-                  v-for="f in group.items"
-                  :key="f.id"
-                  :file="f"
-                  :selected="selectedCloudIds.includes(f.id)"
-                  :folders="folders"
-                  :adding="compareAddingId === f.id"
-                  :opening="busyId === f.id"
-                  :format-date="formatDate"
-                  :show-folder-chip="false"
-                  @toggle-select="toggleCloudSelection(f.id)"
-                  @move-folder="(val) => moveFileToFolder(f, val)"
-                  @add-to-compare="addCloudFileToCompare(f)"
-                  @open="openCloudFile(f)"
-                  @remove="removeCloudFile(f)"
-                />
-              </template>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-        </v-expansion-panels>
-
-        <template v-else>
-          <template v-for="group in groupedCloudFiles" :key="group.label">
-            <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
-              {{ group.label }}
-            </div>
-            <CloudFileRow
-              v-for="f in group.items"
-              :key="f.id"
-              :file="f"
-              :selected="selectedCloudIds.includes(f.id)"
-              :folders="folders"
-              :adding="compareAddingId === f.id"
-              :opening="busyId === f.id"
-              :format-date="formatDate"
-              @toggle-select="toggleCloudSelection(f.id)"
-              @move-folder="(val) => moveFileToFolder(f, val)"
-              @add-to-compare="addCloudFileToCompare(f)"
-              @open="openCloudFile(f)"
-              @remove="removeCloudFile(f)"
-            />
-          </template>
-        </template>
-      </template>
-    </v-card>
-
     <!-- Dropzone -->
     <v-card
       variant="outlined"
@@ -291,6 +129,194 @@
       >
         Diese Dateien vergleichen
       </v-btn>
+    </v-card>
+
+    <!-- Cloud files (shared) -->
+    <v-card variant="outlined" rounded="lg" class="mb-6">
+      <v-card-title class="d-flex align-center flex-wrap ga-2">
+        <v-icon class="mr-2">mdi-cloud</v-icon>
+        Gespeicherte Messdateien
+        <v-spacer></v-spacer>
+        <template v-if="selectedCloudIds.length > 0">
+          <span class="text-caption text-medium-emphasis mr-2">{{ selectedCloudIds.length }} ausgewählt</span>
+          <v-btn
+            size="small" color="primary" variant="flat" prepend-icon="mdi-chart-multiple"
+            :loading="bulkAddingCompare"
+            class="mr-2"
+            @click="addSelectedToCompare"
+          >
+            Zur Anzeige hinzufügen
+          </v-btn>
+          <v-btn size="small" variant="text" @click="selectedCloudIds = []">Auswahl aufheben</v-btn>
+        </template>
+        <v-btn size="small" variant="text" icon="mdi-refresh" aria-label="Liste aktualisieren" :loading="loadingList" @click="loadList"></v-btn>
+      </v-card-title>
+      <v-card-subtitle v-if="cloudFiles.length > 0" class="pb-2">
+        {{ cloudFiles.length }} Datei(en) insgesamt •
+        <template v-if="auth.isAdmin">
+          {{ formatBytes(totalStorageBytes) }} belegt (alle Nutzer) · eigene: {{ formatBytes(myStorageBytes) }} / {{ formatBytes(QUOTA_BYTES) }}
+        </template>
+        <template v-else>{{ formatBytes(myStorageBytes) }} / {{ formatBytes(QUOTA_BYTES) }} belegt</template>
+        <template v-if="activeFolder !== '__all__' && folderFilteredFiles.length !== cloudFiles.length">
+          — {{ activeFolderLabel }}: {{ folderFilteredFiles.length }} Datei(en), {{ formatBytes(folderStorageBytes) }}
+        </template>
+      </v-card-subtitle>
+      <v-progress-linear
+        v-if="cloudFiles.length > 0"
+        :model-value="quotaUsedPct"
+        :color="quotaUsedPct >= 100 ? 'error' : quotaUsedPct >= 80 ? 'warning' : 'primary'"
+        height="4"
+        class="mb-2"
+      ></v-progress-linear>
+      <v-alert v-if="quotaExceeded" type="warning" variant="tonal" density="compact" class="text-caption mx-4 mb-2">
+        Speicherlimit ({{ formatBytes(QUOTA_BYTES) }}) erreicht — erst Dateien löschen, bevor du neue hochladen kannst.
+      </v-alert>
+      <v-divider></v-divider>
+      <div v-if="cloudFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
+        Noch keine Dateien in der Cloud.
+      </div>
+      <template v-else>
+        <!-- Admin only: filter the whole list down to one user's files before
+             browsing folders — otherwise everyone's files are mixed together. -->
+        <div v-if="auth.isAdmin && ownerOptions.length > 0" class="d-flex flex-wrap align-center ga-2 px-4 pt-3">
+          <v-icon size="18" class="text-medium-emphasis">mdi-account-filter-outline</v-icon>
+          <v-chip
+            :variant="selectedOwnerFilter === '__all__' ? 'flat' : 'outlined'"
+            :color="selectedOwnerFilter === '__all__' ? 'secondary' : 'default'"
+            size="small"
+            @click="selectedOwnerFilter = '__all__'"
+          >
+            Alle Nutzer
+          </v-chip>
+          <v-chip
+            v-for="o in ownerOptions"
+            :key="o.id"
+            :variant="selectedOwnerFilter === o.id ? 'flat' : 'outlined'"
+            :color="selectedOwnerFilter === o.id ? 'secondary' : 'default'"
+            size="small"
+            prepend-icon="mdi-account-outline"
+            @click="selectedOwnerFilter = o.id"
+          >
+            {{ o.label }}
+          </v-chip>
+        </div>
+        <!-- Folder filter -->
+        <div class="d-flex flex-wrap align-center ga-2 px-4 py-2">
+          <v-chip
+            :variant="activeFolder === '__all__' ? 'flat' : 'outlined'"
+            :color="activeFolder === '__all__' ? 'primary' : 'default'"
+            size="small"
+            @click="activeFolder = '__all__'"
+          >
+            Alle ({{ ownerFilteredCloudFiles.length }})
+          </v-chip>
+          <v-chip
+            v-if="unfiledCount > 0"
+            :variant="activeFolder === '__none__' ? 'flat' : 'outlined'"
+            :color="activeFolder === '__none__' ? 'primary' : 'default'"
+            size="small"
+            prepend-icon="mdi-folder-off-outline"
+            @click="activeFolder = '__none__'"
+          >
+            Ohne Ordner ({{ unfiledCount }})
+          </v-chip>
+          <v-chip
+            v-for="folder in folders"
+            :key="folder"
+            :variant="activeFolder === folder ? 'flat' : 'outlined'"
+            :color="activeFolder === folder ? 'primary' : 'default'"
+            size="small"
+            prepend-icon="mdi-folder-outline"
+            closable
+            @click="activeFolder = folder"
+            @click:close="renameOrDeleteFolder(folder)"
+          >
+            {{ folder }} ({{ ownerFilteredCloudFiles.filter((f) => f.folder === folder).length }})
+          </v-chip>
+          <v-btn size="small" variant="outlined" prepend-icon="mdi-folder-plus-outline" @click="showCreateFolderDialog = true">
+            Ordner erstellen
+          </v-btn>
+        </div>
+        <v-divider></v-divider>
+
+        <div class="d-flex align-center ga-2 px-4 py-2">
+          <v-checkbox-btn
+            :model-value="allCloudFilesSelected"
+            :indeterminate="selectedCloudIds.length > 0 && !allCloudFilesSelected"
+            density="compact"
+            aria-label="Alle auswählen"
+            @update:model-value="toggleSelectAllCloudFiles"
+          ></v-checkbox-btn>
+          <span class="text-caption text-medium-emphasis">Alle auswählen</span>
+        </div>
+        <v-divider></v-divider>
+
+        <!-- "Alle" gets real folder structure — a collapsible section per
+             folder (+ "Ohne Ordner"), each date-grouped inside — instead
+             of just a flat chronological list with filter chips as the
+             only sense of organization. Filtering to one specific folder
+             via the chips above skips this extra layer since it'd just
+             be one section containing everything anyway. -->
+        <v-expansion-panels v-if="activeFolder === '__all__'" v-model="openFolderSections" multiple variant="accordion">
+          <v-expansion-panel v-for="section in folderSections" :key="section.key" :value="section.key">
+            <v-expansion-panel-title>
+              <v-icon size="18" class="mr-2">{{ section.key === "__none__" ? "mdi-folder-off-outline" : "mdi-folder-outline" }}</v-icon>
+              <span class="font-weight-medium">{{ section.label }}</span>
+              <span class="text-caption text-medium-emphasis ml-2">
+                {{ section.files.length }} Datei(en) • {{ formatBytes(section.bytes) }}
+              </span>
+            </v-expansion-panel-title>
+            <v-expansion-panel-text class="pa-0">
+              <template v-for="group in groupByDate(section.files)" :key="group.label">
+                <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
+                  {{ group.label }}
+                </div>
+                <CloudFileRow
+                  v-for="f in group.items"
+                  :key="f.id"
+                  :file="f"
+                  :selected="selectedCloudIds.includes(f.id)"
+                  :folders="folders"
+                  :adding="compareAddingId === f.id"
+                  :opening="busyId === f.id"
+                  :format-date="formatDate"
+                  :show-folder-chip="false"
+                  :owner-label="ownerUsername(f)"
+                  @toggle-select="toggleCloudSelection(f.id)"
+                  @move-folder="(val) => moveFileToFolder(f, val)"
+                  @add-to-compare="addCloudFileToCompare(f)"
+                  @open="openCloudFile(f)"
+                  @remove="removeCloudFile(f)"
+                />
+              </template>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+
+        <template v-else>
+          <template v-for="group in groupedCloudFiles" :key="group.label">
+            <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
+              {{ group.label }}
+            </div>
+            <CloudFileRow
+              v-for="f in group.items"
+              :key="f.id"
+              :file="f"
+              :selected="selectedCloudIds.includes(f.id)"
+              :folders="folders"
+              :adding="compareAddingId === f.id"
+              :opening="busyId === f.id"
+              :format-date="formatDate"
+              :owner-label="ownerUsername(f)"
+              @toggle-select="toggleCloudSelection(f.id)"
+              @move-folder="(val) => moveFileToFolder(f, val)"
+              @add-to-compare="addCloudFileToCompare(f)"
+              @open="openCloudFile(f)"
+              @remove="removeCloudFile(f)"
+            />
+          </template>
+        </template>
+      </template>
     </v-card>
 
     <!-- Advanced import settings -->
@@ -673,6 +699,8 @@ import { withTimeout } from "../../utils/withTimeout.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useAuthStore } from "../../stores/authStore.js";
+import { supabase } from "../../lib/supabase";
+import { usernameFromEmail } from "../../utils/formatUsername.js";
 import { showToast } from "../../composables/useToast.js";
 import { listRecentFiles, addRecentFile } from "../../utils/recentFiles.js";
 import ChartCard from "./ChartCard.vue";
@@ -796,6 +824,28 @@ const showCreateFolderDialog = ref(false);
 const newFolderNameInput = ref("");
 const creatingFolder = ref(false);
 
+// Admin sees everyone's files (see messfiles_per_user_visibility_and_quota.sql),
+// so map uploaded_by -> username for an owner chip per file + a "Nutzer" filter,
+// instead of a flat list where it's unclear whose file/folder is whose.
+const adminUserMap = ref({}); // { [userId]: username }
+const selectedOwnerFilter = ref("__all__"); // "__all__" or a specific uploaded_by id
+async function loadAdminUserMap() {
+  if (!auth.isAdmin) return;
+  const { data, error } = await supabase.rpc("admin_list_users");
+  if (!error && data) {
+    adminUserMap.value = Object.fromEntries(data.map((u) => [u.id, usernameFromEmail(u.email)]));
+  }
+}
+function ownerUsername(file) {
+  return adminUserMap.value[file.uploaded_by] || null;
+}
+const ownerOptions = computed(() => {
+  const ids = [...new Set(cloudFiles.value.map((f) => f.uploaded_by).filter(Boolean))];
+  return ids
+    .map((id) => ({ id, label: adminUserMap.value[id] || id }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+});
+
 // Registered (possibly-empty) folders merged with anything already on a
 // file — covers data from before add_folder_registry.sql existed, or if
 // that migration hasn't been run yet, without treating either source as
@@ -804,7 +854,7 @@ const folders = computed(() => {
   const fromFiles = cloudFiles.value.map((f) => f.folder).filter(Boolean);
   return [...new Set([...registeredFolders.value, ...fromFiles])].sort((a, b) => a.localeCompare(b));
 });
-const unfiledCount = computed(() => cloudFiles.value.filter((f) => !f.folder).length);
+const unfiledCount = computed(() => ownerFilteredCloudFiles.value.filter((f) => !f.folder).length);
 
 async function createFolderNow() {
   const name = newFolderNameInput.value.trim();
@@ -823,10 +873,14 @@ async function createFolderNow() {
   creatingFolder.value = false;
 }
 
+const ownerFilteredCloudFiles = computed(() => {
+  if (!auth.isAdmin || selectedOwnerFilter.value === "__all__") return cloudFiles.value;
+  return cloudFiles.value.filter((f) => f.uploaded_by === selectedOwnerFilter.value);
+});
 const folderFilteredFiles = computed(() => {
-  if (activeFolder.value === "__all__") return cloudFiles.value;
-  if (activeFolder.value === "__none__") return cloudFiles.value.filter((f) => !f.folder);
-  return cloudFiles.value.filter((f) => f.folder === activeFolder.value);
+  if (activeFolder.value === "__all__") return ownerFilteredCloudFiles.value;
+  if (activeFolder.value === "__none__") return ownerFilteredCloudFiles.value.filter((f) => !f.folder);
+  return ownerFilteredCloudFiles.value.filter((f) => f.folder === activeFolder.value);
 });
 const groupedCloudFiles = computed(() => groupByDate(folderFilteredFiles.value));
 
@@ -836,10 +890,10 @@ const groupedCloudFiles = computed(() => groupByDate(folderFilteredFiles.value))
 // is.
 const folderSections = computed(() => {
   const sections = folders.value.map((folder) => {
-    const files = cloudFiles.value.filter((f) => f.folder === folder);
+    const files = ownerFilteredCloudFiles.value.filter((f) => f.folder === folder);
     return { key: folder, label: folder, files, bytes: files.reduce((sum, f) => sum + (f.size_bytes || 0), 0) };
   });
-  const unfiled = cloudFiles.value.filter((f) => !f.folder);
+  const unfiled = ownerFilteredCloudFiles.value.filter((f) => !f.folder);
   if (unfiled.length) {
     sections.push({ key: "__none__", label: "Ohne Ordner", files: unfiled, bytes: unfiled.reduce((sum, f) => sum + (f.size_bytes || 0), 0) });
   }
@@ -905,13 +959,26 @@ async function renameOrDeleteFolder(folder) {
   const newName = prompt(`Ordner "${folder}" umbenennen (leer lassen zum Auflösen):`, folder);
   if (newName === null) return; // cancelled
   const target = newName.trim() || null;
+  // Only touch files actually named into this folder — and, if an admin is
+  // browsing "Alle Nutzer" while two different users happen to have a
+  // folder with the same name, each user's folder is renamed/deleted
+  // independently instead of one blanket action wiping both.
   const affected = cloudFiles.value.filter((f) => f.folder === folder);
+  const owners = [...new Set(affected.map((f) => f.uploaded_by).filter(Boolean))];
   for (const f of affected) {
     await moveFileToFolder(f, target);
   }
   try {
-    if (target) await mtStorage.createFolder(target);
-    await mtStorage.deleteFolder(folder);
+    if (owners.length <= 1) {
+      if (target) await mtStorage.createFolder(target);
+      await mtStorage.deleteFolder(folder, owners[0]);
+    } else {
+      // Multiple owners shared this folder name — resolve each one on its own.
+      for (const ownerId of owners) {
+        if (target) await mtStorage.createFolder(target); // best effort; unique per (name, owner)
+        await mtStorage.deleteFolder(folder, ownerId);
+      }
+    }
   } catch (e) {
     errorMsg.value = "Ordner-Registrierung konnte nicht aktualisiert werden: " + (e.message || e);
   }
@@ -1311,6 +1378,7 @@ onMounted(() => {
     fileName.value = mtStore.fileName;
   }
   loadList();
+  loadAdminUserMap();
 });
 
 function formatDuration(sec) {

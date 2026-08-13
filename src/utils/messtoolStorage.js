@@ -86,8 +86,10 @@ export async function createFolder(name) {
   if (error && error.code !== "23505") throw error;
 }
 
-export async function deleteFolder(name) {
-  const { error } = await supabase.from("messfile_folders").delete().eq("name", name);
+export async function deleteFolder(name, ownerId) {
+  let query = supabase.from("messfile_folders").delete().eq("name", name);
+  if (ownerId) query = query.eq("created_by", ownerId);
+  const { error } = await query;
   if (error) throw error;
 }
 
