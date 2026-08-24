@@ -711,7 +711,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from "vue";
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { decodeLatin1 } from "../../utils/messtoolParser.js";
 import { listExcelSheets, parseMesstoolExcel } from "../../utils/messtoolExcelParser.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
@@ -738,6 +738,12 @@ const emit = defineEmits(["navigate"]);
 const mtStore = useMesstoolStore();
 const auth = useAuthStore();
 const showWorkflowHint = ref(true);
+// Reappears fresh on every page load/reload (not persisted), but fades
+// itself out after a bit if nobody dismisses it manually — a first-time
+// hint shouldn't linger forever taking up space once you've clearly
+// started working.
+const WORKFLOW_HINT_AUTO_DISMISS_MS = 100_000; // ~1.5–2 min
+let workflowHintTimer = null;
 
 const fileInput = ref(null);
 const isDragging = ref(false);
@@ -1405,6 +1411,11 @@ onMounted(() => {
   }
   loadList();
   loadAdminUserMap();
+  workflowHintTimer = setTimeout(() => { showWorkflowHint.value = false; }, WORKFLOW_HINT_AUTO_DISMISS_MS);
+});
+
+onBeforeUnmount(() => {
+  if (workflowHintTimer) clearTimeout(workflowHintTimer);
 });
 
 function formatDuration(sec) {
