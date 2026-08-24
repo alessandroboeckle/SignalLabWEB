@@ -337,6 +337,13 @@
             hide-details
             label="Zoom über alle Plots"
           ></v-switch>
+          <v-switch
+            v-model="fullWidthPlots"
+            color="primary"
+            density="compact"
+            hide-details
+            label="Volle Breite"
+          ></v-switch>
         </template>
 
         <v-switch
@@ -381,9 +388,14 @@
 
       <!-- Stacked individual charts -->
       <template v-else>
-        <ChartCard
+        <v-row>
+        <v-col
           v-for="item in stackedRenderItems"
           :key="item.key"
+          :cols="12"
+          :md="fullWidthPlots ? 12 : 6"
+        >
+        <ChartCard
           :title="item.title"
           :config="item.config"
           :height="bigMode ? 600 : 260"
@@ -430,6 +442,8 @@
             </v-menu>
           </template>
         </ChartCard>
+        </v-col>
+        </v-row>
         <p v-if="mtStore.compareSeries.length === 0" class="text-medium-emphasis text-center pa-6">
           Keine Signale ausgewählt.
         </p>
@@ -617,6 +631,7 @@ const errorMsg = ref("");
 const displayMode = ref("overlay"); // 'overlay' | 'stacked'
 const xAxisMode = ref("zeit"); // 'zeit' (elapsed seconds) | 'uhrzeit' (real clock time)
 const bigMode = ref(false); // show every chart bigger, one page's worth at a time
+const fullWidthPlots = ref(true); // stacked charts: full width (default, unchanged) vs. two side by side
 const syncCursors = ref(false); // cursors placed on one Gestapelt chart appear on all of them
 const syncZoom = ref(true); // zoom/pan on one Gestapelt chart applies to all of them (existing default behavior)
 
