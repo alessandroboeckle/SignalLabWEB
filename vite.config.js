@@ -5,6 +5,16 @@ export default defineConfig({
   plugins: [vue()],
   base: '/SignalLabWEB/',
   server: { port: 3000 },
+  resolve: {
+    alias: {
+      // jsPDF statically imports html2canvas for its .html() method, which
+      // we never call — see src/utils/html2canvasStub.js for the full
+      // explanation. Without this, ~200 KB of unused code ships in the
+      // PDF-export chunk.
+      html2canvas: '/src/utils/html2canvasStub.js',
+      dompurify: '/src/utils/dompurifyStub.js',
+    },
+  },
   test: {
     // Without this, Vitest's default module resolution treats Vuetify as
     // an external Node dependency and loads its CSS imports natively
