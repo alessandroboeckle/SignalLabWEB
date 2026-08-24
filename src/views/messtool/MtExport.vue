@@ -75,6 +75,7 @@
               color="primary"
               variant="outlined"
               prepend-icon="mdi-microsoft-excel"
+              :loading="buildingExcel"
               @click="exportAllSignalsExcel"
             >
               Alle Signale als Excel
@@ -201,7 +202,7 @@
           <v-btn
             v-if="reportSettings.logoDataUrl"
             variant="text"
-            :disabled="!pngTitleInput.trim()"
+            :disabled="!pngTitleInput.trim() || buildingPng"
             @click="doExportPng(false)"
           >
             Ohne Logo
@@ -210,6 +211,7 @@
             color="primary"
             variant="flat"
             :disabled="!pngTitleInput.trim()"
+            :loading="buildingPng"
             @click="doExportPng(!!reportSettings.logoDataUrl)"
           >
             {{ reportSettings.logoDataUrl ? "Mit Logo" : "Exportieren" }}
@@ -227,8 +229,8 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="doExportPdf(false)">Nur Plot</v-btn>
-          <v-btn color="primary" variant="flat" @click="doExportPdf(true)">Vollständiger Report</v-btn>
+          <v-btn variant="text" :disabled="buildingPdf" @click="doExportPdf(false)">Nur Plot</v-btn>
+          <v-btn color="primary" variant="flat" :loading="buildingPdf" @click="doExportPdf(true)">Vollständiger Report</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -242,8 +244,8 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="doExportBatchZip(false)">Nur Plot</v-btn>
-          <v-btn color="primary" variant="flat" @click="doExportBatchZip(true)">Vollständiger Report</v-btn>
+          <v-btn variant="text" :disabled="buildingBatch" @click="doExportBatchZip(false)">Nur Plot</v-btn>
+          <v-btn color="primary" variant="flat" :loading="buildingBatch" @click="doExportBatchZip(true)">Vollständiger Report</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -288,6 +290,8 @@ const selectedIdx = computed({
 });
 const buildingPdf = ref(false);
 const buildingBatch = ref(false);
+const buildingExcel = ref(false);
+const buildingPng = ref(false);
 const batchProgress = ref(0);
 const batchZipName = ref("messtool_batch");
 const showPngDialog = ref(false);
@@ -437,10 +441,15 @@ function downloadDataUrl(dataUrl, filename) {
 
 async function exportAllSignalsExcel() {
   if (!mtStore.parsed) return;
-  const wb = await buildMultiSignalWorkbook(mtStore.parsed.time, mtStore.parsed.signals);
-  const base = customBaseName.value.trim() || (mtStore.fileName || "signale").replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
-  await downloadWorkbook(wb, `${base}_alle_signale.xlsx`);
-  showToast("Excel-Datei heruntergeladen.");
+  buildingExcel.value = true;
+  try {
+    const wb = await buildMultiSignalWorkbook(mtStore.parsed.time, mtStore.parsed.signals);
+    const base = customBaseName.value.trim() || (mtStore.fileName || "signale").replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
+    await downloadWorkbook(wb, `${base}_alle_signale.xlsx`);
+    showToast("Excel-Datei heruntergeladen.");
+  } finally {
+    buildingExcel.value = false;
+  }
 }
 
 async function exportPng() {
@@ -451,15 +460,20 @@ async function exportPng() {
 
 async function doExportPng(withLogo) {
   if (!pngTitleInput.value.trim()) return; // required — the dialog's own button is disabled without it too, this is just the safety net
-  showPngDialog.value = false;
-  const chartDataUrl = await renderOffscreenChart(sig.value, time.value, 1800, 900, { showMarkers: true });
-  const dataUrl = await composePngExport(chartDataUrl, {
-    title: pngTitleInput.value.trim(),
-    logoDataUrl: withLogo ? reportSettings.logoDataUrl : null,
-    logoAspect: reportSettings.logoAspect,
-  });
-  downloadDataUrl(dataUrl, exportFilename("png"));
-  showToast("PNG heruntergeladen.");
+  buildingPng.value = true;
+  try {
+    const chartDataUrl = await renderOffscreenChart(sig.value, time.value, 1800, 900, { showMarkers: true });
+    const dataUrl = await composePngExport(chartDataUrl, {
+      title: pngTitleInput.value.trim(),
+      logoDataUrl: withLogo ? reportSettings.logoDataUrl : null,
+      logoAspect: reportSettings.logoAspect,
+    });
+    downloadDataUrl(dataUrl, exportFilename("png"));
+    showPngDialog.value = false;
+    showToast("PNG heruntergeladen.");
+  } finally {
+    buildingPng.value = false;
+  }
 }
 
 // Builds the actual exported PNG on its own canvas rather than just

@@ -493,7 +493,10 @@
           Aus Cloud hinzufügen
         </v-card-title>
         <v-divider></v-divider>
-        <template v-if="cloudFiles.length">
+        <div v-if="cloudDialogLoading" class="d-flex justify-center pa-8">
+          <v-progress-circular indeterminate color="primary"></v-progress-circular>
+        </div>
+        <template v-else-if="cloudFiles.length">
           <div class="d-flex align-center ga-2 px-4 py-2">
             <v-checkbox-btn
               :model-value="allCloudSelected"
@@ -550,7 +553,7 @@
             </v-list-item>
           </v-list>
         </template>
-        <v-card-text v-else class="text-center text-medium-emphasis pa-6">
+        <v-card-text v-else-if="!cloudDialogLoading" class="text-center text-medium-emphasis pa-6">
           Keine Dateien in der Cloud.
         </v-card-text>
         <v-card-actions>
@@ -1085,6 +1088,7 @@ function removeGroup(name) {
 }
 const alignConfidence = ref({}); // { [fileId]: score } from the last auto-align run
 const cloudDialog = ref(false);
+const cloudDialogLoading = ref(false);
 const cloudFiles = ref([]);
 const cloudBusyId = ref(null);
 const selectedCloudIds = ref([]);
@@ -1144,10 +1148,13 @@ async function onFileSelect(e) {
 async function openCloudDialog() {
   cloudDialog.value = true;
   selectedCloudIds.value = [];
+  cloudDialogLoading.value = true;
   try {
     cloudFiles.value = await withTimeout(mtStorage.listMessfiles(), 25000, "Zeitüberschreitung beim Laden der Cloud-Liste.");
   } catch (err) {
     errorMsg.value = err.message || "Cloud-Liste konnte nicht geladen werden.";
+  } finally {
+    cloudDialogLoading.value = false;
   }
 }
 
