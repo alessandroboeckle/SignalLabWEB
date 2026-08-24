@@ -289,7 +289,8 @@ const sections = [
       },
       {
         h: "Gespeicherte Messdateien (Cloud)",
-        p: "Liste aller bisher hochgeladenen Dateien, geräteübergreifend sichtbar (jeder mit Zugriff sieht dieselbe Liste). Automatisch nach Datum gruppiert (Heute / Gestern / Diese Woche / Diesen Monat / Älter), damit man bei vielen Dateien nicht mehr scrollen muss um was Aktuelles zu finden.\nCheckbox oben links = alle auswählen — damit lassen sich mehrere Dateien auf einmal zur Anzeige-Seite hinzufügen, statt jede einzeln anklicken zu müssen.\n'Zur Anzeige hinzufügen' navigiert NICHT mehr automatisch weg — du bleibst auf der Import-Seite (praktisch, wenn du nacheinander mehrere Dateien auswählen willst) und bekommst stattdessen eine kurze Bestätigung.",
+        p: "Liste aller bisher hochgeladenen Dateien. Jeder Nutzer sieht nur seine eigenen Dateien — Admins sehen zusätzlich die aller anderen Nutzer, mit Nutzer-Filter oben in der Liste, um gezielt zu einer Person zu springen. Automatisch nach Datum gruppiert (Heute / Gestern / Diese Woche / Diesen Monat / Älter), damit man bei vielen Dateien nicht mehr scrollen muss um was Aktuelles zu finden.\nCheckbox oben links = alle auswählen — damit lassen sich mehrere Dateien auf einmal zur Anzeige-Seite hinzufügen, statt jede einzeln anklicken zu müssen.\n'Zur Anzeige hinzufügen' navigiert NICHT mehr automatisch weg — du bleibst auf der Import-Seite (praktisch, wenn du nacheinander mehrere Dateien auswählen willst) und bekommst stattdessen eine kurze Bestätigung.",
+        tip: "Speicherlimit: 30 MB pro Nutzer, 100 MB für Admins. Der Fortschrittsbalken über der Liste zeigt den aktuellen Verbrauch.",
       },
       {
         h: "Ordner",
@@ -309,6 +310,7 @@ const sections = [
     blocks: [
       {
         p: "Verarbeitungskette aus mehreren Schritten aufbauen: Glätten, Entrenden (Detrend), Normalisieren, Offset entfernen. Reihenfolge per Drag & Drop änderbar. Die Kette wird automatisch pro Session gespeichert und übersteht auch ein Neuladen der Seite.",
+        tip: "Nur noch über den Admin-Bereich erreichbar (nicht mehr in der normalen Messtool-Navigation).",
       },
     ],
   },
@@ -328,7 +330,7 @@ const sections = [
         chips: ["Tiefpass", "Hochpass", "Bandpass (2 Grenzfrequenzen)"],
       },
       {
-        p: "Alle Filter sind zero-phase (sosfiltfilt-äquivalent, keine Phasenverschiebung).",
+        p: "Ordnung wählbar von 1 bis 20. Alle Filter sind zero-phase (sosfiltfilt-äquivalent, keine Phasenverschiebung).",
         tip: "Die Grenzfrequenz muss unter der Nyquist-Frequenz (halbe Abtastrate) liegen — bei ~8 Hz Abtastrate also unter 4 Hz.",
       },
       {
@@ -346,18 +348,25 @@ const sections = [
     blocks: [
       {
         h: "Einzelsignal-Analyse",
-        p: "Statistik (Mittel, RMS, Std, Varianz, Min/Max), Ableitung, Integral und FFT (mit Fensterfunktion: Hann/Hamming/Blackman/Rechteck) für ein ausgewähltes Signal. Zeitbereich per Start/Ende einschränkbar — alle Berechnungen greifen dann nur auf diesen Ausschnitt zu.",
+        p: "Statistik (Mittel, RMS, Std, Varianz, Min/Max, sowie dt/df/N der aktuellen Fenster-Auflösung) als Kachel-Reihe oben, Signal und Ableitung als eigene Charts nebeneinander, dazu Integral und FFT (mit Fensterfunktion: Hann/Hamming/Blackman/Rechteck) für ein ausgewähltes Signal — inklusive Phasenspektrum als eigener Plot neben der Amplitude. Zeitbereich per Start/Ende einschränkbar — alle Berechnungen greifen dann nur auf diesen Ausschnitt zu.",
+      },
+      {
+        h: "RMS über Zeit",
+        p: "Gleitendes RMS-Fenster statt eines einzelnen Gesamtwerts — Fensterlänge und Überlappung [%] frei einstellbar über das Optionen-Menü am Chart. Der zusätzliche Plot 'Fenster-Überlappung' zeigt die einzelnen Zeitfenster als schattierte Bänder über dem Signal, damit man sieht, wie stark sich benachbarte Fenster tatsächlich überlappen (bei sehr hoher Überlappung auf max. 40 Bänder begrenzt, damit es lesbar bleibt — die RMS-Berechnung selbst nutzt trotzdem jedes einzelne Fenster).",
       },
       {
         h: "Automatische Ereignis-Erkennung",
-        p: "Findet Bereiche, in denen ein Signal einen Schwellwert über-/unterschreitet (z.B. Bremsereignisse), und kann sie direkt als Marker setzen.",
+        p: "Findet Bereiche, in denen ein Signal einen Schwellwert über-/unterschreitet (z.B. Bremsereignisse), und kann sie direkt als Marker setzen. Mindestdauer einstellbar, damit reines Rauschen um den Schwellwert nicht als tausende Mikro-Ereignisse gezählt wird.",
       },
       {
         h: "Gruppen-Analyse",
         p: "Mehrere Signale gleichzeitig auswählen und vergleichen: gemeinsame Statistik-Tabelle, überlagerte Zeit-Kurve und überlagertes FFT-Spektrum aller gewählten Signale in einem Chart. Nützlich um z.B. mehrere Achsen oder Sensoren eines Ereignisses direkt gegenüberzustellen.",
       },
       {
-        p: "Jeder Chart hat einen Y-Log-Schalter (Symbol 'log') in der Werkzeugleiste — auch fürs FFT-Spektrum.",
+        p: "'Anzeigeoptionen' (oben rechts) blendet einzelne Abschnitte der Seite ein/aus. 'Volle Breite' daneben stapelt alle Charts untereinander statt zwei nebeneinander — praktisch bei grossem Monitor, um Details besser zu erkennen.",
+      },
+      {
+        p: "Jeder Chart hat einen Y-Log-Schalter (Symbol 'log') in der Werkzeugleiste — auch fürs FFT-Spektrum — sowie einen Y-Achsen-Zoom-Schalter (Mausrad/Rechteck-Zoom wirkt dann auch auf die Y-Achse, nicht nur die Zeitachse).",
       },
       {
         p: "Alle Tabellen (Signal-Übersicht, Ereignis-Liste, Gruppen-Statistik) sind sortierbar — auf eine Spaltenüberschrift klicken.",
@@ -385,15 +394,15 @@ const sections = [
       },
       {
         h: "Cursor",
-        p: "Unbegrenzt viele Cursor pro Chart setzbar (Cursor-Modus an, dann klicken). Werte aller Serien an der Cursor-Position erscheinen in der Cursorbox; bei genau zwei aktiven Cursorn wird zusätzlich Δx/Δy angezeigt. 'Cursor über alle Plots' (Schalter oben) sorgt dafür, dass ein neu gesetzter Cursor auf allen Gestapelt-Charts gleichzeitig erscheint — praktisch um denselben Zeitpunkt in mehreren Signalen zu vergleichen.",
+        p: "Unbegrenzt viele Cursor pro Chart setzbar (Cursor-Modus an, dann klicken). Werte aller Serien an der Cursor-Position erscheinen in der Cursorbox (eingeklappt per Default — auf die x-Position klicken, um sie für diesen Cursor aufzuklappen); bei genau zwei aktiven Cursorn wird zusätzlich Δx/Δy angezeigt. 'Cursor über alle Plots' (im 'Anzeigeoptionen'-Menü, nur im Gestapelt-Modus) sorgt dafür, dass ein neu gesetzter Cursor auf allen Gestapelt-Charts gleichzeitig erscheint — praktisch um denselben Zeitpunkt in mehreren Signalen zu vergleichen.",
       },
       {
-        h: "Zoom-Sync",
-        p: "'Zoom über alle Plots' hält die Zeitachse aller Gestapelt-Charts synchron — zoomst/verschiebst du einen, ziehen die anderen mit.",
+        h: "Zoom & Breite",
+        p: "'Zoom über alle Plots' (im 'Anzeigeoptionen'-Menü, nur Gestapelt-Modus) hält die Zeitachse aller Charts synchron. 'Volle Breite' daneben stapelt die Charts einspaltig statt zwei nebeneinander. Jeder Chart hat zusätzlich einen eigenen Y-Achsen-Zoom-Schalter in seiner Werkzeugleiste (Mausrad/Rechteck-Zoom wirkt dann auch auf die Y-Achse).",
       },
       {
         h: "Frequenzgang (FFT)",
-        p: "Schalter 'Frequenzgang anzeigen' — zwei zusätzliche Plots (Amplitude und Phase) für alle gerade verglichenen Signale, überlagert, gleiche Farben wie in den Zeit-Diagrammen. Rechnet auf den vollen Rohdaten (nicht den für die Anzeige reduzierten Punkten) im Hintergrund, blockiert also auch bei langen Dateien nicht die Seite.",
+        p: "Schalter 'Frequenzgang anzeigen' (im 'Anzeigeoptionen'-Menü) — zwei zusätzliche Plots (Amplitude und Phase) für alle gerade verglichenen Signale, überlagert, gleiche Farben wie in den Zeit-Diagrammen. Rechnet auf den vollen Rohdaten (nicht den für die Anzeige reduzierten Punkten) im Hintergrund, blockiert also auch bei langen Dateien nicht die Seite.",
       },
       {
         h: "Löschen rückgängig machen",
@@ -505,6 +514,14 @@ const sections = [
     page: "admin",
     blocks: [
       { p: "Neue Konten freischalten/sperren, Zugriff auf die Freigabeliste verwalten. Nur sichtbar, wenn dein Konto Admin-Rechte hat." },
+      {
+        h: "Admin-Rechte vergeben",
+        p: "Bei jedem freigegebenen Nutzer (ausser dir selbst) gibt's einen 'Zum Admin machen'-Button, bei bestehenden Admins entsprechend 'Admin entziehen'. Man kann sich nicht selbst die eigenen Admin-Rechte entziehen — verhindert versehentliches Aussperren.",
+      },
+      {
+        h: "Verarbeitung",
+        p: "Die Verarbeitungskette (Glätten, Detrend, ...) ist nur noch von hier aus erreichbar, nicht mehr in der normalen Messtool-Navigation für alle Nutzer.",
+      },
       {
         h: "Gerade online",
         p: "Zeigt, wer JETZT gerade einen offenen Tab hat — verschwindet, sobald der Tab geschlossen wird, kein Verlauf. Für einen Überblick über die Zeit ('zuletzt online vor X Std./Tagen') steht das bei jedem Nutzer in der Liste 'Freigegebene Nutzer' weiter unten.",

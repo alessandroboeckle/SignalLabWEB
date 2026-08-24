@@ -93,8 +93,8 @@
             </v-btn>
 
             <v-alert type="info" variant="tonal" density="compact" class="text-caption mt-4">
-              Der PDF-Report enthält den Plot, die Kennzahlen (Mittel, RMS, Min/Max)
-              sowie Dateiname und Zeitstempel.
+              Der PDF-Report enthält den Plot, die Kennzahlen (Mittel, RMS, Std, Varianz, Min/Max,
+              dt/df/N) sowie Dateiname und Zeitstempel.
             </v-alert>
 
             <div class="mt-4">
@@ -590,6 +590,14 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
     mean: A.mean(y), rms: A.rms(y), std: A.stddev(y),
     variance: A.variance(y), min: mm.min, max: mm.max,
   };
+  // dt/df/N — same window-resolution readout as the Analyse page, so
+  // someone reading just the PDF (not the app) can still tell how finely
+  // resolved the underlying spectrum analysis actually was.
+  let windowInfo = null;
+  if (t.length >= 2) {
+    const dt = (t[t.length - 1] - t[0]) / (t.length - 1);
+    if (dt > 0) windowInfo = { dt, df: 1 / (t.length * dt), n: t.length };
+  }
 
   // Logo top-right, if the team has one set (Admin → Report-Vorlage) —
   // fitted ("contain") within a max box using its real aspect ratio
@@ -662,9 +670,12 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
     ["Minimum", stats.min, s.unit],
     ["Maximum", stats.max, s.unit],
   ];
-  for (const [label, val, unit] of rows) {
+  if (windowInfo) {
+    rows.push(["dt", windowInfo.dt, "s"], ["df", windowInfo.df, "Hz"], ["N (Samples)", windowInfo.n, "", 0]);
+  }
+  for (const [label, val, unit, decimals] of rows) {
     doc.text(`${label}:`, margin, y0);
-    doc.text(`${val == null ? "-" : val.toFixed(4)} ${unit || ""}`, margin + 60, y0);
+    doc.text(`${val == null ? "-" : val.toFixed(decimals ?? 4)} ${unit || ""}`, margin + 60, y0);
     y0 += 6;
   }
 

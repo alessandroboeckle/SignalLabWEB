@@ -1001,6 +1001,7 @@ function withInteractions(cfg) {
       // switches both together: off (default) behaves exactly as before
       // (X only), on lets you zoom into Y as well as X.
       wheel: { enabled: true },
+      pinch: { enabled: true }, // two-finger pinch on touch/tablet — wasn't enabled at all before
       drag: { enabled: true, backgroundColor: "rgba(37,99,235,0.15)" },
       mode: () => (yZoomMode.value ? "xy" : "x"),
       onZoomComplete: ({ chart }) => broadcastOwnRange(chart),
