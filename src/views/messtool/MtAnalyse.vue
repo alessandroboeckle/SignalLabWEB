@@ -28,6 +28,13 @@
           @navigate="$emit('navigate', $event)"
         />
         <v-spacer></v-spacer>
+        <v-switch
+          v-model="fullWidthPlots"
+          color="primary"
+          density="compact"
+          hide-details
+          label="Volle Breite"
+        ></v-switch>
         <v-menu :close-on-content-click="false">
           <template #activator="{ props: menuProps }">
             <v-btn v-bind="menuProps" size="small" variant="outlined" prepend-icon="mdi-view-grid-outline">
@@ -252,7 +259,7 @@
       </v-expansion-panels>
 
       <v-row>
-        <v-col v-if="sectionsVisible.derivative" cols="12" md="6">
+        <v-col v-if="sectionsVisible.derivative" :cols="12" :md="fullWidthPlots ? 12 : 6">
           <ChartCard title="Signal" :config="signalConfig" :height="260" sync-group="analyse-zeit">
             <template #extra-toolbar>
               <v-menu :close-on-content-click="false">
@@ -277,13 +284,13 @@
             </template>
           </ChartCard>
         </v-col>
-        <v-col v-if="sectionsVisible.derivative" cols="12" md="6">
+        <v-col v-if="sectionsVisible.derivative" :cols="12" :md="fullWidthPlots ? 12 : 6">
           <ChartCard title="Ableitung" :config="derivConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
-        <v-col v-if="sectionsVisible.integral" cols="12" md="6">
+        <v-col v-if="sectionsVisible.integral" :cols="12" :md="fullWidthPlots ? 12 : 6">
           <ChartCard title="Integral" :config="integralConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
-        <v-col v-if="sectionsVisible.rollingRms" cols="12" md="6">
+        <v-col v-if="sectionsVisible.rollingRms" :cols="12" :md="fullWidthPlots ? 12 : 6">
           <ChartCard title="RMS über Zeit" :config="rollingRmsConfig" :height="260" sync-group="analyse-zeit">
             <template #extra-toolbar>
               <v-menu :close-on-content-click="false">
@@ -329,13 +336,13 @@
             </template>
           </ChartCard>
         </v-col>
-        <v-col v-if="sectionsVisible.rollingRms" cols="12" md="6">
+        <v-col v-if="sectionsVisible.rollingRms" :cols="12" :md="fullWidthPlots ? 12 : 6">
           <ChartCard title="Fenster-Überlappung" :config="rmsWindowsOverlayConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
-        <v-col v-if="sectionsVisible.fft" cols="12" md="6">
+        <v-col v-if="sectionsVisible.fft" :cols="12" :md="fullWidthPlots ? 12 : 6">
           <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" hide-playback />
         </v-col>
-        <v-col v-if="sectionsVisible.fft" cols="12" md="6">
+        <v-col v-if="sectionsVisible.fft" :cols="12" :md="fullWidthPlots ? 12 : 6">
           <ChartCard title="Phase" :config="phaseConfig" :height="240" hide-playback />
         </v-col>
       </v-row>
@@ -386,10 +393,10 @@
             </v-data-table>
 
             <v-row>
-              <v-col cols="12" md="6">
+              <v-col :cols="12" :md="fullWidthPlots ? 12 : 6">
                 <ChartCard title="Signale überlagert" :config="groupOverlayConfig" :height="280" sync-group="analyse-gruppe" />
               </v-col>
-              <v-col cols="12" md="6">
+              <v-col :cols="12" :md="fullWidthPlots ? 12 : 6">
                 <ChartCard title="FFT überlagert" :config="groupFftConfig" :height="280" hide-playback />
               </v-col>
             </v-row>
@@ -513,6 +520,11 @@ const showRmsLine = ref(false);
 const showStdBand = ref(false);
 const rmsWindowSec = ref(1);
 const rmsOverlapPct = ref(50);
+
+// Stack charts full-width (one per row) instead of two side by side —
+// handy on a big monitor when a plot's fine details are hard to read at
+// half width.
+const fullWidthPlots = ref(false);
 
 const sectionsVisible = reactive({
   stats: true,

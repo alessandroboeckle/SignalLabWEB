@@ -19,15 +19,25 @@
     />
 
     <template v-else>
-      <MtQuickNav
-        :items="[
-          ...(auth.isAdmin ? [{ target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' }] : []),
-          { target: 'mt-export', label: 'Export', icon: 'mdi-file-export' },
-        ]"
-        @navigate="$emit('navigate', $event)"
-      />
+      <div class="d-flex align-center flex-wrap ga-2 mb-2">
+        <MtQuickNav
+          :items="[
+            ...(auth.isAdmin ? [{ target: 'mt-verarbeitung', label: 'Verarbeitung', icon: 'mdi-cog-transfer' }] : []),
+            { target: 'mt-export', label: 'Export', icon: 'mdi-file-export' },
+          ]"
+          @navigate="$emit('navigate', $event)"
+        />
+        <v-spacer></v-spacer>
+        <v-switch
+          v-model="fullWidthPlots"
+          color="primary"
+          density="compact"
+          hide-details
+          label="Volle Breite"
+        ></v-switch>
+      </div>
       <v-row>
-        <v-col cols="12" md="4">
+        <v-col :cols="12" :md="fullWidthPlots ? 12 : 4">
           <v-card variant="outlined" rounded="lg" class="pa-4">
             <div class="d-flex flex-wrap ga-2 mb-3">
               <v-btn size="small" variant="outlined" prepend-icon="mdi-file-delimited-outline" :disabled="!sig" @click="exportCsv">
@@ -132,7 +142,7 @@
           </v-card>
         </v-col>
 
-        <v-col cols="12" md="8">
+        <v-col :cols="12" :md="fullWidthPlots ? 12 : 8">
           <v-progress-linear
             :active="filterComputing"
             indeterminate
@@ -180,6 +190,7 @@ import { downsample } from "../../utils/downsample.js";
 
 const mtStore = useMesstoolStore();
 const auth = useAuthStore();
+const fullWidthPlots = ref(false);
 useSignalNavigationShortcuts(mtStore);
 
 // Shared across Analyse/Filter/Verarbeitung/Export so switching pages
