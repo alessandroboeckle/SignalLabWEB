@@ -307,54 +307,36 @@
           <v-btn value="stacked" size="small" prepend-icon="mdi-view-sequential-outline">Gestapelt</v-btn>
         </v-btn-toggle>
 
-        <v-btn-toggle v-model="xAxisMode" color="secondary" density="comfortable" mandatory divided>
-          <v-btn value="zeit" size="small" prepend-icon="mdi-timer-outline">Zeit</v-btn>
-          <v-btn value="uhrzeit" size="small" prepend-icon="mdi-clock-outline">Uhrzeit</v-btn>
-        </v-btn-toggle>
+        <v-spacer></v-spacer>
 
-        <v-btn
-          size="small"
-          :variant="bigMode ? 'flat' : 'outlined'"
-          :color="bigMode ? 'primary' : 'default'"
-          prepend-icon="mdi-arrow-expand-all"
-          @click="bigMode = !bigMode"
-        >
-          Alle gross anzeigen
-        </v-btn>
+        <v-menu :close-on-content-click="false">
+          <template #activator="{ props: menuProps }">
+            <v-btn v-bind="menuProps" size="small" variant="outlined" prepend-icon="mdi-view-grid-outline">
+              Anzeigeoptionen
+            </v-btn>
+          </template>
+          <v-card min-width="300" class="pa-4">
+            <div class="text-subtitle-2 font-weight-bold mb-2">Zeitachse</div>
+            <v-btn-toggle v-model="xAxisMode" color="secondary" density="comfortable" mandatory divided class="mb-3">
+              <v-btn value="zeit" size="small" prepend-icon="mdi-timer-outline">Zeit</v-btn>
+              <v-btn value="uhrzeit" size="small" prepend-icon="mdi-clock-outline">Uhrzeit</v-btn>
+            </v-btn-toggle>
 
-        <template v-if="displayMode === 'stacked'">
-          <v-switch
-            v-model="syncCursors"
-            color="primary"
-            density="compact"
-            hide-details
-            label="Cursor über alle Plots"
-          ></v-switch>
-          <v-switch
-            v-model="syncZoom"
-            color="primary"
-            density="compact"
-            hide-details
-            label="Zoom über alle Plots"
-          ></v-switch>
-          <v-switch
-            v-model="fullWidthPlots"
-            color="primary"
-            density="compact"
-            hide-details
-            label="Volle Breite"
-          ></v-switch>
-        </template>
+            <div class="text-subtitle-2 font-weight-bold mb-2">Darstellung</div>
+            <v-switch v-model="bigMode" color="primary" density="compact" hide-details label="Alle gross anzeigen" class="mb-1"></v-switch>
+            <v-switch v-model="showFrequencyResponse" color="secondary" density="compact" hide-details label="Frequenzgang anzeigen" class="mb-1"></v-switch>
 
-        <v-switch
-          v-model="showFrequencyResponse"
-          color="secondary"
-          density="compact"
-          hide-details
-          label="Frequenzgang anzeigen"
-        ></v-switch>
+            <template v-if="displayMode === 'stacked'">
+              <v-divider class="my-3"></v-divider>
+              <div class="text-subtitle-2 font-weight-bold mb-2">Nur im Gestapelt-Modus</div>
+              <v-switch v-model="syncCursors" color="primary" density="compact" hide-details label="Cursor über alle Plots" class="mb-1"></v-switch>
+              <v-switch v-model="syncZoom" color="primary" density="compact" hide-details label="Zoom über alle Plots" class="mb-1"></v-switch>
+              <v-switch v-model="fullWidthPlots" color="primary" density="compact" hide-details label="Volle Breite"></v-switch>
+            </template>
+          </v-card>
+        </v-menu>
 
-        <span class="text-caption text-medium-emphasis">
+        <span class="text-caption text-medium-emphasis w-100">
           {{ displayMode === "overlay" ? "Alle Signale in einem Chart übereinander" : "Jedes Signal als eigenes Chart untereinander" }}
           <template v-if="xAxisMode === 'uhrzeit' && displayMode === 'overlay' && mtStore.compareFiles.length > 1">
             · Uhrzeit-Achse richtet sich nach der ersten Datei

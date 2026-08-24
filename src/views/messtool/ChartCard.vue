@@ -265,7 +265,7 @@
         <v-toolbar color="primary" density="comfortable">
           <v-toolbar-title>{{ title }}</v-toolbar-title>
           <v-spacer></v-spacer>
-          <v-btn variant="text" prepend-icon="mdi-restore" @click="resetZoom('fs')">Zoom zurück</v-btn>
+          <v-btn variant="text" prepend-icon="mdi-restore" @click="resetZoom('fs')">Zoom zurücksetzen</v-btn>
           <v-btn icon="mdi-close" aria-label="Schliessen" @click="fullscreen = false"></v-btn>
         </v-toolbar>
         <v-card-text class="pa-4" style="height: calc(100vh - 64px)">
