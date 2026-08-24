@@ -228,6 +228,7 @@ import MtQuickNav from "./MtQuickNav.vue";
 import * as sessionsApi from "../../utils/messtoolSessionStorage.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { withTimeout } from "../../utils/withTimeout.js";
+import { friendlyError } from "../../utils/friendlyError.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { showToast } from "../../composables/useToast.js";
 
@@ -270,7 +271,7 @@ async function loadSessions() {
   try {
     sessions.value = await sessionsApi.listSessions();
   } catch (e) {
-    errorMsg.value = "Sessions konnten nicht geladen werden: " + (e.message || e);
+    errorMsg.value = "Sessions konnten nicht geladen werden: " + friendlyError(e);
   }
   loading.value = false;
 }
@@ -326,7 +327,7 @@ async function confirmSaveSession() {
       showToast(`Session "${newName.value.trim()}" gespeichert.`);
     }
   } catch (e) {
-    saveError.value = "Konnte nicht speichern: " + (e.message || e);
+    saveError.value = "Konnte nicht speichern: " + friendlyError(e);
   }
   saving.value = false;
 }
@@ -386,7 +387,7 @@ async function loadSession(s) {
     // Sessions page (matches the same fix on Import's "hinzufügen"
     // buttons: an add/load action shouldn't silently also be a navigate).
   } catch (e) {
-    errorMsg.value = `"${s.name}" konnte nicht geladen werden: ` + (e.message || e);
+    errorMsg.value = `"${s.name}" konnte nicht geladen werden: ` + friendlyError(e);
   }
   loadingId.value = null;
 }
@@ -413,7 +414,7 @@ async function updateWithCurrent(s) {
       showToast(`Session "${s.name}" aktualisiert.`);
     }
   } catch (e) {
-    errorMsg.value = `"${s.name}" konnte nicht aktualisiert werden: ` + (e.message || e);
+    errorMsg.value = `"${s.name}" konnte nicht aktualisiert werden: ` + friendlyError(e);
   }
   updatingId.value = null;
 }
@@ -438,7 +439,7 @@ async function confirmRename() {
     await loadSessions();
     showToast(`Session umbenannt zu "${renameValue.value.trim()}".`);
   } catch (e) {
-    renameError.value = "Konnte nicht umbenennen: " + (e.message || e);
+    renameError.value = "Konnte nicht umbenennen: " + friendlyError(e);
   }
   renaming.value = false;
 }
@@ -450,7 +451,7 @@ async function toggleShared(s) {
     await loadSessions();
     showToast(`"${s.name}" ist jetzt ${!s.is_shared ? "geteilt" : "privat"}.`);
   } catch (e) {
-    errorMsg.value = `"${s.name}" konnte nicht umgestellt werden: ` + (e.message || e);
+    errorMsg.value = `"${s.name}" konnte nicht umgestellt werden: ` + friendlyError(e);
   }
 }
 
@@ -469,7 +470,7 @@ async function doDelete() {
     await loadSessions();
     showToast(`Session "${name}" gelöscht.`, { color: "info" });
   } catch (e) {
-    errorMsg.value = "Löschen fehlgeschlagen: " + (e.message || e);
+    errorMsg.value = "Löschen fehlgeschlagen: " + friendlyError(e);
   }
   deleting.value = false;
 }

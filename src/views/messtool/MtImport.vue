@@ -719,6 +719,7 @@ import * as mtStorage from "../../utils/messtoolStorage.js";
 import { groupByDate } from "../../utils/groupByDate.js";
 import { formatBytes } from "../../utils/formatBytes.js";
 import { withTimeout } from "../../utils/withTimeout.js";
+import { friendlyError } from "../../utils/friendlyError.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useAuthStore } from "../../stores/authStore.js";
@@ -893,7 +894,7 @@ async function createFolderNow() {
     newFolderNameInput.value = "";
     showToast(`Ordner "${name}" erstellt.`);
   } catch (e) {
-    errorMsg.value = "Ordner konnte nicht erstellt werden: " + (e.message || e);
+    errorMsg.value = "Ordner konnte nicht erstellt werden: " + friendlyError(e);
   }
   creatingFolder.value = false;
 }
@@ -973,7 +974,7 @@ async function moveFileToFolder(f, folder) {
     }
   } catch (e) {
     f.folder = previous; // roll back on failure
-    errorMsg.value = "Ordner konnte nicht gespeichert werden: " + (e.message || e);
+    errorMsg.value = "Ordner konnte nicht gespeichert werden: " + friendlyError(e);
   }
 }
 
@@ -1005,7 +1006,7 @@ async function renameOrDeleteFolder(folder) {
       }
     }
   } catch (e) {
-    errorMsg.value = "Ordner-Registrierung konnte nicht aktualisiert werden: " + (e.message || e);
+    errorMsg.value = "Ordner-Registrierung konnte nicht aktualisiert werden: " + friendlyError(e);
   }
   registeredFolders.value = registeredFolders.value.filter((f) => f !== folder);
   if (target && !registeredFolders.value.includes(target)) registeredFolders.value.push(target);
@@ -1262,7 +1263,7 @@ async function addCloudFileToCompare(f) {
     mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
     showToast(`"${f.name}" zur Anzeige hinzugefügt.`);
   } catch (e) {
-    errorMsg.value = `"${f.name}" konnte nicht zur Anzeige hinzugefügt werden: ` + (e.message || e);
+    errorMsg.value = `"${f.name}" konnte nicht zur Anzeige hinzugefügt werden: ` + friendlyError(e);
   }
   compareAddingId.value = null;
 }
@@ -1323,7 +1324,7 @@ async function loadList() {
   try {
     cloudFiles.value = await withTimeout(mtStorage.listMessfiles(), 25000, "Zeitüberschreitung beim Laden der Cloud-Liste.");
   } catch (e) {
-    errorMsg.value = "Liste konnte nicht geladen werden: " + (e.message || e);
+    errorMsg.value = "Liste konnte nicht geladen werden: " + friendlyError(e);
   }
   try {
     registeredFolders.value = await mtStorage.listFolders();
@@ -1346,7 +1347,7 @@ async function saveToCloud() {
     recentFiles.value = addRecentFile({ name: fileName.value, messfileId: row.id, storagePath: row.storage_path });
     showToast(`${fileName.value} in die Cloud gespeichert.`);
   } catch (e) {
-    errorMsg.value = "Upload fehlgeschlagen: " + (e.message || e);
+    errorMsg.value = "Upload fehlgeschlagen: " + friendlyError(e);
   }
   uploading.value = false;
 }
@@ -1371,7 +1372,7 @@ async function openCloudFile(f) {
     selectedIdx.value = 0;
     recentFiles.value = addRecentFile({ name: f.name, messfileId: f.id, storagePath: f.storage_path });
   } catch (e) {
-    errorMsg.value = "Öffnen fehlgeschlagen: " + (e.message || e);
+    errorMsg.value = "Öffnen fehlgeschlagen: " + friendlyError(e);
   }
   busyId.value = null;
 }
@@ -1382,7 +1383,7 @@ async function removeCloudFile(f) {
     await mtStorage.deleteMessfile(f);
     await loadList();
   } catch (e) {
-    errorMsg.value = "Löschen fehlgeschlagen: " + (e.message || e);
+    errorMsg.value = "Löschen fehlgeschlagen: " + friendlyError(e);
   }
 }
 

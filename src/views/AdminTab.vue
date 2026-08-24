@@ -365,6 +365,7 @@ import * as mtStorage from "../utils/messtoolStorage.js";
 import { formatBytes } from "../utils/formatBytes.js";
 import { useReportSettingsStore } from "../stores/reportSettingsStore.js";
 import { usernameFromEmail } from "../utils/formatUsername.js";
+import { friendlyError } from "../utils/friendlyError.js";
 
 const emit = defineEmits(["navigate"]);
 const auth = useAuthStore();
@@ -462,7 +463,7 @@ async function saveReportTemplate() {
     fieldsDraft.value = fields.map((f) => ({ ...f }));
     showToast("Report-Vorlage gespeichert.");
   } catch (e) {
-    errorMsg.value = "Vorlage konnte nicht gespeichert werden: " + (e.message || e);
+    errorMsg.value = "Vorlage konnte nicht gespeichert werden: " + friendlyError(e);
   }
   savingReportSettings.value = false;
 }

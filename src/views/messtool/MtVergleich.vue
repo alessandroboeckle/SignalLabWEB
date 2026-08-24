@@ -1076,8 +1076,12 @@ function applyGroup(f, group) {
 }
 
 function removeGroup(name) {
+  const groupsBefore = groupsApi.listGroups(); // snapshot for undo — deleteGroup only returns what's left
+  const removed = groupsBefore.find((g) => g.name === name);
   signalGroups.value = groupsApi.deleteGroup(name);
-  showToast(`Gruppe "${name}" gelöscht.`, { color: "info" });
+  showUndoToast(`Gruppe "${name}" gelöscht.`, () => {
+    if (removed) signalGroups.value = groupsApi.saveGroup(removed.name, removed.signalNames);
+  });
 }
 const alignConfidence = ref({}); // { [fileId]: score } from the last auto-align run
 const cloudDialog = ref(false);

@@ -52,6 +52,27 @@
     </v-row>
 
     <v-row class="mt-4">
+      <v-col cols="12">
+        <v-card class="elevation-2" color="primary" variant="tonal">
+          <v-card-text class="d-flex align-center flex-wrap ga-4">
+            <div class="flex-grow-1">
+              <div class="text-h6 font-weight-bold mb-1">
+                <v-icon class="mr-1">mdi-chart-bell-curve</v-icon>
+                Messtool
+              </div>
+              <div class="text-body-2 text-medium-emphasis">
+                Messdaten (LOGDATA-CSV oder Excel) laden, filtern, analysieren und vergleichen.
+              </div>
+            </div>
+            <v-btn color="primary" prepend-icon="mdi-file-upload" @click="emit('navigate', 'mt-import')">
+              Messdatei laden
+            </v-btn>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row class="mt-4">
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
           <v-card-title>Letzte Signale</v-card-title>
@@ -81,7 +102,7 @@
 
       <v-col cols="12" md="6">
         <v-card class="elevation-2">
-          <v-card-title>Schnellzugriff</v-card-title>
+          <v-card-title>Generator-Tool — Schnellzugriff</v-card-title>
           <v-card-text>
             <v-btn class="mb-2 w-100" color="primary" prepend-icon="mdi-plus" @click="quickNewSession">
               Neue Session
