@@ -438,11 +438,11 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, reactive } from "vue";
-import { useSignalStore } from "../stores/signalStore";
-import * as signalProcessing from "../utils/signalProcessing";
-import { buildLogDataFromSignal } from "../utils/generatorToLogdata.js";
-import Chart from "../utils/chartSetup.js";
-import { generateBrakeTestCsv, downloadBrakeTestCsv } from "../utils/messtoolTestGenerator.js";
+import { useSignalStore } from "../../stores/signalStore";
+import * as signalProcessing from "../../utils/generator/signalProcessing";
+import { buildLogDataFromSignal } from "../../utils/generator/generatorToLogdata.js";
+import Chart from "../../utils/chartSetup.js";
+import { generateBrakeTestCsv, downloadBrakeTestCsv } from "../../utils/messtoolTestGenerator.js";
 
 const brakeGen = reactive({
   rows: 10000,

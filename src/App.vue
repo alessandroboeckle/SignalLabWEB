@@ -478,9 +478,9 @@ import CommandPalette from "./components/CommandPalette.vue";
 // Lazy like every other tab below — OverviewTab pulls in Chart.js (~240 KB)
 // for its preview chart, so it shouldn't be in the eager startup bundle.
 const OverviewTab = defineAsyncComponent(() => import("./views/OverviewTab.vue"));
-const SignalCreationTab = defineAsyncComponent(() => import("./views/SignalCreationTab.vue"));
-const CalculatorTab = defineAsyncComponent(() => import("./views/CalculatorTab.vue"));
-const ComparisonTab = defineAsyncComponent(() => import("./views/ComparisonTab.vue"));
+const SignalCreationTab = defineAsyncComponent(() => import("./views/generator/SignalCreationTab.vue"));
+const CalculatorTab = defineAsyncComponent(() => import("./views/generator/CalculatorTab.vue"));
+const ComparisonTab = defineAsyncComponent(() => import("./views/generator/ComparisonTab.vue"));
 const SessionManagementTab = defineAsyncComponent(() => import("./views/SessionManagementTab.vue"));
 const SettingsTab = defineAsyncComponent(() => import("./views/SettingsTab.vue"));
 const HilfeTab = defineAsyncComponent(() => import("./views/HilfeTab.vue"));

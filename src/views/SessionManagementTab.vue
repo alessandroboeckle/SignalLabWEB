@@ -235,7 +235,7 @@
 import { ref } from "vue";
 import { useSignalStore } from "../stores/signalStore";
 import * as storage from "../utils/storage.js";
-import { buildLogDataFromSignals } from "../utils/generatorToLogdata.js";
+import { buildLogDataFromSignals } from "../utils/generator/generatorToLogdata.js";
 import { downloadBrakeTestCsv } from "../utils/messtoolTestGenerator.js";
 
 const store = useSignalStore();

@@ -1,5 +1,5 @@
 // Signal generation and processing utilities
-import { dft } from "./messtoolAnalysis.js";
+import { dft } from "../messtoolAnalysis.js";
 
 /**
  * Generate a time array

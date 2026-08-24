@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLogDataFromSignal, buildLogDataFromSignals } from "../generatorToLogdata.js";
+import { buildLogDataFromSignal, buildLogDataFromSignals } from "../generator/generatorToLogdata.js";
 import { parseMesstoolCsv } from "../messtoolParser.js";
 
 describe("buildLogDataFromSignal", () => {

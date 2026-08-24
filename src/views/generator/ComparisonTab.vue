@@ -104,9 +104,9 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from "vue";
-import { useSignalStore } from "../stores/signalStore";
-import * as storage from "../utils/storage";
-import Chart from "../utils/chartSetup.js";
+import { useSignalStore } from "../../stores/signalStore";
+import * as storage from "../../utils/storage";
+import Chart from "../../utils/chartSetup.js";
 
 const store = useSignalStore();
 const selectedSignals = ref([]);

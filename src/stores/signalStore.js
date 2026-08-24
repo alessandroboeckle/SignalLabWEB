@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { reactive, ref } from "vue";
 import * as storage from "../utils/storage.js";
-import * as signalProcessing from "../utils/signalProcessing.js";
+import * as signalProcessing from "../utils/generator/signalProcessing.js";
 
 export const useSignalStore = defineStore("signal", () => {
   // State
