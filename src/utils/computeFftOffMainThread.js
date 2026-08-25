@@ -1,4 +1,5 @@
 import { fft } from "./messtoolAnalysis.js";
+import { deepToRaw } from "./deepToRaw.js";
 
 function computeOnMainThread(series, windowType, normalize) {
   return series.map((s) => ({ key: s.key, ...fft(s.y, s.t, { windowType, normalize }) }));
@@ -50,7 +51,14 @@ export function computeFftOffMainThread(series, { windowType = "hann", normalize
     };
     worker.onerror = () => finish(computeOnMainThread(series, windowType, normalize));
     worker.postMessage({
-      series: series.map((s) => ({ key: s.key, y: s.y, t: s.t })),
+      // Callers often pass data straight out of a Pinia store (e.g.
+      // mtStore.compareSeries), which is reactive — postMessage uses the
+      // structured clone algorithm internally, and that throws "The
+      // object can not be cloned" on any Proxy anywhere in the payload,
+      // even nested ones toRaw() alone wouldn't catch. Sanitizing here
+      // (not just trusting the caller) means this never breaks again
+      // regardless of what future caller forgets to unwrap first.
+      series: deepToRaw(series.map((s) => ({ key: s.key, y: s.y, t: s.t }))),
       windowType,
       normalize,
     });
