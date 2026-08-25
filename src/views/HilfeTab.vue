@@ -290,7 +290,7 @@ const sections = [
       {
         h: "Gespeicherte Messdateien (Cloud)",
         p: "Liste aller bisher hochgeladenen Dateien. Jeder Nutzer sieht nur seine eigenen Dateien — Admins sehen zusätzlich die aller anderen Nutzer, mit Nutzer-Filter oben in der Liste, um gezielt zu einer Person zu springen. Automatisch nach Datum gruppiert (Heute / Gestern / Diese Woche / Diesen Monat / Älter), damit man bei vielen Dateien nicht mehr scrollen muss um was Aktuelles zu finden.\nCheckbox oben links = alle auswählen — damit lassen sich mehrere Dateien auf einmal zur Anzeige-Seite hinzufügen, statt jede einzeln anklicken zu müssen.\n'Zur Anzeige hinzufügen' navigiert NICHT mehr automatisch weg — du bleibst auf der Import-Seite (praktisch, wenn du nacheinander mehrere Dateien auswählen willst) und bekommst stattdessen eine kurze Bestätigung.",
-        tip: "Speicherlimit: 30 MB pro Nutzer, 100 MB für Admins. Der Fortschrittsbalken über der Liste zeigt den aktuellen Verbrauch.",
+        tip: "Speicherlimit pro Nutzer. Der Fortschrittsbalken über der Liste zeigt den aktuellen Verbrauch.",
       },
       {
         h: "Ordner",
