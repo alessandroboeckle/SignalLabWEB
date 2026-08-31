@@ -39,15 +39,15 @@ create policy "messtool_sessions_insert"
   on public.messtool_sessions for insert
   with check (is_approved() and created_by = auth.uid());
 
--- Only the owner can rename/update or delete/unshare a session, even if
--- it's currently shared with everyone else.
+-- The owner (or an admin) can rename/update or delete/unshare a session,
+-- even if it's currently shared with everyone else.
 create policy "messtool_sessions_update"
   on public.messtool_sessions for update
-  using (is_approved() and created_by = auth.uid());
+  using (is_approved() and (created_by = auth.uid() or is_admin()));
 
 create policy "messtool_sessions_delete"
   on public.messtool_sessions for delete
-  using (is_approved() and created_by = auth.uid());
+  using (is_approved() and (created_by = auth.uid() or is_admin()));
 
 -- Keep updated_at current on every edit.
 create or replace function public.messtool_sessions_set_updated_at()

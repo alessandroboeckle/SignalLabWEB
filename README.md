@@ -56,6 +56,8 @@ npm install
 Die App braucht ein paar Tabellen/Policies, die noch nicht Teil des Codes sind:
 
 1. Führe die SQL-Skripte aus `supabase/` im Supabase SQL-Editor aus, in dieser Reihenfolge:
+   - `000_base_schema.sql` (Auth-Profile, Admin, Storage-Quota, Generator-Sessions/Signale,
+     Messtool-Dateibibliothek, App-Settings)
    - `messtool_sessions.sql`
    - `messtool_sessions_compare.sql`
 2. Supabase-URL und -Key eintragen — entweder in einer `.env` (siehe `.env.example`,
