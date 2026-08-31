@@ -1134,7 +1134,6 @@ function buildInline() {
     // A single bad chart (malformed data, a config bug) shouldn't take
     // down the rest of the page — fail locally, visibly, and recoverably
     // instead of letting it bubble up to the app-wide error boundary.
-    // eslint-disable-next-line no-console
     console.error("[ChartCard] failed to build chart:", err);
     buildError.value = err?.message || String(err);
   }
@@ -1152,7 +1151,6 @@ function buildFullscreen() {
     restoreXRange(fsChart, previousRange);
     buildError.value = null;
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("[ChartCard] failed to build fullscreen chart:", err);
     buildError.value = err?.message || String(err);
   }

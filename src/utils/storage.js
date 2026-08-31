@@ -105,7 +105,7 @@ export function loadSignal(signalId) {
 }
 
 export function getStorageInfo() {
-  let byteSize = 0;
+  let byteSize;
   try {
     byteSize = new Blob([JSON.stringify({ sessions: _sessions, signals: _signals })]).size;
   } catch {

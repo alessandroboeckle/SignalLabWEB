@@ -108,12 +108,10 @@ if (sentryDsn) {
 // silent blank page.
 app.config.errorHandler = (err, instance, info) => {
   if (sentryDsn) Sentry.captureException(err, { extra: { info } });
-  // eslint-disable-next-line no-console
   console.error("[Global error handler]", err, info);
 };
 window.addEventListener("unhandledrejection", (event) => {
   if (sentryDsn) Sentry.captureException(event.reason);
-  // eslint-disable-next-line no-console
   console.error("[Unhandled promise rejection]", event.reason);
 });
 

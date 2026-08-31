@@ -35,7 +35,6 @@ onErrorCaptured((err, instance, info) => {
   error.value = err;
   errorDetails.value = `${err?.message || err}\n\nKontext: ${info}`;
   if (import.meta.env.VITE_SENTRY_DSN) Sentry.captureException(err, { extra: { info } });
-  // eslint-disable-next-line no-console
   console.error("[ErrorBoundary] caught:", err, info);
   return false; // stop propagation — contained here, not bubbling further
 });

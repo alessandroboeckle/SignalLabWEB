@@ -16,7 +16,7 @@ export async function uploadMessfile(file, meta) {
   const userId = await currentUserId();
 
   // unique storage path: <userId>/<timestamp>_<name>
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const safeName = file.name.replace(/[^\w.-]+/g, "_");
   const path = `${userId || "anon"}/${Date.now()}_${safeName}`;
 
   // 1. upload the raw file to the bucket

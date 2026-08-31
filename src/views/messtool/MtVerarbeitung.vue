@@ -378,7 +378,7 @@ function down(arr, xs, mode) {
 }
 
 const compareConfig = computed(() => {
-  const s = sig.value, t = time.value, _v = version.value, idx = selectedIdx.value;
+  const s = sig.value, t = time.value, _v = version.value, _idx = selectedIdx.value;
   // snapshot ops (id + params) so identity changes when they change
   const opSnapshot = ops.value.map((o) => o);
   return (peakMode) => {

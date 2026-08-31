@@ -74,7 +74,7 @@ export function ellipj(u, m) {
   if (bo) { d = 1 - emc; emc = -emc / d; d = Math.sqrt(d); uu = d * u; }
   let a = 1, dn = 1;
   const em = [], en = [];
-  let i = 0, c = 0;
+  let i = 0, c;
   while (true) {
     em.push(a);
     emc = Math.sqrt(emc);
@@ -319,7 +319,6 @@ function bilinearZpk(zeros, poles, k, fs) {
 function zpk2sos(zeros, poles, k) {
   const nSections = Math.ceil(Math.max(zeros.length, poles.length, 1) / 2);
   const zs = zeros.slice();
-  const ps = poles.slice();
   while (zs.length < nSections * 2) zs.push(cx(0, 0)); // pad with zeros at origin (unity contribution... handled by polyFrom null-case instead)
   const usedZ = new Array(zeros.length).fill(false);
   const usedP = new Array(poles.length).fill(false);
@@ -365,7 +364,6 @@ function zpk2sos(zeros, poles, k) {
 // rs = stopband attenuation (dB).
 export function ellipticSOS(order, wnNorm, btype, rp = 1, rs = 40) {
   const fs = 2;
-  const fs2 = 2 * fs;
   const wc = 2 * fs * Math.tan((Math.PI * wnNorm) / 2);
 
   const proto = ellipPrototype(order, rp, rs);
@@ -410,10 +408,8 @@ export function designSOS(order, wnNorm, btype = "low", characteristic = "butter
   // for measurement use after bilinear pre-warp.
   poles = lpToLp(poles, wc);
 
-  let zeros = [];
   if (btype === "high") {
     poles = poles.map((p) => cdiv(cx(wc, 0), p));
-    zeros = new Array(order).fill(cx(0, 0));
   }
 
   const zPoles = poles.map((p) => bilinearPoint(p, fs2));

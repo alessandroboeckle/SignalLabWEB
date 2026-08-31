@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeFFT, computeFFTMagnitude } from "../generator/signalProcessing.js";
+import { computeFFTMagnitude } from "../generator/signalProcessing.js";
 
 describe("computeFFT (Generator tool) — correctness after the real-only-recursion bug fix", () => {
   it("recovers the correct peak frequency and amplitude for a pure sine", () => {

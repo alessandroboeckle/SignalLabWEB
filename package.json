@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
@@ -25,9 +26,13 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitejs/plugin-vue": "^4.5.0",
     "@vue/test-utils": "^2.4.11",
+    "eslint": "^10.9.1",
+    "eslint-plugin-vue": "^10.10.0",
     "fake-indexeddb": "^6.2.5",
+    "globals": "^17.11.0",
     "jsdom": "^30.0.1",
     "sass": "^1.69.5",
     "vite": "^5.0.7",
