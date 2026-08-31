@@ -199,6 +199,17 @@
         Noch keine Dateien in der Cloud.
       </div>
       <template v-else>
+        <div class="px-4 pt-3">
+          <v-text-field
+            v-model="fileSearchQuery"
+            density="compact"
+            variant="outlined"
+            prepend-inner-icon="mdi-magnify"
+            label="Dateiname durchsuchen"
+            clearable
+            hide-details
+          ></v-text-field>
+        </div>
         <!-- Admin only: filter the whole list down to one user's files before
              browsing folders — otherwise everyone's files are mixed together. -->
         <div v-if="auth.isAdmin && ownerOptions.length > 0" class="d-flex flex-wrap align-center ga-2 px-4 pt-3">
@@ -231,7 +242,7 @@
             size="small"
             @click="activeFolder = '__all__'"
           >
-            Alle ({{ ownerFilteredCloudFiles.length }})
+            Alle ({{ searchedCloudFiles.length }})
           </v-chip>
           <v-chip
             v-if="unfiledCount > 0"
@@ -254,7 +265,7 @@
             @click="activeFolder = folder"
             @click:close="renameOrDeleteFolder(folder)"
           >
-            {{ folder }} ({{ ownerFilteredCloudFiles.filter((f) => f.folder === folder).length }})
+            {{ folder }} ({{ searchedCloudFiles.filter((f) => f.folder === folder).length }})
           </v-chip>
           <v-btn size="small" variant="outlined" prepend-icon="mdi-folder-plus-outline" @click="showCreateFolderDialog = true">
             Ordner erstellen
@@ -280,7 +291,10 @@
              only sense of organization. Filtering to one specific folder
              via the chips above skips this extra layer since it'd just
              be one section containing everything anyway. -->
-        <v-expansion-panels v-if="activeFolder === '__all__'" v-model="openFolderSections" multiple variant="accordion">
+        <div v-if="searchedCloudFiles.length === 0 && fileSearchQuery" class="pa-6 text-center text-medium-emphasis">
+          Keine Dateien gefunden für "{{ fileSearchQuery }}".
+        </div>
+        <v-expansion-panels v-else-if="activeFolder === '__all__'" v-model="openFolderSections" multiple variant="accordion">
           <v-expansion-panel v-for="section in folderSections" :key="section.key" :value="section.key">
             <v-expansion-panel-title>
               <v-icon size="18" class="mr-2">{{ section.key === "__none__" ? "mdi-folder-off-outline" : "mdi-folder-outline" }}</v-icon>
@@ -317,6 +331,9 @@
         </v-expansion-panels>
 
         <template v-else>
+          <div v-if="folderFilteredFiles.length === 0" class="pa-6 text-center text-medium-emphasis">
+            Keine Dateien gefunden{{ fileSearchQuery ? ` für "${fileSearchQuery}"` : "" }} in diesem Ordner.
+          </div>
           <template v-for="group in groupedCloudFiles" :key="group.label">
             <div class="text-caption text-medium-emphasis font-weight-bold px-4 pt-3 pb-1">
               {{ group.label }}
@@ -886,7 +903,7 @@ const folders = computed(() => {
   const fromFiles = cloudFiles.value.map((f) => f.folder).filter(Boolean);
   return [...new Set([...registeredFolders.value, ...fromFiles])].sort((a, b) => a.localeCompare(b));
 });
-const unfiledCount = computed(() => ownerFilteredCloudFiles.value.filter((f) => !f.folder).length);
+const unfiledCount = computed(() => searchedCloudFiles.value.filter((f) => !f.folder).length);
 
 async function createFolderNow() {
   const name = newFolderNameInput.value.trim();
@@ -909,10 +926,16 @@ const ownerFilteredCloudFiles = computed(() => {
   if (!auth.isAdmin || selectedOwnerFilter.value === "__all__") return cloudFiles.value;
   return cloudFiles.value.filter((f) => f.uploaded_by === selectedOwnerFilter.value);
 });
+const fileSearchQuery = ref("");
+const searchedCloudFiles = computed(() => {
+  const q = fileSearchQuery.value.trim().toLowerCase();
+  if (!q) return ownerFilteredCloudFiles.value;
+  return ownerFilteredCloudFiles.value.filter((f) => f.name.toLowerCase().includes(q));
+});
 const folderFilteredFiles = computed(() => {
-  if (activeFolder.value === "__all__") return ownerFilteredCloudFiles.value;
-  if (activeFolder.value === "__none__") return ownerFilteredCloudFiles.value.filter((f) => !f.folder);
-  return ownerFilteredCloudFiles.value.filter((f) => f.folder === activeFolder.value);
+  if (activeFolder.value === "__all__") return searchedCloudFiles.value;
+  if (activeFolder.value === "__none__") return searchedCloudFiles.value.filter((f) => !f.folder);
+  return searchedCloudFiles.value.filter((f) => f.folder === activeFolder.value);
 });
 const groupedCloudFiles = computed(() => groupByDate(folderFilteredFiles.value));
 
@@ -922,10 +945,10 @@ const groupedCloudFiles = computed(() => groupByDate(folderFilteredFiles.value))
 // is.
 const folderSections = computed(() => {
   const sections = folders.value.map((folder) => {
-    const files = ownerFilteredCloudFiles.value.filter((f) => f.folder === folder);
+    const files = searchedCloudFiles.value.filter((f) => f.folder === folder);
     return { key: folder, label: folder, files, bytes: files.reduce((sum, f) => sum + (f.size_bytes || 0), 0) };
   });
-  const unfiled = ownerFilteredCloudFiles.value.filter((f) => !f.folder);
+  const unfiled = searchedCloudFiles.value.filter((f) => !f.folder);
   if (unfiled.length) {
     sections.push({ key: "__none__", label: "Ohne Ordner", files: unfiled, bytes: unfiled.reduce((sum, f) => sum + (f.size_bytes || 0), 0) });
   }

@@ -75,8 +75,24 @@
         <div>Noch keine Sessions gespeichert.</div>
       </div>
 
-      <v-list v-else density="comfortable">
-        <v-list-item v-for="s in sessions" :key="s.id">
+      <div v-if="sessions.length > 5" class="px-4 pt-3">
+        <v-text-field
+          v-model="sessionSearchQuery"
+          density="compact"
+          variant="outlined"
+          prepend-inner-icon="mdi-magnify"
+          label="Session-Name durchsuchen"
+          clearable
+          hide-details
+        ></v-text-field>
+      </div>
+
+      <div v-if="sessions.length > 0 && filteredSessions.length === 0" class="pa-8 text-center text-medium-emphasis">
+        Keine Sessions gefunden für "{{ sessionSearchQuery }}".
+      </div>
+
+      <v-list v-if="filteredSessions.length > 0" density="comfortable">
+        <v-list-item v-for="s in filteredSessions" :key="s.id">
           <template #prepend>
             <v-icon :color="s.is_shared ? 'primary' : 'grey'">
               {{ s.is_shared ? "mdi-account-group" : "mdi-lock-outline" }}
@@ -239,6 +255,12 @@ const mtStore = useMesstoolStore();
 const auth = useAuthStore();
 
 const sessions = ref([]);
+const sessionSearchQuery = ref("");
+const filteredSessions = computed(() => {
+  const q = sessionSearchQuery.value.trim().toLowerCase();
+  if (!q) return sessions.value;
+  return sessions.value.filter((s) => s.name.toLowerCase().includes(q));
+});
 const loading = ref(false);
 const loadingId = ref(null);
 const errorMsg = ref("");

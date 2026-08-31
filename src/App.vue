@@ -187,7 +187,11 @@
             rounded="lg"
             class="nav-item"
             @click="selectTab('admin')"
-          ></v-list-item>
+          >
+            <template v-if="pendingApprovalCount > 0" #append>
+              <v-badge :content="pendingApprovalCount" color="warning" inline></v-badge>
+            </template>
+          </v-list-item>
         </v-list>
       </v-navigation-drawer>
 
@@ -460,6 +464,7 @@ import { useUiStore } from "./stores/uiStore.js";
 import { usePresenceStore } from "./stores/presenceStore.js";
 import { useToast } from "./composables/useToast.js";
 import { usernameFromEmail } from "./utils/formatUsername.js";
+import { supabase } from "./lib/supabase";
 
 // Kept as regular (eager) imports: these three are either on the
 // critical first-paint path (Login/Waiting screens show before anything
@@ -512,6 +517,31 @@ watch(
   { immediate: true },
 );
 onBeforeUnmount(() => presence.leave());
+
+// Small in-app nudge so an admin isn't only informed of new signups by
+// stumbling onto the Admin tab — a sidebar badge shows the count of
+// users still waiting for approval. Not a push/email notification, just
+// visible the moment an admin has the app open; refreshed on login, on
+// leaving the Admin tab (after approving someone), and periodically for
+// anyone who leaves the tab open.
+const pendingApprovalCount = ref(0);
+async function refreshPendingApprovalCount() {
+  if (!auth.isAdmin) {
+    pendingApprovalCount.value = 0;
+    return;
+  }
+  const { count, error } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("approved", false);
+  if (!error) pendingApprovalCount.value = count || 0;
+}
+watch(() => auth.isAdmin, refreshPendingApprovalCount, { immediate: true });
+let pendingApprovalInterval = null;
+onMounted(() => {
+  pendingApprovalInterval = setInterval(refreshPendingApprovalCount, 5 * 60 * 1000);
+});
+onBeforeUnmount(() => clearInterval(pendingApprovalInterval));
 
 const VALID_TABS = new Set([
   "start", "overview", "signal", "calculator", "comparison", "sessions",
@@ -613,6 +643,7 @@ function toggleDrawer() {
 }
 
 function selectTab(value) {
+  if (activeTab.value === "admin" && value !== "admin") refreshPendingApprovalCount();
   activeTab.value = value;
   ensureGroupOpenFor(value);
   if (mobile.value) drawer.value = false;
