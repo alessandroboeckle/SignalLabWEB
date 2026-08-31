@@ -82,10 +82,6 @@ export async function init() {
   _ready = true;
 }
 
-export function isReady() {
-  return _ready;
-}
-
 // ---- synchronous reads (from cache) ----
 
 export function loadAllSessions() {

@@ -232,7 +232,7 @@ import { friendlyError } from "../../utils/friendlyError.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { showToast } from "../../composables/useToast.js";
 
-const emit = defineEmits(["navigate"]);
+defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
 const auth = useAuthStore();

@@ -487,11 +487,6 @@ export function designSOS(order, wnNorm, btype = "low", characteristic = "butter
   return sos;
 }
 
-// keep old name working
-export function butterSOS(order, wnNorm, btype = "low") {
-  return designSOS(order, wnNorm, btype, "butterworth");
-}
-
 // ---------- apply SOS with optional per-section initial state ----------
 // Returns { y, zf } where zf are the final states (for chaining/matching scipy).
 function sosfiltWithState(sos, x, zi) {
@@ -610,11 +605,6 @@ export function applyFilter(x, { order = 4, cutoffHz, cutoff2Hz, sampleRate, bty
     return applyFilter(hp, { order, cutoffHz: cutoff2Hz, sampleRate, btype: "low", characteristic, rippleDb, rs });
   }
   return x.slice();
-}
-
-// keep old name working
-export function applyButterworth(x, opts) {
-  return applyFilter(x, { ...opts, characteristic: "butterworth" });
 }
 
 // Evaluates the filter's own frequency response H(e^jw) — magnitude (dB)

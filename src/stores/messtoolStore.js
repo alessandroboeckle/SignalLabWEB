@@ -199,16 +199,6 @@ export const useMesstoolStore = defineStore("messtool", () => {
     persistSession();
   }
 
-  function clear() {
-    parsed.value = null;
-    fileName.value = "";
-    selectedSignalIdx.value = 0;
-    messfileId.value = null;
-    messfileStoragePath.value = null;
-    markers.value = [];
-    persistSession();
-  }
-
   watch(selectedSignalIdx, () => persistSession());
   // Filter/Verarbeitung settings and the comparison file list are now
   // part of the persisted session too (see persistSessionNow above) —
@@ -279,10 +269,6 @@ export const useMesstoolStore = defineStore("messtool", () => {
     return entry;
   }
 
-  function removeCompareFile(id) {
-    compareFiles.value = compareFiles.value.filter((f) => f.id !== id);
-  }
-
   function clearCompare() {
     compareFiles.value = [];
   }
@@ -339,11 +325,9 @@ export const useMesstoolStore = defineStore("messtool", () => {
     sessionTooLargeToPersist,
     dismissRestoredNotice,
     setData,
-    clear,
     compareFiles,
     compareSeries,
     addCompareFile,
-    removeCompareFile,
     clearCompare,
   };
 });
