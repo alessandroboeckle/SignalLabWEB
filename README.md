@@ -66,6 +66,20 @@ Die App braucht ein paar Tabellen/Policies, die noch nicht Teil des Codes sind:
    sind bis zur Freigabe gesperrt; ein Admin kann das auch über den Admin-Bereich in
    der App erledigen).
 
+### Error-Tracking (optional)
+
+Ohne das landen Fehler nur in der Browser-Konsole des betroffenen Users — niemand
+sonst erfährt davon. Um das zu ändern:
+
+1. Kostenloses Projekt auf [sentry.io](https://sentry.io) anlegen (Plattform: Vue),
+   DSN kopieren.
+2. `VITE_SENTRY_DSN` in der `.env` setzen (siehe `.env.example`) — für lokale Entwicklung.
+3. Für den Production-Build (GitHub Actions): als Repository-Variable (nicht Secret —
+   ein Sentry-DSN ist zum Einbetten im Frontend gedacht) unter *Settings → Secrets and
+   variables → Actions → Variables* als `SENTRY_DSN` hinterlegen.
+
+Ohne gesetzten DSN läuft die App unverändert weiter, es wird nur nichts reportet.
+
 ### Entwicklung
 
 ```bash

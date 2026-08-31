@@ -5,6 +5,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { aliases, mdi } from "vuetify/iconsets/mdi";
+import * as Sentry from "@sentry/vue";
 
 // Import MDI icon font (THIS makes icons visible!)
 import "@mdi/font/css/materialdesignicons.css";
@@ -87,15 +88,31 @@ const vuetify = createVuetify({
 const app = createApp(App);
 const pinia = createPinia();
 
+// Error tracking — opt-in via VITE_SENTRY_DSN so local dev / anyone who
+// hasn't set up a Sentry project still runs fine without it (see
+// .env.example and README). Without this, errors thrown in a colleague's
+// browser only ever land in their own console, never reaching us.
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    app,
+    dsn: sentryDsn,
+    environment: import.meta.env.MODE,
+  });
+}
+
 // Last-resort safety net: ErrorBoundary.vue catches and contains errors
 // within whatever it wraps (shows a friendly fallback there). This global
 // handler is for anything that somehow isn't caught by a boundary —
-// logs it instead of leaving a silent blank page.
+// reports it to Sentry (if configured) and logs it instead of leaving a
+// silent blank page.
 app.config.errorHandler = (err, instance, info) => {
+  if (sentryDsn) Sentry.captureException(err, { extra: { info } });
   // eslint-disable-next-line no-console
   console.error("[Global error handler]", err, info);
 };
 window.addEventListener("unhandledrejection", (event) => {
+  if (sentryDsn) Sentry.captureException(event.reason);
   // eslint-disable-next-line no-console
   console.error("[Unhandled promise rejection]", event.reason);
 });
