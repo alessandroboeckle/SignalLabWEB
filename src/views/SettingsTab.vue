@@ -238,15 +238,28 @@
     <v-dialog v-model="showClearDialog" max-width="420">
       <v-card>
         <v-card-title>Generator-Daten löschen?</v-card-title>
-        <v-card-text>
-          Löscht dauerhaft alle lokal gespeicherten Generator-Sessions und -Signale. Das kann
-          nicht rückgängig gemacht werden. Deine Messtool-Dateien und -Sessions in der Cloud
-          sind davon nicht betroffen.
+        <v-card-text v-if="auth.isAdmin">
+          <strong>Achtung, Admin-Konto:</strong> Als Admin siehst du hier die Generator-Sessions
+          und -Signale <strong>aller Nutzer</strong> in der Cloud, nicht nur deine eigenen — diese
+          Aktion löscht sie dauerhaft für alle. Das kann nicht rückgängig gemacht werden. Deine
+          Messtool-Dateien und -Sessions sind davon nicht betroffen.
+          <v-checkbox
+            v-model="confirmAdminClear"
+            density="compact"
+            class="mt-2"
+            hide-details
+            label="Ich verstehe, dass dies die Daten aller Nutzer löscht"
+          ></v-checkbox>
+        </v-card-text>
+        <v-card-text v-else>
+          Löscht dauerhaft deine Generator-Sessions und -Signale in der Cloud. Das kann nicht
+          rückgängig gemacht werden. Deine Messtool-Dateien und -Sessions sind davon nicht
+          betroffen.
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn @click="showClearDialog = false">Abbrechen</v-btn>
-          <v-btn color="error" @click="clearAllData">Löschen</v-btn>
+          <v-btn @click="showClearDialog = false; confirmAdminClear = false">Abbrechen</v-btn>
+          <v-btn color="error" :disabled="auth.isAdmin && !confirmAdminClear" @click="clearAllData">Löschen</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -272,6 +285,7 @@ const store = useSignalStore();
 const auth = useAuthStore();
 
 const showClearDialog = ref(false);
+const confirmAdminClear = ref(false);
 const showSnackbar = ref(false);
 const snackbarMessage = ref("");
 
@@ -327,6 +341,7 @@ async function clearAllData() {
     snackbarMessage.value = "Fehler: " + (e.message || e);
   }
   showClearDialog.value = false;
+  confirmAdminClear.value = false;
   showSnackbar.value = true;
 }
 
