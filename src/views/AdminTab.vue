@@ -273,7 +273,7 @@
               variant="text"
               prepend-icon="mdi-shield-account"
               :loading="busyId === u.id"
-              @click="setAdminRole(u, true)"
+              @click="confirmAction(`${usernameFromEmail(u.email)} zum Admin machen?`, `Erhält vollen Zugriff auf alle Nutzerdaten und Admin-Aktionen.`, () => setAdminRole(u, true))"
             >
               Zum Admin machen
             </v-btn>
@@ -283,7 +283,7 @@
               variant="text"
               prepend-icon="mdi-shield-off-outline"
               :loading="busyId === u.id"
-              @click="setAdminRole(u, false)"
+              @click="confirmAction(`${usernameFromEmail(u.email)} die Admin-Rechte entziehen?`, ``, () => setAdminRole(u, false))"
             >
               Admin entziehen
             </v-btn>
@@ -293,7 +293,7 @@
               variant="text"
               prepend-icon="mdi-cancel"
               :loading="busyId === u.id"
-              @click="setApproval(u, false)"
+              @click="confirmAction(`${usernameFromEmail(u.email)} sperren?`, `Der Zugriff wird sofort entzogen, bis wieder freigegeben wird.`, () => setApproval(u, false))"
             >
               Sperren
             </v-btn>
@@ -349,6 +349,19 @@
       </v-card-text>
     </v-card>
 
+    <!-- Confirm dialog for account/role changes -->
+    <v-dialog v-model="confirmDialog.show" max-width="420">
+      <v-card>
+        <v-card-title>{{ confirmDialog.title }}</v-card-title>
+        <v-card-text v-if="confirmDialog.text">{{ confirmDialog.text }}</v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn @click="confirmDialog.show = false">Abbrechen</v-btn>
+          <v-btn color="error" @click="runConfirmedAction">Bestätigen</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="showSnackbar" :timeout="2500" color="primary">
       {{ snackbarMessage }}
     </v-snackbar>
@@ -394,6 +407,16 @@ const errorMsg = ref("");
 const showSnackbar = ref(false);
 const snackbarMessage = ref("");
 const hardRefreshing = ref(false);
+
+const confirmDialog = ref({ show: false, title: "", text: "", action: null });
+function confirmAction(title, text, action) {
+  confirmDialog.value = { show: true, title, text, action };
+}
+function runConfirmedAction() {
+  const action = confirmDialog.value.action;
+  confirmDialog.value.show = false;
+  action?.();
+}
 
 const pending = computed(() => users.value.filter((u) => !u.approved));
 const approvedUsers = computed(() => users.value.filter((u) => u.approved));

@@ -226,6 +226,7 @@ import { useAuthStore } from "../../stores/authStore.js";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 import * as sessionsApi from "../../utils/messtoolSessionStorage.js";
+import { SessionConflictError } from "../../utils/messtoolSessionStorage.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { withTimeout } from "../../utils/withTimeout.js";
 import { friendlyError } from "../../utils/friendlyError.js";
@@ -398,15 +399,19 @@ async function updateWithCurrent(s) {
   errorMsg.value = "";
   try {
     const { serialized, skipped } = serializeCompareFiles();
-    await sessionsApi.updateSession(s.id, {
-      messfileId: mtStore.messfileId,
-      messfileStoragePath: mtStore.messfileStoragePath,
-      messfileName: mtStore.fileName,
-      selectedSignalIdx: mtStore.selectedSignalIdx,
-      verarbeitungOps: mtStore.verarbeitungSnapshot,
-      filterSettings: mtStore.filterSettings,
-      compareFiles: serialized,
-    });
+    await sessionsApi.updateSession(
+      s.id,
+      {
+        messfileId: mtStore.messfileId,
+        messfileStoragePath: mtStore.messfileStoragePath,
+        messfileName: mtStore.fileName,
+        selectedSignalIdx: mtStore.selectedSignalIdx,
+        verarbeitungOps: mtStore.verarbeitungSnapshot,
+        filterSettings: mtStore.filterSettings,
+        compareFiles: serialized,
+      },
+      s.updated_at
+    );
     await loadSessions();
     if (skipped > 0) {
       errorMsg.value = `Hinweis: ${skipped} Anzeige-Datei(en) ohne Cloud-Speicherung wurden nicht mitaktualisiert.`;
@@ -414,7 +419,12 @@ async function updateWithCurrent(s) {
       showToast(`Session "${s.name}" aktualisiert.`);
     }
   } catch (e) {
-    errorMsg.value = `"${s.name}" konnte nicht aktualisiert werden: ` + friendlyError(e);
+    if (e instanceof SessionConflictError) {
+      errorMsg.value = e.message;
+      await loadSessions();
+    } else {
+      errorMsg.value = `"${s.name}" konnte nicht aktualisiert werden: ` + friendlyError(e);
+    }
   }
   updatingId.value = null;
 }

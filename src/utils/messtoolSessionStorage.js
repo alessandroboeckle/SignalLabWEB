@@ -47,8 +47,11 @@ export async function createSession(payload) {
 }
 
 // Partial update — pass only the camelCase fields that changed, same
-// naming as createSession's payload.
-export async function updateSession(id, payload) {
+// naming as createSession's payload. If expectedUpdatedAt is given (the
+// updated_at of the row as last seen by this client), the write only
+// applies if nobody else has changed the row since — otherwise it throws
+// a SessionConflictError instead of silently overwriting their change.
+export async function updateSession(id, payload, expectedUpdatedAt) {
   const patch = {};
   if (payload.name !== undefined) patch.name = payload.name;
   if (payload.isShared !== undefined) patch.is_shared = !!payload.isShared;
@@ -60,14 +63,24 @@ export async function updateSession(id, payload) {
   if (payload.filterSettings !== undefined) patch.filter_settings = payload.filterSettings;
   if (payload.compareFiles !== undefined) patch.compare_files = payload.compareFiles;
 
-  const { data, error } = await supabase
-    .from("messtool_sessions")
-    .update(patch)
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) throw error;
+  let query = supabase.from("messtool_sessions").update(patch).eq("id", id);
+  if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
+
+  const { data, error } = await query.select().single();
+  if (error) {
+    if (expectedUpdatedAt && error.code === "PGRST116") {
+      throw new SessionConflictError();
+    }
+    throw error;
+  }
   return data;
+}
+
+export class SessionConflictError extends Error {
+  constructor() {
+    super("Diese Session wurde inzwischen von jemand anderem geändert — bitte neu laden und erneut versuchen.");
+    this.name = "SessionConflictError";
+  }
 }
 
 export async function deleteSession(id) {
