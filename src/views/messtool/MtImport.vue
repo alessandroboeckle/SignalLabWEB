@@ -138,8 +138,8 @@
         :model-value="(batchUpload.done / batchUpload.total) * 100"
         height="6" rounded color="primary"
       ></v-progress-linear>
-      <div v-if="!batchUpload.active && batchUpload.failed.length" class="text-caption mt-2">
-        Fehlgeschlagen: {{ batchUpload.failed.join(", ") }}
+      <div v-if="!batchUpload.active && batchUpload.failed.length" class="text-caption mt-2 text-warning">
+        <div v-for="f in batchUpload.failed" :key="f.name">{{ f.name }}: {{ f.reason }}</div>
       </div>
       <v-btn
         v-if="!batchUpload.active && batchUpload.uploadedFiles.length"
@@ -169,6 +169,14 @@
             @click="addSelectedToCompare"
           >
             Zur Anzeige hinzufügen
+          </v-btn>
+          <v-btn
+            size="small" color="error" variant="text" prepend-icon="mdi-delete"
+            :loading="bulkDeleting"
+            class="mr-2"
+            @click="removeSelectedCloudFiles"
+          >
+            Löschen
           </v-btn>
           <v-btn size="small" variant="text" @click="selectedCloudIds = []">Auswahl aufheben</v-btn>
         </template>
@@ -991,6 +999,15 @@ async function uploadExtraFiles(files) {
   batchUpload.failed = [];
   batchUpload.uploadedFiles = [];
   for (const file of files) {
+    // Once quota is hit, every remaining file will fail the same way —
+    // stop trying (instead of hammering the server with N more doomed
+    // uploads) and report the rest as skipped, not "failed", so the
+    // message actually explains what to do instead of just listing names.
+    if (quotaExceeded.value) {
+      batchUpload.failed.push({ name: file.name, reason: "Speicherlimit erreicht" });
+      batchUpload.done++;
+      continue;
+    }
     try {
       const buffer = await file.arrayBuffer();
       // Excel files in a batch use the first sheet automatically (no
@@ -1006,8 +1023,13 @@ async function uploadExtraFiles(files) {
         messfileId: row.id,
         storagePath: row.storage_path,
       });
-    } catch {
-      batchUpload.failed.push(file.name);
+      // Keep the quota figure current within the loop itself — cloudFiles
+      // (and therefore quotaExceeded) only otherwise updates via loadList()
+      // at the very end, so without this a big batch would keep uploading
+      // straight past the limit instead of stopping partway through it.
+      cloudFiles.value = [...cloudFiles.value, row];
+    } catch (e) {
+      batchUpload.failed.push({ name: file.name, reason: friendlyError(e) });
     }
     batchUpload.done++;
   }
@@ -1255,6 +1277,36 @@ async function removeCloudFile(f) {
     await loadList();
   } catch (e) {
     errorMsg.value = "Löschen fehlgeschlagen: " + friendlyError(e);
+  }
+}
+
+const bulkDeleting = ref(false);
+
+// Companion to addSelectedToCompare — the quota-exceeded banner literally
+// tells people to "erst Dateien löschen" (delete files first), but before
+// this there was no way to do that faster than one confirm() dialog per
+// file, right when someone's trying to unblock themselves.
+async function removeSelectedCloudFiles() {
+  const files = cloudFiles.value.filter((f) => selectedCloudIds.value.includes(f.id));
+  if (!files.length) return;
+  if (!confirm(`${files.length} Datei(en) wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+  bulkDeleting.value = true;
+  errorMsg.value = "";
+  const failed = [];
+  for (const f of files) {
+    try {
+      await mtStorage.deleteMessfile(f);
+    } catch {
+      failed.push(f.name);
+    }
+  }
+  await loadList();
+  selectedCloudIds.value = [];
+  bulkDeleting.value = false;
+  if (failed.length) {
+    errorMsg.value = "Nicht gelöscht: " + failed.join(", ");
+  } else {
+    showToast(`${files.length} Datei(en) gelöscht.`);
   }
 }
 

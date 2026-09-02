@@ -17,7 +17,7 @@
           {{ ownerLabel }}
         </v-chip>
       </div>
-      <div class="text-caption text-medium-emphasis">
+      <div class="text-caption text-medium-emphasis text-truncate">
         {{ file.signal_count }} Signale • {{ file.row_count?.toLocaleString() }} Punkte •
         {{ formatBytes(file.size_bytes) }} • {{ formatDate(file.created_at) }}
         <span v-if="file.matchedSignal" class="text-primary">
