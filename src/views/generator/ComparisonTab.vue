@@ -107,6 +107,7 @@ import { ref, computed, watch, nextTick } from "vue";
 import { useSignalStore } from "../../stores/signalStore";
 import * as storage from "../../utils/storage";
 import Chart from "../../utils/chartSetup.js";
+import { applyZoomLimits } from "../../utils/chartInteractionMath.js";
 
 const store = useSignalStore();
 const selectedSignals = ref([]);
@@ -228,18 +229,6 @@ function drawComparisonChart() {
 
 function resetZoomComparison() {
   if (comparisonChart) comparisonChart.resetZoom();
-}
-
-function applyZoomLimits(chart) {
-  const xScale = chart.scales?.x;
-  if (!xScale || typeof xScale.min !== "number" || typeof xScale.max !== "number") return;
-  const span = xScale.max - xScale.min;
-  if (!(span > 0)) return;
-  chart.options.plugins.zoom.limits.x = {
-    min: xScale.min,
-    max: xScale.max,
-    minRange: span * 0.01,
-  };
 }
 
 const comparisonHeaders = [

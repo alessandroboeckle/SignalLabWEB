@@ -443,6 +443,7 @@ import * as signalProcessing from "../../utils/generator/signalProcessing";
 import { buildLogDataFromSignal } from "../../utils/generator/generatorToLogdata.js";
 import Chart from "../../utils/chartSetup.js";
 import { generateBrakeTestCsv, downloadBrakeTestCsv } from "../../utils/messtoolTestGenerator.js";
+import { applyZoomLimits } from "../../utils/chartInteractionMath.js";
 
 const brakeGen = reactive({
   rows: 10000,
@@ -611,18 +612,6 @@ function updateCharts() {
 // Without a minRange, chartjs-plugin-zoom lets the wheel zoom in until the
 // visible x-range shrinks to nothing and the chart appears to just vanish.
 // Cap how far in you can go, same as the Messtool's charts.
-function applyZoomLimits(chart) {
-  const xScale = chart.scales?.x;
-  if (!xScale || typeof xScale.min !== "number" || typeof xScale.max !== "number") return;
-  const span = xScale.max - xScale.min;
-  if (!(span > 0)) return;
-  chart.options.plugins.zoom.limits.x = {
-    min: xScale.min,
-    max: xScale.max,
-    minRange: span * 0.01,
-  };
-}
-
 function drawTimeDomainChart() {
   const canvas = document.getElementById("timeDomainChart");
   if (!canvas) return;
