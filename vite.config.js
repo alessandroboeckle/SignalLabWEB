@@ -1,8 +1,14 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import vuetify from 'vite-plugin-vuetify'
 
 export default defineConfig({
-  plugins: [vue()],
+  // autoImport: true replaces the old "import * as components from
+  // 'vuetify/components'" in main.js — instead of pulling in all 100+
+  // Vuetify components, it scans every .vue file's <template> and only
+  // imports the ~54 tags we actually use. That's the bulk of what made
+  // the main chunk 640 KB (see index-CeJs9xgM.js before this change).
+  plugins: [vue(), vuetify({ autoImport: true })],
   base: '/SignalLabWEB/',
   server: { port: 3000 },
   resolve: {

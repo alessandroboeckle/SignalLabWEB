@@ -353,6 +353,15 @@ import { subscribeCursorSync, broadcastCursorSync } from "../../composables/useC
 import { formatClockTime } from "../../utils/messtoolParser.js";
 import { interpolateDatasetsAtX } from "../../utils/interpolateDatasetsAtX.js";
 import { showUndoToast } from "../../composables/useToast.js";
+import {
+  xValueAtEvent,
+  xValueToPixel,
+  getFullXRange,
+  applyZoomLimits,
+  captureXRange,
+  restoreXRange,
+  CURSOR_COLORS,
+} from "../../utils/chartInteractionMath.js";
 
 const theme = useTheme();
 const mtStore = useMesstoolStore();
@@ -610,37 +619,6 @@ function stepPlay(ts) {
   playRafId = requestAnimationFrame(stepPlay);
 }
 
-// Works for both scale types ChartCard is used with: category scale with
-// numeric-string labels (Analyse/Filter/Verarbeitung/Export), and a linear
-// scale with raw {x,y} points and parsing:false (Vergleich).
-// Reads the clicked x-value directly from the click's pixel position via
-// the x-scale itself — not by finding "the nearest data point" (the old
-// approach), which depends on there actually being a point close by and
-// can silently come up empty (e.g. clicking a gap, a sparse chart, or
-// just an unlucky spot), making clicks seem to do nothing at all.
-// Reading straight off the scale always works anywhere inside the chart
-// area, regardless of the data.
-function xValueAtEvent(chart, evt) {
-  const xScale = chart.scales?.x;
-  if (!xScale) return null;
-
-  const rect = chart.canvas.getBoundingClientRect();
-  const pixelX = evt.clientX - rect.left;
-  if (pixelX < chart.chartArea.left || pixelX > chart.chartArea.right) return null;
-
-  const rawValue = xScale.getValueForPixel(pixelX);
-  if (rawValue == null || Number.isNaN(rawValue)) return null;
-
-  if (chart.data.labels && chart.data.labels.length) {
-    // Category scale: getValueForPixel returns a (possibly fractional)
-    // index, not the real label value — round to the nearest label.
-    const idx = Math.max(0, Math.min(chart.data.labels.length - 1, Math.round(rawValue)));
-    const label = chart.data.labels[idx];
-    return typeof label === "number" ? label : parseFloat(label);
-  }
-  return rawValue;
-}
-
 function onCanvasClick(evt, which) {
   const chart = which === "inline" ? inlineChart : fsChart;
   if (!chart) return;
@@ -694,35 +672,6 @@ function clearAllCursors() {
   if (fullscreen.value) buildFullscreen();
   buildCursorRows();
 }
-
-// Custom plugin: draws vertical lines + dots at cursor positions.
-// Chart.js's category scale treats a raw JS number passed to
-// getPixelForValue() as an INDEX into the labels array, not a data value
-// to look up — so passing an actual x-value (e.g. 23.625 seconds) there
-// silently gives a nonsense position (it just happens to look plausible
-// often enough to go unnoticed). This converts a *real* x-axis value into
-// whatever getPixelForValue actually expects for the chart's current
-// scale: a fractional index for category scales (interpolating between
-// the two bracketing labels), or the value itself for a linear scale
-// (e.g. Vergleich's overlay, which isn't label-based at all).
-function xValueToPixel(chart, value) {
-  const xScale = chart.scales.x;
-  if (!chart.data.labels || !chart.data.labels.length) {
-    return xScale.getPixelForValue(value);
-  }
-  const labels = chart.data.labels.map(Number);
-  if (value <= labels[0]) return xScale.getPixelForValue(0);
-  if (value >= labels[labels.length - 1]) return xScale.getPixelForValue(labels.length - 1);
-  for (let i = 0; i < labels.length - 1; i++) {
-    if (labels[i] <= value && labels[i + 1] >= value) {
-      const frac = labels[i + 1] > labels[i] ? (value - labels[i]) / (labels[i + 1] - labels[i]) : 0;
-      return xScale.getPixelForValue(i + frac);
-    }
-  }
-  return xScale.getPixelForValue(0);
-}
-
-const CURSOR_COLORS = ["#DC2626", "#059669", "#7C3AED", "#DB2777", "#D97706", "#0891B2"];
 
 const cursorPlugin = {
   id: "cursorMarkers",
@@ -873,17 +822,6 @@ const playheadPlugin = {
   },
 };
 
-// Reads the chart's true full data range (set once by applyZoomLimits),
-// not just whatever's currently zoomed/panned into — playback should be
-// able to scrub across the *whole* recording, not just the visible slice.
-function getFullXRange(chart) {
-  const limits = chart.options.plugins?.zoom?.limits?.x;
-  if (limits && typeof limits.min === "number" && typeof limits.max === "number") {
-    return limits;
-  }
-  return { min: chart.scales.x.min, max: chart.scales.x.max };
-}
-
 // Chart.js has no idea about Vuetify's theme, so left alone it always
 // renders axis ticks/titles and gridlines in its own (dark) default color
 // — unreadable once the card itself goes dark in dark mode. Inject
@@ -1021,17 +959,6 @@ function withInteractions(cfg) {
 // inside it any more and the chart appears to just vanish. Cap how far in
 // you can go to a small fraction of the chart's own full data range, and
 // keep pan/zoom from wandering past the actual data on either side.
-function applyZoomLimits(chart) {
-  const limits = chart.options.plugins.zoom.limits;
-  for (const key of Object.keys(chart.scales || {})) {
-    const scale = chart.scales[key];
-    if (!scale || typeof scale.min !== "number" || typeof scale.max !== "number") continue;
-    const span = scale.max - scale.min;
-    if (!(span > 0)) continue;
-    limits[key] = { min: scale.min, max: scale.max, minRange: span * 0.01 };
-  }
-}
-
 // --- synchronized zoom across charts sharing props.syncGroup ---
 const syncInstanceId = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 let applyingSyncedRange = false; // guard so applying an incoming range doesn't re-broadcast it
@@ -1109,16 +1036,6 @@ const buildError = ref(null);
 // Capture the outgoing chart's actual visible range and re-apply it
 // after the new one is built, so only genuinely new data (nothing to
 // carry over) falls back to auto-fit.
-function captureXRange(chart) {
-  const xScale = chart?.scales?.x;
-  if (!xScale || typeof xScale.min !== "number" || typeof xScale.max !== "number") return null;
-  return { min: xScale.min, max: xScale.max };
-}
-function restoreXRange(chart, range) {
-  if (!chart || !range || typeof chart.zoomScale !== "function") return;
-  chart.zoomScale("x", range, "none");
-}
-
 function buildInline() {
   const previousRange = captureXRange(inlineChart);
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }

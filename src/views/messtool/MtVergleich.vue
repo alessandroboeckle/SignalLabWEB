@@ -581,6 +581,7 @@ import { correlateSeries } from "../../utils/correlation.js";
 import * as groupsApi from "../../utils/messtoolSignalGroups.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { withTimeout } from "../../utils/withTimeout.js";
+import { useSignalMergeGroups } from "../../composables/useSignalMergeGroups.js";
 import ChartCard from "./ChartCard.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
@@ -695,44 +696,19 @@ function freqChartConfig(field, yLabel) {
 const freqAmplitudeConfig = computed(() => freqChartConfig("amp", "Amplitude"));
 const freqPhaseConfig = computed(() => freqChartConfig("phaseDeg", "Phase [°]"));
 
-// Lets specific signals share a chart within the Gestapelt view instead
-// of every signal always getting its own row — e.g. plot #3 together
-// with #1, or #5 with #2, while everything else stays one-per-chart.
-// Keyed by series.key (see mtStore.compareSeries); value is the key of
-// another series to join into, or "" for its own chart. Single-hop only
-// (a series that's itself a merge target doesn't chase further merges of
-// its own) — enough for "combine these two/three signals" without the
-// bookkeeping of arbitrary merge chains.
-const mergeGroupOf = ref({});
-
-// A series currently acting as a leader for OTHER followers can't itself
-// be folded into a different plot — doing so via the single-hop model
-// would silently orphan its followers into a group whose "leader" no
-// longer renders its own chart. Compute the set of such off-limits keys
-// once so every chart's menu can just check against it.
-const groupLeaderKeys = computed(() => {
-  const counts = new Map();
-  for (const target of Object.values(mergeGroupOf.value)) {
-    if (target) counts.set(target, (counts.get(target) || 0) + 1);
-  }
-  return new Set([...counts.keys()].filter((k) => counts.get(k) > 0));
-});
-
-function canJoinGroup(series) {
-  return !groupLeaderKeys.value.has(series.key);
-}
-
-function isGroupLeader(item, series) {
-  return item.anchorKey === series.key;
-}
-
-function isInGroup(item, series) {
-  return item.members.some((m) => m.key === series.key);
-}
-
-function toggleGroupMembership(item, series, checked) {
-  mergeGroupOf.value = { ...mergeGroupOf.value, [series.key]: checked ? item.anchorKey : "" };
-}
+// Merge-group logic for the Gestapelt view (letting e.g. plot #3 share a
+// chart with #1) lives in useSignalMergeGroups.js — a self-contained
+// algorithm over mtStore.compareSeries that never touches Chart.js or
+// anything else on this page.
+const {
+  groupLeaderKeys,
+  canJoinGroup,
+  isGroupLeader,
+  isInGroup,
+  toggleGroupMembership,
+  stackedGroups,
+} = useSignalMergeGroups(computed(() => mtStore.compareSeries));
+void groupLeaderKeys; // exposed by the composable, not read directly here — the menu checks canJoinGroup() per-series instead
 
 // Elapsed-time-to-clock offset for a series: clockSec[i] ≈ time[i] +
 // clockOffset, assuming a steady sample rate (reasonable — big gaps are
@@ -823,40 +799,6 @@ function filteredStackedConfig(s, f) {
     };
   };
 }
-
-// Resolves mergeGroupOf into actual groups of series, preserving each
-// group's first-appearance position in mtStore.compareSeries so the
-// stacked list doesn't visibly reshuffle just because of a merge.
-const stackedGroups = computed(() => {
-  const series = mtStore.compareSeries;
-  const byKey = new Map(series.map((s) => [s.key, s]));
-  const leaderOf = new Map(); // seriesKey -> leaderKey
-  for (const s of series) {
-    const target = mergeGroupOf.value[s.key];
-    leaderOf.set(s.key, target && byKey.has(target) ? target : s.key);
-  }
-  const groups = new Map(); // leaderKey -> [series...]
-  for (const s of series) {
-    const leader = leaderOf.get(s.key);
-    if (!groups.has(leader)) groups.set(leader, []);
-    groups.get(leader).push(s);
-  }
-  const seen = new Set();
-  const ordered = [];
-  for (const s of series) {
-    const leader = leaderOf.get(s.key);
-    if (seen.has(leader)) continue;
-    seen.add(leader);
-    // anchorKey is the actual leader/target key from mergeGroupOf — NOT
-    // necessarily members[0], since a follower can appear earlier than
-    // its anchor in mtStore.compareSeries (e.g. you merge an
-    // already-earlier signal INTO a later one). Carrying this alongside
-    // the members array means the arrow-menu UI doesn't have to guess
-    // which member is "the" anchor from array order.
-    ordered.push({ anchorKey: leader, members: groups.get(leader) });
-  }
-  return ordered;
-});
 
 // Expands each selected series into one or two charts for the Gestapelt
 // view, depending on that file's "Filter anwenden" / "Nur gefiltert"

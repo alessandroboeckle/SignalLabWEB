@@ -2,8 +2,6 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import "vuetify/styles";
 import { createVuetify } from "vuetify";
-import * as components from "vuetify/components";
-import * as directives from "vuetify/directives";
 import { aliases, mdi } from "vuetify/iconsets/mdi";
 import * as Sentry from "@sentry/vue";
 
@@ -16,8 +14,9 @@ import "./styles/global.css";
 import App from "./App.vue";
 
 const vuetify = createVuetify({
-  components,
-  directives,
+  // components/directives are no longer registered here — vite-plugin-vuetify's
+  // autoImport (see vite.config.js) auto-imports only the components each
+  // .vue file actually uses, instead of the full library.
   icons: {
     defaultSet: "mdi",
     aliases,
