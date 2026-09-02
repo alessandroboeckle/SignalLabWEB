@@ -20,6 +20,9 @@
       <div class="text-caption text-medium-emphasis">
         {{ file.signal_count }} Signale • {{ file.row_count?.toLocaleString() }} Punkte •
         {{ formatBytes(file.size_bytes) }} • {{ formatDate(file.created_at) }}
+        <span v-if="file.matchedSignal" class="text-primary">
+          • <v-icon size="12">mdi-magnify</v-icon> Signal: {{ file.matchedSignal }}
+        </span>
       </div>
     </div>
     <div class="d-flex flex-wrap align-center ga-1">

@@ -93,13 +93,24 @@ export function useCloudFileFolders(cloudFiles, auth, { onError } = {}) {
   const searchedCloudFiles = computed(() => {
     const q = (fileSearchQuery.value || "").trim().toLowerCase();
     if (!q) return ownerFilteredCloudFiles.value;
-    return ownerFilteredCloudFiles.value.filter((f) =>
-      f.name.toLowerCase().includes(q) ||
+    const result = [];
+    for (const f of ownerFilteredCloudFiles.value) {
+      if (f.name.toLowerCase().includes(q)) {
+        result.push(f);
+        continue;
+      }
       // signal_names is populated at upload time (see messtoolStorage.js)
       // — older files uploaded before that existed just have it null/[]
-      // and only match on filename, same as before.
-      (f.signal_names || []).some((n) => n.toLowerCase().includes(q)),
-    );
+      // and only match on filename, same as above. When the match comes
+      // from a signal name rather than the filename, attach which one
+      // matched (matchedSignal) so CloudFileRow can show *why* this file
+      // is in the results — otherwise a signal-name search silently
+      // surfaces files whose name has nothing to do with what was typed,
+      // which reads as broken rather than as a hit.
+      const matchedSignal = (f.signal_names || []).find((n) => n.toLowerCase().includes(q));
+      if (matchedSignal) result.push({ ...f, matchedSignal });
+    }
+    return result;
   });
   const folderFilteredFiles = computed(() => {
     if (activeFolder.value === "__all__") return searchedCloudFiles.value;

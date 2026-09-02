@@ -54,6 +54,22 @@ describe("useCloudFileFolders", () => {
     expect(searchedCloudFiles.value.map((f) => f.id)).toEqual(["2"]);
   });
 
+  it("attaches which signal matched, so the UI can show why the file is a hit", () => {
+    const files = makeFiles();
+    files[1].signal_names = ["Bremsdruck", "Raddrehzahl"];
+    const cloudFiles = ref(files);
+    const { fileSearchQuery, searchedCloudFiles } = useCloudFileFolders(cloudFiles, { isAdmin: false, user: { id: "u1" } });
+    fileSearchQuery.value = "raddreh";
+    expect(searchedCloudFiles.value[0].matchedSignal).toBe("Raddrehzahl");
+  });
+
+  it("does not set matchedSignal when the match came from the filename", () => {
+    const cloudFiles = ref(makeFiles());
+    const { fileSearchQuery, searchedCloudFiles } = useCloudFileFolders(cloudFiles, { isAdmin: false, user: { id: "u1" } });
+    fileSearchQuery.value = "a.csv";
+    expect(searchedCloudFiles.value[0].matchedSignal).toBeUndefined();
+  });
+
   it("treats files without signal_names (older uploads) as filename-only, not a crash", () => {
     const cloudFiles = ref(makeFiles()); // none of these have signal_names set
     const { fileSearchQuery, searchedCloudFiles } = useCloudFileFolders(cloudFiles, { isAdmin: false, user: { id: "u1" } });
