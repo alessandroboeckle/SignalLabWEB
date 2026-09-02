@@ -93,7 +93,13 @@ export function useCloudFileFolders(cloudFiles, auth, { onError } = {}) {
   const searchedCloudFiles = computed(() => {
     const q = fileSearchQuery.value.trim().toLowerCase();
     if (!q) return ownerFilteredCloudFiles.value;
-    return ownerFilteredCloudFiles.value.filter((f) => f.name.toLowerCase().includes(q));
+    return ownerFilteredCloudFiles.value.filter((f) =>
+      f.name.toLowerCase().includes(q) ||
+      // signal_names is populated at upload time (see messtoolStorage.js)
+      // — older files uploaded before that existed just have it null/[]
+      // and only match on filename, same as before.
+      (f.signal_names || []).some((n) => n.toLowerCase().includes(q)),
+    );
   });
   const folderFilteredFiles = computed(() => {
     if (activeFolder.value === "__all__") return searchedCloudFiles.value;

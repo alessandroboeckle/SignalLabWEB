@@ -11,8 +11,11 @@ async function currentUserId() {
   return data?.user?.id ?? null;
 }
 
-// Upload a raw File plus its parsed meta. Returns the new messfiles row.
-export async function uploadMessfile(file, meta) {
+// Upload a raw File plus its parsed meta. `signalNames` (optional) feeds
+// the cross-file signal search in useCloudFileFolders.js — pass the
+// parsed signals' names so this file shows up when someone searches for
+// one of them later, without needing to re-download and re-parse it.
+export async function uploadMessfile(file, meta, signalNames = []) {
   const userId = await currentUserId();
 
   // unique storage path: <userId>/<timestamp>_<name>
@@ -36,6 +39,7 @@ export async function uploadMessfile(file, meta) {
       row_count: meta.rowCount,
       duration_s: meta.duration,
       uploaded_by: userId,
+      signal_names: signalNames.length ? signalNames : null,
     })
     .select()
     .single();

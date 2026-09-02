@@ -43,6 +43,15 @@
               <v-btn size="small" variant="outlined" prepend-icon="mdi-file-delimited-outline" :disabled="!sig" @click="exportCsv">
                 CSV
               </v-btn>
+              <v-checkbox
+                v-model="csvDecimalComma"
+                density="compact"
+                hide-details
+                label="Komma als Dezimaltrennzeichen (Excel DE)"
+                class="flex-shrink-0"
+                style="max-width: 320px"
+                @update:model-value="setCsvDecimalCommaPref"
+              ></v-checkbox>
             </div>
 
             <v-alert type="info" variant="tonal" density="compact" class="text-caption mb-3">
@@ -188,6 +197,7 @@ import MtQuickNav from "./MtQuickNav.vue";
 defineEmits(["navigate"]);
 import { downsample } from "../../utils/downsample.js";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
+import { getCsvDecimalCommaPref, setCsvDecimalCommaPref } from "../../utils/csvDecimalPref.js";
 
 const mtStore = useMesstoolStore();
 const auth = useAuthStore();
@@ -250,7 +260,7 @@ function exportCsv() {
   const csv = buildCsv(t, [
     { name: "Original", unit: s.unit, data: y },
     { name: "Gefiltert", unit: s.unit, data: filtered },
-  ]);
+  ], { decimalComma: csvDecimalComma.value });
   downloadCsv(csv, `${s.name.replace(/[^\w.-]+/g, "_")}_gefiltert.csv`);
   showToast("CSV heruntergeladen.");
 }
@@ -280,6 +290,7 @@ const sig = computed(() =>
   mtStore.parsed ? mtStore.parsed.signals[selectedIdx.value] : null,
 );
 const time = computed(() => (mtStore.parsed ? mtStore.parsed.time : []));
+const csvDecimalComma = ref(getCsvDecimalCommaPref());
 
 const sampleRate = computed(() => {
   const t = time.value;

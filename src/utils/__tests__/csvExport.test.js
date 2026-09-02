@@ -19,4 +19,11 @@ describe("csvExport", () => {
     const csv = buildCsv([0], [{ name: "Raw", unit: "", data: [42] }]);
     expect(csv.split("\n")[0]).toBe("Zeit_s;Raw");
   });
+
+  it("uses comma decimals when decimalComma is set, without touching the ; delimiter", () => {
+    const csv = buildCsv([0, 0.1], [{ name: "Original", unit: "bar", data: [1.25, null] }], { decimalComma: true });
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe("0;1,25");
+    expect(lines[2]).toBe("0,1;"); // null still becomes an empty field, not ","
+  });
 });

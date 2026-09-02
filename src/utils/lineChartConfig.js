@@ -17,6 +17,11 @@ export function buildLineChartConfig({
   xScale = {},
   yTitle,
   yScale = {},
+  // Extra named scales beyond x/y — e.g. MtVergleich's optional right-hand
+  // "y1" axis for signals that opted into a second axis. Merged in as-is
+  // (no title/{} default applied), since which of these exist at all is
+  // usually conditional.
+  extraScales = {},
   plugins,
 } = {}) {
   const options = {
@@ -25,6 +30,7 @@ export function buildLineChartConfig({
     scales: {
       x: { title: { display: true, text: xTitle }, ...xScale },
       y: { title: { display: true, text: yTitle }, ...yScale },
+      ...extraScales,
     },
   };
   if (parsing === false) options.parsing = false;

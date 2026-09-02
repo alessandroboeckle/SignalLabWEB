@@ -205,7 +205,7 @@
             density="compact"
             variant="outlined"
             prepend-inner-icon="mdi-magnify"
-            label="Dateiname durchsuchen"
+            label="Datei- oder Signalname durchsuchen"
             clearable
             hide-details
           ></v-text-field>
@@ -747,7 +747,9 @@ import HelpIconButton from "../../components/HelpIconButton.vue";
 import CloudFileRow from "../../components/CloudFileRow.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 import { downsample } from "../../utils/downsample.js";
+import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import { useCloudFileFolders } from "../../composables/useCloudFileFolders.js";
+import { formatDate } from "../../utils/formatDate.js";
 
 const emit = defineEmits(["navigate"]);
 
@@ -940,30 +942,23 @@ const previewConfig = computed(() => {
   const p = parsed.value;
   const idx = selectedIdx.value;
   return (peakMode) => {
-    if (!p) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!p) return emptyLineChartConfig();
     const s = p.signals[idx];
     const time = p.time;
     const { rx: labels, ry: values } = downsample(s.data, time, peakMode ? "minmax" : "simple", 800);
-    return {
-      type: "line",
-      data: {
-        labels,
-        datasets: [{
-          label: `${s.name} [${s.unit || "-"}]`,
-          data: values,
-          borderColor: "#2563EB",
-          backgroundColor: "rgba(37,99,235,0.08)",
-          borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
-        }],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 10 } },
-          y: { title: { display: true, text: s.unit || "" } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      labels,
+      datasets: [{
+        label: `${s.name} [${s.unit || "-"}]`,
+        data: values,
+        borderColor: "#2563EB",
+        backgroundColor: "rgba(37,99,235,0.08)",
+        borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
+      }],
+      xTitle: "Zeit [s]",
+      xScale: { ticks: { maxTicksLimit: 10 } },
+      yTitle: s.unit || "",
+    });
   };
 });
 
@@ -1004,7 +999,7 @@ async function uploadExtraFiles(files) {
       const result = isExcelFile(file)
         ? await parseMesstoolExcel(buffer, undefined, buildParseOptions())
         : await parseCsvOffMainThread(decodeLatin1(buffer), buildParseOptions());
-      const row = await mtStorage.uploadMessfile(file, result.meta);
+      const row = await mtStorage.uploadMessfile(file, result.meta, result.signals.map((s) => s.name));
       batchUpload.uploadedFiles.push({
         name: file.name,
         parsed: result,
@@ -1076,19 +1071,13 @@ const quickCompareConfig = computed(() => {
         pointRadius: 0,
       };
     });
-    return {
-      type: "line",
-      data: { datasets },
-      options: {
-        responsive: true,
-        animation: false,
-        parsing: false,
-        scales: {
-          x: { type: "linear", title: { display: true, text: "Zeit [s]" } },
-          y: { title: { display: true, text: "Wert" } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      datasets,
+      parsing: false,
+      xTitle: "Zeit [s]",
+      xScale: { type: "linear" },
+      yTitle: "Wert",
+    });
   };
 });
 
@@ -1223,7 +1212,7 @@ async function saveToCloud() {
   uploading.value = true;
   errorMsg.value = "";
   try {
-    const row = await mtStorage.uploadMessfile(lastFile.value, parsed.value.meta);
+    const row = await mtStorage.uploadMessfile(lastFile.value, parsed.value.meta, parsed.value.signals.map((s) => s.name));
     mtStore.setCloudRef(row.id, row.storage_path);
     await loadList();
     recentFiles.value = addRecentFile({ name: fileName.value, messfileId: row.id, storagePath: row.storage_path });
@@ -1267,14 +1256,6 @@ async function removeCloudFile(f) {
   } catch (e) {
     errorMsg.value = "Löschen fehlgeschlagen: " + friendlyError(e);
   }
-}
-
-function formatDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleString("de-DE", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
 }
 
 onMounted(() => {

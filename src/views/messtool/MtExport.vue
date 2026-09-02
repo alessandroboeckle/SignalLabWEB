@@ -261,6 +261,7 @@ import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { downsample } from "../../utils/downsample.js";
+import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import { buildLineChartSvg } from "../../utils/svgChart.js";
 import { buildMultiSignalWorkbook, downloadWorkbook } from "../../utils/xlsxExport.js";
 import ChartCard from "./ChartCard.vue";
@@ -329,28 +330,20 @@ function exportFilename(extension) {
 const exportConfig = computed(() => {
   const s = sig.value, t = time.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const { rx, ry } = downsample(s.data, t, peakMode ? "minmax" : "simple", 800);
-    return {
-      type: "line",
-      data: {
-        labels: rx,
-        datasets: [{
-          label: `${s.name} [${s.unit || "-"}]`,
-          data: ry,
-          borderColor: "#2563EB",
-          backgroundColor: "rgba(37,99,235,0.08)",
-          borderWidth: 1.5, pointRadius: 0, fill: true,
-        }],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Zeit [s]" } },
-          y: { title: { display: true, text: s.unit || "" } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      labels: rx,
+      datasets: [{
+        label: `${s.name} [${s.unit || "-"}]`,
+        data: ry,
+        borderColor: "#2563EB",
+        backgroundColor: "rgba(37,99,235,0.08)",
+        borderWidth: 1.5, pointRadius: 0, fill: true,
+      }],
+      xTitle: "Zeit [s]",
+      yTitle: s.unit || "",
+    });
   };
 });
 

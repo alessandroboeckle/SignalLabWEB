@@ -91,6 +91,15 @@
               >
                 CSV
               </v-btn>
+              <v-checkbox
+                v-model="csvDecimalComma"
+                density="compact"
+                hide-details
+                label="Komma als Dezimaltrennzeichen (Excel DE)"
+                class="flex-shrink-0"
+                style="max-width: 320px"
+                @update:model-value="setCsvDecimalCommaPref"
+              ></v-checkbox>
             </v-card-title>
             <v-divider></v-divider>
 
@@ -194,6 +203,7 @@ import MtQuickNav from "./MtQuickNav.vue";
 defineEmits(["navigate"]);
 import { downsample } from "../../utils/downsample.js";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
+import { getCsvDecimalCommaPref, setCsvDecimalCommaPref } from "../../utils/csvDecimalPref.js";
 
 const mtStore = useMesstoolStore();
 useSignalNavigationShortcuts(mtStore);
@@ -324,7 +334,7 @@ function exportCsv() {
   const csv = buildCsv(t, [
     { name: "Original", unit: s.unit, data: y },
     { name: "Verarbeitet", unit: s.unit, data: processed },
-  ]);
+  ], { decimalComma: csvDecimalComma.value });
   downloadCsv(csv, `${s.name.replace(/[^\w.-]+/g, "_")}_verarbeitet.csv`);
   showToast("CSV heruntergeladen.");
 }
@@ -341,6 +351,7 @@ const sig = computed(() =>
   mtStore.parsed ? mtStore.parsed.signals[selectedIdx.value] : null,
 );
 const time = computed(() => (mtStore.parsed ? mtStore.parsed.time : []));
+const csvDecimalComma = ref(getCsvDecimalCommaPref());
 
 function addOp(entry) {
   ops.value.push(entry.make());

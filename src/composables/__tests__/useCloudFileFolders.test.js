@@ -45,6 +45,22 @@ describe("useCloudFileFolders", () => {
     expect(searchedCloudFiles.value.map((f) => f.id)).toEqual(["1"]);
   });
 
+  it("also matches on indexed signal names, not just the filename", () => {
+    const files = makeFiles();
+    files[1].signal_names = ["Bremsdruck", "Raddrehzahl"];
+    const cloudFiles = ref(files);
+    const { fileSearchQuery, searchedCloudFiles } = useCloudFileFolders(cloudFiles, { isAdmin: false, user: { id: "u1" } });
+    fileSearchQuery.value = "raddreh";
+    expect(searchedCloudFiles.value.map((f) => f.id)).toEqual(["2"]);
+  });
+
+  it("treats files without signal_names (older uploads) as filename-only, not a crash", () => {
+    const cloudFiles = ref(makeFiles()); // none of these have signal_names set
+    const { fileSearchQuery, searchedCloudFiles } = useCloudFileFolders(cloudFiles, { isAdmin: false, user: { id: "u1" } });
+    fileSearchQuery.value = "anything";
+    expect(searchedCloudFiles.value).toEqual([]);
+  });
+
   it("computes a non-admin's quota from only their own files", () => {
     const cloudFiles = ref(makeFiles());
     const { myStorageBytes, QUOTA_BYTES, quotaUsedPct, quotaExceeded } = useCloudFileFolders(

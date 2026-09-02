@@ -56,6 +56,22 @@ describe("buildLineChartConfig", () => {
     });
   });
 
+  it("merges extraScales in alongside x/y as-is (no title default applied)", () => {
+    const cfg = buildLineChartConfig({
+      datasets: [],
+      yTitle: "Wert",
+      extraScales: {
+        y1: { position: "right", title: { display: true, text: "Wert (rechte Achse)" }, grid: { drawOnChartArea: false } },
+      },
+    });
+    expect(cfg.options.scales.y1).toEqual({
+      position: "right",
+      title: { display: true, text: "Wert (rechte Achse)" },
+      grid: { drawOnChartArea: false },
+    });
+    expect(cfg.options.scales.y).toEqual({ title: { display: true, text: "Wert" } });
+  });
+
   it("only sets options.plugins when explicitly provided", () => {
     const withoutPlugins = buildLineChartConfig({ datasets: [] });
     expect(withoutPlugins.options.plugins).toBeUndefined();

@@ -379,6 +379,7 @@ import { formatBytes } from "../utils/formatBytes.js";
 import { useReportSettingsStore } from "../stores/reportSettingsStore.js";
 import { usernameFromEmail } from "../utils/formatUsername.js";
 import { friendlyError } from "../utils/friendlyError.js";
+import { formatDate } from "../utils/formatDate.js";
 
 const emit = defineEmits(["navigate"]);
 const auth = useAuthStore();
@@ -551,17 +552,6 @@ async function setAdminRole(u, makeAdmin) {
     showSnackbar.value = true;
   }
   busyId.value = null;
-}
-
-function formatDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleString("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 // Relative-ish "last seen" — a raw timestamp is fine for "registriert",

@@ -582,6 +582,7 @@ import * as groupsApi from "../../utils/messtoolSignalGroups.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { withTimeout } from "../../utils/withTimeout.js";
 import { useSignalMergeGroups } from "../../composables/useSignalMergeGroups.js";
+import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import ChartCard from "./ChartCard.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
@@ -667,29 +668,21 @@ function freqChartConfig(field, yLabel) {
   void freqSpectra.value;
   return () => {
     const spectra = freqSpectra.value;
-    if (!spectra.length) return { type: "line", data: { labels: [], datasets: [] } };
-    return {
-      type: "line",
-      data: {
-        datasets: spectra.map((sp) => ({
-          label: sp.label,
-          data: sp.freq.map((f, i) => ({ x: f, y: sp[field][i] })),
-          borderColor: sp.color,
-          backgroundColor: sp.color,
-          borderWidth: 1.5,
-          pointRadius: 0,
-        })),
-      },
-      options: {
-        responsive: true,
-        animation: false,
-        parsing: false,
-        scales: {
-          x: { type: "logarithmic", title: { display: true, text: "Frequenz [Hz] (log)" } },
-          y: { title: { display: true, text: yLabel } },
-        },
-      },
-    };
+    if (!spectra.length) return emptyLineChartConfig();
+    return buildLineChartConfig({
+      datasets: spectra.map((sp) => ({
+        label: sp.label,
+        data: sp.freq.map((f, i) => ({ x: f, y: sp[field][i] })),
+        borderColor: sp.color,
+        backgroundColor: sp.color,
+        borderWidth: 1.5,
+        pointRadius: 0,
+      })),
+      parsing: false,
+      xTitle: "Frequenz [Hz] (log)",
+      xScale: { type: "logarithmic" },
+      yTitle: yLabel,
+    });
   };
 }
 
@@ -769,34 +762,25 @@ function filteredStackedConfig(s, f) {
     const useClock = xAxisMode.value === "uhrzeit";
     const clockOffset = useClock ? clockOffsetFor(s) : null;
 
-    return {
-      type: "line",
-      data: {
-        datasets: [{
-          label: `${s.signal.name} gefiltert [${s.signal.unit || "-"}]`,
-          data: points,
-          borderColor: "#FF6B35",
-          backgroundColor: "#FF6B35",
-          borderWidth: 1.5,
-          pointRadius: 0,
-        }],
+    return buildLineChartConfig({
+      datasets: [{
+        label: `${s.signal.name} gefiltert [${s.signal.unit || "-"}]`,
+        data: points,
+        borderColor: "#FF6B35",
+        backgroundColor: "#FF6B35",
+        borderWidth: 1.5,
+        pointRadius: 0,
+      }],
+      parsing: false,
+      xTitle: useClock ? "Uhrzeit" : "Zeit [s]",
+      xScale: {
+        type: "linear",
+        ticks: clockOffset != null
+          ? { callback: (val) => formatClockTime(val + clockOffset) }
+          : {},
       },
-      options: {
-        responsive: true,
-        animation: false,
-        parsing: false,
-        scales: {
-          x: {
-            type: "linear",
-            title: { display: true, text: useClock ? "Uhrzeit" : "Zeit [s]" },
-            ticks: clockOffset != null
-              ? { callback: (val) => formatClockTime(val + clockOffset) }
-              : {},
-          },
-          y: { title: { display: true, text: s.signal.unit || "Wert" } },
-        },
-      },
-    };
+      yTitle: s.signal.unit || "Wert",
+    });
   };
 }
 
@@ -909,32 +893,26 @@ function mergedStackedConfig(members) {
     const useClock = xAxisMode.value === "uhrzeit";
     const clockOffset = useClock ? clockOffsetFor(members[0]) : null;
 
-    const scales = {
-      x: {
-        type: "linear",
-        title: { display: true, text: useClock ? "Uhrzeit" : "Zeit [s]" },
-        ticks: clockOffset != null ? { callback: (val) => formatClockTime(val + clockOffset) } : {},
-      },
-      y: { title: { display: true, text: "Wert" } },
-    };
+    const extraScales = {};
     if (members.some((s) => s.useSecondAxis)) {
-      scales.y1 = {
+      extraScales.y1 = {
         position: "right",
         title: { display: true, text: "Wert (rechte Achse)" },
         grid: { drawOnChartArea: false },
       };
     }
 
-    return {
-      type: "line",
-      data: { datasets },
-      options: {
-        responsive: true,
-        animation: false,
-        parsing: false,
-        scales,
+    return buildLineChartConfig({
+      datasets,
+      parsing: false,
+      xTitle: useClock ? "Uhrzeit" : "Zeit [s]",
+      xScale: {
+        type: "linear",
+        ticks: clockOffset != null ? { callback: (val) => formatClockTime(val + clockOffset) } : {},
       },
-    };
+      yTitle: "Wert",
+      extraScales,
+    });
   };
 }
 
@@ -954,34 +932,25 @@ function stackedConfig(s) {
     const useClock = xAxisMode.value === "uhrzeit";
     const clockOffset = useClock ? clockOffsetFor(s) : null;
 
-    return {
-      type: "line",
-      data: {
-        datasets: [{
-          label: `${s.signal.name} [${s.signal.unit || "-"}]`,
-          data: points,
-          borderColor: s.color,
-          backgroundColor: s.color,
-          borderWidth: 1.5,
-          pointRadius: 0,
-        }],
+    return buildLineChartConfig({
+      datasets: [{
+        label: `${s.signal.name} [${s.signal.unit || "-"}]`,
+        data: points,
+        borderColor: s.color,
+        backgroundColor: s.color,
+        borderWidth: 1.5,
+        pointRadius: 0,
+      }],
+      parsing: false,
+      xTitle: useClock ? "Uhrzeit" : "Zeit [s]",
+      xScale: {
+        type: "linear",
+        ticks: clockOffset != null
+          ? { callback: (val) => formatClockTime(val + clockOffset) }
+          : {},
       },
-      options: {
-        responsive: true,
-        animation: false,
-        parsing: false,
-        scales: {
-          x: {
-            type: "linear",
-            title: { display: true, text: useClock ? "Uhrzeit" : "Zeit [s]" },
-            ticks: clockOffset != null
-              ? { callback: (val) => formatClockTime(val + clockOffset) }
-              : {},
-          },
-          y: { title: { display: true, text: s.signal.unit || "Wert" } },
-        },
-      },
-    };
+      yTitle: s.signal.unit || "Wert",
+    });
   };
 }
 const signalGroups = ref(groupsApi.listGroups());
@@ -1238,36 +1207,30 @@ const overlayConfig = computed(() => {
     const useClock = xAxisMode.value === "uhrzeit";
     const clockOffset = useClock ? clockOffsetFor(series[0]) : null;
 
-    const scales = {
-      x: {
-        type: "linear",
-        title: { display: true, text: useClock ? "Uhrzeit" : "Zeit [s]" },
-        ticks: clockOffset != null
-          ? { callback: (val) => formatClockTime(val + clockOffset) }
-          : {},
-      },
-      y: { title: { display: true, text: "Wert" } },
-    };
+    const extraScales = {};
     // Only add the right-hand axis if at least one series actually uses
     // it — otherwise an empty second axis would just clutter the chart.
     if (series.some((s) => s.useSecondAxis)) {
-      scales.y1 = {
+      extraScales.y1 = {
         position: "right",
         title: { display: true, text: "Wert (rechte Achse)" },
         grid: { drawOnChartArea: false }, // avoid a doubled-up gridline mess
       };
     }
 
-    return {
-      type: "line",
-      data: { datasets },
-      options: {
-        responsive: true,
-        animation: false,
-        parsing: false,
-        scales,
+    return buildLineChartConfig({
+      datasets,
+      parsing: false,
+      xTitle: useClock ? "Uhrzeit" : "Zeit [s]",
+      xScale: {
+        type: "linear",
+        ticks: clockOffset != null
+          ? { callback: (val) => formatClockTime(val + clockOffset) }
+          : {},
       },
-    };
+      yTitle: "Wert",
+      extraScales,
+    });
   };
 });
 
