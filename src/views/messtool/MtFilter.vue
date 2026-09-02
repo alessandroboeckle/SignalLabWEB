@@ -187,6 +187,7 @@ import MtQuickNav from "./MtQuickNav.vue";
 
 defineEmits(["navigate"]);
 import { downsample } from "../../utils/downsample.js";
+import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 
 const mtStore = useMesstoolStore();
 const auth = useAuthStore();
@@ -348,30 +349,20 @@ const frequencyResponseData = computed(() => {
 const frequencyResponseConfig = computed(() => {
   const { freqs, magDb } = frequencyResponseData.value;
   return () => {
-    if (!freqs.length) return { type: "line", data: { labels: [], datasets: [] } };
-    return {
-      type: "line",
-      data: {
-        datasets: [{
-          label: "Amplitude [dB]",
-          data: freqs.map((f, i) => ({ x: f, y: magDb[i] })),
-          borderColor: "#2563EB",
-          backgroundColor: "rgba(37,99,235,0.08)",
-          borderWidth: 1.5, pointRadius: 0, fill: true,
-        }],
-      },
-      options: {
-        responsive: true, animation: false,
-        parsing: false,
-        scales: {
-          x: {
-            type: "logarithmic",
-            title: { display: true, text: "Frequenz [Hz] (log)" },
-          },
-          y: { title: { display: true, text: "Amplitude [dB]" } },
-        },
-      },
-    };
+    if (!freqs.length) return emptyLineChartConfig();
+    return buildLineChartConfig({
+      datasets: [{
+        label: "Amplitude [dB]",
+        data: freqs.map((f, i) => ({ x: f, y: magDb[i] })),
+        borderColor: "#2563EB",
+        backgroundColor: "rgba(37,99,235,0.08)",
+        borderWidth: 1.5, pointRadius: 0, fill: true,
+      }],
+      parsing: false,
+      xTitle: "Frequenz [Hz] (log)",
+      xScale: { type: "logarithmic" },
+      yTitle: "Amplitude [dB]",
+    });
   };
 });
 
@@ -383,33 +374,21 @@ const frequencyResponseConfig = computed(() => {
 const phaseResponseConfig = computed(() => {
   const { freqs, phaseDeg } = frequencyResponseData.value;
   return () => {
-    if (!freqs.length) return { type: "line", data: { labels: [], datasets: [] } };
-    return {
-      type: "line",
-      data: {
-        datasets: [{
-          label: "Phase [°]",
-          data: freqs.map((f, i) => ({ x: f, y: phaseDeg[i] })),
-          borderColor: "#D97706",
-          backgroundColor: "rgba(217,119,6,0.08)",
-          borderWidth: 1.5, pointRadius: 0, fill: false,
-        }],
-      },
-      options: {
-        responsive: true, animation: false,
-        parsing: false,
-        scales: {
-          x: {
-            type: "logarithmic",
-            title: { display: true, text: "Frequenz [Hz] (log)" },
-          },
-          y: {
-            title: { display: true, text: "Phase [°]" },
-            ticks: { stepSize: 90 },
-          },
-        },
-      },
-    };
+    if (!freqs.length) return emptyLineChartConfig();
+    return buildLineChartConfig({
+      datasets: [{
+        label: "Phase [°]",
+        data: freqs.map((f, i) => ({ x: f, y: phaseDeg[i] })),
+        borderColor: "#D97706",
+        backgroundColor: "rgba(217,119,6,0.08)",
+        borderWidth: 1.5, pointRadius: 0, fill: false,
+      }],
+      parsing: false,
+      xTitle: "Frequenz [Hz] (log)",
+      xScale: { type: "logarithmic" },
+      yTitle: "Phase [°]",
+      yScale: { ticks: { stepSize: 90 } },
+    });
   };
 });
 
@@ -419,7 +398,7 @@ const filterConfig = computed(() => {
   const bt = btype.value, ord = order.value;
   const char = characteristic.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const y = s.data.map((v) => (v == null ? 0 : v));
     const unit = s.unit || "";
     let filtered;
@@ -432,23 +411,16 @@ const filterConfig = computed(() => {
     }
     const oD = down(y, t, peakMode);
     const fD = down(filtered, t, peakMode);
-    return {
-      type: "line",
-      data: {
-        labels: oD.rx,
-        datasets: [
-          { label: `Original [${unit}]`, data: oD.ry, borderColor: "#94A3B8", borderWidth: 1, pointRadius: 0 },
-          { label: `Gefiltert [${unit}]`, data: fD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0 },
-        ],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 10 } },
-          y: { title: { display: true, text: unit } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      labels: oD.rx,
+      datasets: [
+        { label: `Original [${unit}]`, data: oD.ry, borderColor: "#94A3B8", borderWidth: 1, pointRadius: 0 },
+        { label: `Gefiltert [${unit}]`, data: fD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0 },
+      ],
+      xTitle: "Zeit [s]",
+      xScale: { ticks: { maxTicksLimit: 10 } },
+      yTitle: unit,
+    });
   };
 });
 </script>

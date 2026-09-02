@@ -420,6 +420,7 @@ import ChartCard from "./ChartCard.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 import { downsample } from "../../utils/downsample.js";
+import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 
 defineEmits(["navigate"]);
 
@@ -641,7 +642,7 @@ const groupOverlayConfig = computed(() => {
   const entries = groupSignals.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
-    if (!entries.length) return { type: "line", data: { datasets: [] } };
+    if (!entries.length) return emptyLineChartConfig(false);
     const datasets = entries.map(({ label, sig: s, t }, i) => {
       const { y, t: wt } = windowedYT(s, t);
       const d = down(y, wt, peakMode);
@@ -651,17 +652,13 @@ const groupOverlayConfig = computed(() => {
         borderWidth: 1.5, pointRadius: 0,
       };
     });
-    return {
-      type: "line",
-      data: { datasets },
-      options: {
-        responsive: true, animation: false, parsing: false,
-        scales: {
-          x: { type: "linear", title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
-          y: { title: { display: true, text: "Wert" } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      datasets,
+      parsing: false,
+      xTitle: "Zeit [s]",
+      xScale: { type: "linear", ticks: { maxTicksLimit: 8 } },
+      yTitle: "Wert",
+    });
   };
 });
 
@@ -669,7 +666,7 @@ const groupFftConfig = computed(() => {
   const entries = groupSignals.value, wt = windowType.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
-    if (!entries.length) return { type: "line", data: { datasets: [] } };
+    if (!entries.length) return emptyLineChartConfig(false);
     const datasets = entries.map(({ label, sig: s, t }, i) => {
       const { y, t: wt2 } = windowedYT(s, t);
       const { freq, amp } = A.fft(y, wt2, { windowType: wt, normalize: true });
@@ -680,17 +677,13 @@ const groupFftConfig = computed(() => {
         borderWidth: 1, pointRadius: 0,
       };
     });
-    return {
-      type: "line",
-      data: { datasets },
-      options: {
-        responsive: true, animation: false, parsing: false,
-        scales: {
-          x: { type: "linear", title: { display: true, text: "Frequenz [Hz]" }, ticks: { maxTicksLimit: 12 } },
-          y: { title: { display: true, text: "Amplitude" } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      datasets,
+      parsing: false,
+      xTitle: "Frequenz [Hz]",
+      xScale: { type: "linear", ticks: { maxTicksLimit: 12 } },
+      yTitle: "Amplitude",
+    });
   };
 });
 
@@ -793,7 +786,7 @@ const signalConfig = computed(() => {
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void showAvgLine.value; void showRmsLine.value; void showStdBand.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const sD = down(y, wt, peakMode);
@@ -833,17 +826,13 @@ const signalConfig = computed(() => {
       });
     }
 
-    return {
-      type: "line",
-      data: { labels: sD.rx, datasets },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
-          y: { title: { display: true, text: unit } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      datasets,
+      labels: sD.rx,
+      xTitle: "Zeit [s]",
+      xScale: { ticks: { maxTicksLimit: 8 } },
+      yTitle: unit,
+    });
   };
 });
 
@@ -851,26 +840,19 @@ const derivConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const deriv = A.derivative(y, wt);
     const dD = down(deriv, wt, peakMode);
 
-    return {
-      type: "line",
-      data: {
-        labels: dD.rx,
-        datasets: [{ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1.5, pointRadius: 0 }],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
-          y: { title: { display: true, text: `${unit}/s` } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      datasets: [{ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1.5, pointRadius: 0 }],
+      labels: dD.rx,
+      xTitle: "Zeit [s]",
+      xScale: { ticks: { maxTicksLimit: 8 } },
+      yTitle: `${unit}/s`,
+    });
   };
 });
 
@@ -878,25 +860,18 @@ const integralConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const { y, t: wt2 } = windowedYT(s, t);
     const unit = s.unit || "";
     const integ = A.integral(y, wt2);
     const iD = down(integ, wt2, peakMode);
-    return {
-      type: "line",
-      data: {
-        labels: iD.rx,
-        datasets: [{ label: `∫ [${unit}·s]`, data: iD.ry, borderColor: "#10B981", backgroundColor: "rgba(16,185,129,0.08)", borderWidth: 1.5, pointRadius: 0, fill: true }],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
-          y: { title: { display: true, text: `${unit}·s` } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      labels: iD.rx,
+      datasets: [{ label: `∫ [${unit}·s]`, data: iD.ry, borderColor: "#10B981", backgroundColor: "rgba(16,185,129,0.08)", borderWidth: 1.5, pointRadius: 0, fill: true }],
+      xTitle: "Zeit [s]",
+      xScale: { ticks: { maxTicksLimit: 8 } },
+      yTitle: `${unit}·s`,
+    });
   };
 });
 
@@ -905,29 +880,22 @@ const rollingRmsConfig = computed(() => {
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void rmsWindowSec.value; void rmsOverlapPct.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const { t: rt, rms: rr } = A.rollingRms(y, wt, rmsWindowSec.value, rmsOverlapPct.value);
     const rD = down(rr, rt, peakMode);
-    return {
-      type: "line",
-      data: {
-        labels: rD.rx,
-        datasets: [{
-          label: `RMS (${rmsWindowSec.value}s, ${rmsOverlapPct.value}% Überlappung) [${unit}]`,
-          data: rD.ry, borderColor: "#EC4899", backgroundColor: "rgba(236,72,153,0.08)",
-          borderWidth: 1.5, pointRadius: 0, fill: true,
-        }],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
-          y: { title: { display: true, text: unit } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      labels: rD.rx,
+      datasets: [{
+        label: `RMS (${rmsWindowSec.value}s, ${rmsOverlapPct.value}% Überlappung) [${unit}]`,
+        data: rD.ry, borderColor: "#EC4899", backgroundColor: "rgba(236,72,153,0.08)",
+        borderWidth: 1.5, pointRadius: 0, fill: true,
+      }],
+      xTitle: "Zeit [s]",
+      xScale: { ticks: { maxTicksLimit: 8 } },
+      yTitle: unit,
+    });
   };
 });
 
@@ -945,7 +913,7 @@ const rmsWindowsOverlayConfig = computed(() => {
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void rmsWindowSec.value; void rmsOverlapPct.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const sD = down(y, wt, peakMode);
@@ -972,32 +940,26 @@ const rmsWindowsOverlayConfig = computed(() => {
       order: 10, // bands drawn first (Chart.js: lower order = on top), signal line stays visible above them
     }));
 
-    return {
-      type: "line",
-      data: {
-        labels: sD.rx,
-        datasets: [
-          ...bandDatasets,
-          { label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, order: 0 },
-        ],
-      },
-      options: {
-        responsive: true, animation: false,
-        plugins: {
-          legend: {
-            labels: {
-              // Chart.js can't dedupe legend entries on its own — hide the
-              // per-band "undefined"-labeled ones by filtering here instead.
-              filter: (item) => item.text != null,
-            },
+    return buildLineChartConfig({
+      labels: sD.rx,
+      datasets: [
+        ...bandDatasets,
+        { label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, order: 0 },
+      ],
+      plugins: {
+        legend: {
+          labels: {
+            // Chart.js can't dedupe legend entries on its own — hide the
+            // per-band "undefined"-labeled ones by filtering here instead.
+            filter: (item) => item.text != null,
           },
         },
-        scales: {
-          x: { type: "linear", title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 8 } },
-          y: { min: yMin, max: yMax, title: { display: true, text: unit } },
-        },
       },
-    };
+      xTitle: "Zeit [s]",
+      xScale: { type: "linear", ticks: { maxTicksLimit: 8 } },
+      yTitle: unit,
+      yScale: { min: yMin, max: yMax },
+    });
   };
 });
 
@@ -1005,25 +967,18 @@ const fftConfig = computed(() => {
   const s = sig.value, t = time.value, wt = windowType.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const { y, t: wt3 } = windowedYT(s, t);
     const unit = s.unit || "";
     const { freq, amp } = A.fft(y, wt3, { windowType: wt, normalize: true });
     const fD = down(amp, freq, peakMode);
-    return {
-      type: "line",
-      data: {
-        labels: fD.rx.map((f) => f.toFixed(1)),
-        datasets: [{ label: "Amplitude", data: fD.ry, borderColor: "#7C3AED", backgroundColor: "rgba(124,58,237,0.08)", borderWidth: 1, pointRadius: 0, fill: true }],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Frequenz [Hz]" }, ticks: { maxTicksLimit: 12 } },
-          y: { title: { display: true, text: `Amplitude [${unit}]` } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      labels: fD.rx.map((f) => f.toFixed(1)),
+      datasets: [{ label: "Amplitude", data: fD.ry, borderColor: "#7C3AED", backgroundColor: "rgba(124,58,237,0.08)", borderWidth: 1, pointRadius: 0, fill: true }],
+      xTitle: "Frequenz [Hz]",
+      xScale: { ticks: { maxTicksLimit: 12 } },
+      yTitle: `Amplitude [${unit}]`,
+    });
   };
 });
 
@@ -1035,7 +990,7 @@ const phaseConfig = computed(() => {
   const s = sig.value, t = time.value, wt = windowType.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const { y, t: wt4 } = windowedYT(s, t);
     const { freq, amp, phaseDeg } = A.fft(y, wt4, { windowType: wt, normalize: true });
     const ampMax = Math.max(0, ...amp.filter((v) => Number.isFinite(v)));
@@ -1045,20 +1000,14 @@ const phaseConfig = computed(() => {
       if (amp[i] >= threshold) { freqF.push(freq[i]); phaseF.push(phaseDeg[i]); }
     }
     const fD = down(phaseF, freqF, peakMode);
-    return {
-      type: "line",
-      data: {
-        labels: fD.rx.map((f) => f.toFixed(1)),
-        datasets: [{ label: "Phase", data: fD.ry, borderColor: "#F59E0B", borderWidth: 1, pointRadius: 0 }],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Frequenz [Hz]" }, ticks: { maxTicksLimit: 12 } },
-          y: { title: { display: true, text: "Phase [°]" }, min: -180, max: 180 },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      labels: fD.rx.map((f) => f.toFixed(1)),
+      datasets: [{ label: "Phase", data: fD.ry, borderColor: "#F59E0B", borderWidth: 1, pointRadius: 0 }],
+      xTitle: "Frequenz [Hz]",
+      xScale: { ticks: { maxTicksLimit: 12 } },
+      yTitle: "Phase [°]",
+      yScale: { min: -180, max: 180 },
+    });
   };
 });
 </script>

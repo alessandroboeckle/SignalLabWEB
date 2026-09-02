@@ -193,6 +193,7 @@ import MtQuickNav from "./MtQuickNav.vue";
 
 defineEmits(["navigate"]);
 import { downsample } from "../../utils/downsample.js";
+import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 
 const mtStore = useMesstoolStore();
 useSignalNavigationShortcuts(mtStore);
@@ -382,29 +383,22 @@ const compareConfig = computed(() => {
   // snapshot ops (id + params) so identity changes when they change
   const opSnapshot = ops.value.map((o) => o);
   return (peakMode) => {
-    if (!s) return { type: "line", data: { labels: [], datasets: [] } };
+    if (!s) return emptyLineChartConfig();
     const y = s.data.map((v) => (v == null ? 0 : v));
     const processed = applyChain(y, t, opSnapshot);
     const unit = s.unit || "";
     const oD = down(y, t, peakMode);
     const pD = down(processed, t, peakMode);
-    return {
-      type: "line",
-      data: {
-        labels: oD.rx,
-        datasets: [
-          { label: `Original [${unit}]`, data: oD.ry, borderColor: "#94A3B8", borderWidth: 1, pointRadius: 0 },
-          { label: `Verarbeitet [${unit}]`, data: pD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0 },
-        ],
-      },
-      options: {
-        responsive: true, animation: false,
-        scales: {
-          x: { title: { display: true, text: "Zeit [s]" }, ticks: { maxTicksLimit: 10 } },
-          y: { title: { display: true, text: unit } },
-        },
-      },
-    };
+    return buildLineChartConfig({
+      labels: oD.rx,
+      datasets: [
+        { label: `Original [${unit}]`, data: oD.ry, borderColor: "#94A3B8", borderWidth: 1, pointRadius: 0 },
+        { label: `Verarbeitet [${unit}]`, data: pD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0 },
+      ],
+      xTitle: "Zeit [s]",
+      xScale: { ticks: { maxTicksLimit: 10 } },
+      yTitle: unit,
+    });
   };
 });
 </script>
