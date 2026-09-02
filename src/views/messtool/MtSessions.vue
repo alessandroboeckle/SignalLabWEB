@@ -257,7 +257,7 @@ const auth = useAuthStore();
 const sessions = ref([]);
 const sessionSearchQuery = ref("");
 const filteredSessions = computed(() => {
-  const q = sessionSearchQuery.value.trim().toLowerCase();
+  const q = (sessionSearchQuery.value || "").trim().toLowerCase();
   if (!q) return sessions.value;
   return sessions.value.filter((s) => s.name.toLowerCase().includes(q));
 });

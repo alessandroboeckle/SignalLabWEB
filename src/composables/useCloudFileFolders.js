@@ -91,7 +91,7 @@ export function useCloudFileFolders(cloudFiles, auth, { onError } = {}) {
     return cloudFiles.value.filter((f) => f.uploaded_by === selectedOwnerFilter.value);
   });
   const searchedCloudFiles = computed(() => {
-    const q = fileSearchQuery.value.trim().toLowerCase();
+    const q = (fileSearchQuery.value || "").trim().toLowerCase();
     if (!q) return ownerFilteredCloudFiles.value;
     return ownerFilteredCloudFiles.value.filter((f) =>
       f.name.toLowerCase().includes(q) ||

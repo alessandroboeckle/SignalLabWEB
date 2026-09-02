@@ -61,6 +61,14 @@ describe("useCloudFileFolders", () => {
     expect(searchedCloudFiles.value).toEqual([]);
   });
 
+  it("doesn't crash when the search field is cleared to null (Vuetify's clearable sets null, not '')", () => {
+    const cloudFiles = ref(makeFiles());
+    const { fileSearchQuery, searchedCloudFiles } = useCloudFileFolders(cloudFiles, { isAdmin: false, user: { id: "u1" } });
+    fileSearchQuery.value = null;
+    expect(() => searchedCloudFiles.value).not.toThrow();
+    expect(searchedCloudFiles.value).toHaveLength(3);
+  });
+
   it("computes a non-admin's quota from only their own files", () => {
     const cloudFiles = ref(makeFiles());
     const { myStorageBytes, QUOTA_BYTES, quotaUsedPct, quotaExceeded } = useCloudFileFolders(
