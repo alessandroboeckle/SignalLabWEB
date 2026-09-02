@@ -419,8 +419,8 @@ import { findEvents } from "../../utils/eventDetection.js";
 import ChartCard from "./ChartCard.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
-import { downsample } from "../../utils/downsample.js";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
+import { downsampleForDisplay } from "../../utils/downsample.js";
 
 defineEmits(["navigate"]);
 
@@ -645,7 +645,7 @@ const groupOverlayConfig = computed(() => {
     if (!entries.length) return emptyLineChartConfig(false);
     const datasets = entries.map(({ label, sig: s, t }, i) => {
       const { y, t: wt } = windowedYT(s, t);
-      const d = down(y, wt, peakMode);
+      const d = downsampleForDisplay(y, wt, peakMode);
       const points = d.rx.map((x, j) => ({ x, y: d.ry[j] }));
       return {
         label, data: points, borderColor: GROUP_COLORS[i % GROUP_COLORS.length],
@@ -670,7 +670,7 @@ const groupFftConfig = computed(() => {
     const datasets = entries.map(({ label, sig: s, t }, i) => {
       const { y, t: wt2 } = windowedYT(s, t);
       const { freq, amp } = A.fft(y, wt2, { windowType: wt, normalize: true });
-      const d = down(amp, freq, peakMode);
+      const d = downsampleForDisplay(amp, freq, peakMode);
       const points = d.rx.map((x, j) => ({ x, y: d.ry[j] }));
       return {
         label, data: points, borderColor: GROUP_COLORS[i % GROUP_COLORS.length],
@@ -773,10 +773,6 @@ const stats = computed(() => {
   ];
 });
 
-function down(arr, xs, mode) {
-  return downsample(arr, xs, mode ? 'minmax' : 'simple', 800);
-}
-
 // Each config is a computed returning a FRESH function.
 // When signal/window/data changes, the function identity changes and
 // ChartCard rebuilds automatically.
@@ -789,7 +785,7 @@ const signalConfig = computed(() => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
-    const sD = down(y, wt, peakMode);
+    const sD = downsampleForDisplay(y, wt, peakMode);
 
     const validY = y.filter((v) => Number.isFinite(v));
     const meanVal = A.mean(validY);
@@ -844,7 +840,7 @@ const derivConfig = computed(() => {
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const deriv = A.derivative(y, wt);
-    const dD = down(deriv, wt, peakMode);
+    const dD = downsampleForDisplay(deriv, wt, peakMode);
 
     return buildLineChartConfig({
       datasets: [{ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1.5, pointRadius: 0 }],
@@ -864,7 +860,7 @@ const integralConfig = computed(() => {
     const { y, t: wt2 } = windowedYT(s, t);
     const unit = s.unit || "";
     const integ = A.integral(y, wt2);
-    const iD = down(integ, wt2, peakMode);
+    const iD = downsampleForDisplay(integ, wt2, peakMode);
     return buildLineChartConfig({
       labels: iD.rx,
       datasets: [{ label: `∫ [${unit}·s]`, data: iD.ry, borderColor: "#10B981", backgroundColor: "rgba(16,185,129,0.08)", borderWidth: 1.5, pointRadius: 0, fill: true }],
@@ -884,7 +880,7 @@ const rollingRmsConfig = computed(() => {
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const { t: rt, rms: rr } = A.rollingRms(y, wt, rmsWindowSec.value, rmsOverlapPct.value);
-    const rD = down(rr, rt, peakMode);
+    const rD = downsampleForDisplay(rr, rt, peakMode);
     return buildLineChartConfig({
       labels: rD.rx,
       datasets: [{
@@ -916,7 +912,7 @@ const rmsWindowsOverlayConfig = computed(() => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
-    const sD = down(y, wt, peakMode);
+    const sD = downsampleForDisplay(y, wt, peakMode);
 
     const validY = y.filter((v) => Number.isFinite(v));
     const mm = A.minMax(validY);
@@ -971,7 +967,7 @@ const fftConfig = computed(() => {
     const { y, t: wt3 } = windowedYT(s, t);
     const unit = s.unit || "";
     const { freq, amp } = A.fft(y, wt3, { windowType: wt, normalize: true });
-    const fD = down(amp, freq, peakMode);
+    const fD = downsampleForDisplay(amp, freq, peakMode);
     return buildLineChartConfig({
       labels: fD.rx.map((f) => f.toFixed(1)),
       datasets: [{ label: "Amplitude", data: fD.ry, borderColor: "#7C3AED", backgroundColor: "rgba(124,58,237,0.08)", borderWidth: 1, pointRadius: 0, fill: true }],
@@ -999,7 +995,7 @@ const phaseConfig = computed(() => {
     for (let i = 0; i < freq.length; i++) {
       if (amp[i] >= threshold) { freqF.push(freq[i]); phaseF.push(phaseDeg[i]); }
     }
-    const fD = down(phaseF, freqF, peakMode);
+    const fD = downsampleForDisplay(phaseF, freqF, peakMode);
     return buildLineChartConfig({
       labels: fD.rx.map((f) => f.toFixed(1)),
       datasets: [{ label: "Phase", data: fD.ry, borderColor: "#F59E0B", borderWidth: 1, pointRadius: 0 }],

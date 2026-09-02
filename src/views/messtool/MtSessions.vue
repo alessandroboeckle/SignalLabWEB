@@ -248,6 +248,7 @@ import { withTimeout } from "../../utils/withTimeout.js";
 import { friendlyError } from "../../utils/friendlyError.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { showToast } from "../../composables/useToast.js";
+import { decodeLatin1 } from "../../utils/messtoolParser.js";
 
 defineEmits(["navigate"]);
 
@@ -353,10 +354,6 @@ async function confirmSaveSession() {
     saveError.value = "Konnte nicht speichern: " + friendlyError(e);
   }
   saving.value = false;
-}
-
-function decodeLatin1(buffer) {
-  return new TextDecoder("iso-8859-1").decode(buffer);
 }
 
 async function loadSession(s) {

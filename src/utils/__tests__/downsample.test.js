@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { downsample } from "../downsample.js";
+import { downsample, downsampleForDisplay } from "../downsample.js";
 
 describe("downsample", () => {
   it("returns the data unchanged when already at/below the target size", () => {
@@ -68,5 +68,15 @@ describe("downsample indices", () => {
   it("when data already fits under the target, indices are simply 0..n-1", () => {
     const { indices } = downsample([1, 2, 3], [0, 1, 2], "simple", 800);
     expect(indices).toEqual([0, 1, 2]);
+  });
+});
+
+describe("downsampleForDisplay", () => {
+  it("picks minmax when peakMode is true, simple otherwise, both at 800 points", () => {
+    const n = 5000;
+    const values = Array.from({ length: n }, (_, i) => Math.sin(i));
+    const xs = Array.from({ length: n }, (_, i) => i);
+    expect(downsampleForDisplay(values, xs, true)).toEqual(downsample(values, xs, "minmax", 800));
+    expect(downsampleForDisplay(values, xs, false)).toEqual(downsample(values, xs, "simple", 800));
   });
 });

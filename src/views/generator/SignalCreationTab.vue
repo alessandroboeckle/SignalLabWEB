@@ -444,6 +444,7 @@ import { buildLogDataFromSignal } from "../../utils/generator/generatorToLogdata
 import Chart from "../../utils/chartSetup.js";
 import { generateBrakeTestCsv, downloadBrakeTestCsv } from "../../utils/messtoolTestGenerator.js";
 import { applyZoomLimits } from "../../utils/chartInteractionMath.js";
+import { formatNumber } from "../../utils/formatNumber.js";
 
 const brakeGen = reactive({
   rows: 10000,
@@ -541,10 +542,6 @@ const signal = generateSignal(
   phase
 );`;
 });
-
-function formatNumber(num) {
-  return typeof num === "number" ? num.toFixed(3) : "0";
-}
 
 function generateSignal() {
   store.generateSignal(params.value);

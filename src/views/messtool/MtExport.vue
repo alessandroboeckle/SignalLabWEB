@@ -260,7 +260,7 @@ import { useReportSettingsStore } from "../../stores/reportSettingsStore.js";
 import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
-import { downsample } from "../../utils/downsample.js";
+import { downsample, downsampleForDisplay } from "../../utils/downsample.js";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import { buildLineChartSvg } from "../../utils/svgChart.js";
 import { buildMultiSignalWorkbook, downloadWorkbook } from "../../utils/xlsxExport.js";
@@ -331,7 +331,7 @@ const exportConfig = computed(() => {
   const s = sig.value, t = time.value;
   return (peakMode) => {
     if (!s) return emptyLineChartConfig();
-    const { rx, ry } = downsample(s.data, t, peakMode ? "minmax" : "simple", 800);
+    const { rx, ry } = downsampleForDisplay(s.data, t, peakMode);
     return buildLineChartConfig({
       labels: rx,
       datasets: [{

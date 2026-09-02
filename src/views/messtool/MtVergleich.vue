@@ -572,7 +572,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { showToast, showUndoToast } from "../../composables/useToast.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { computeFftOffMainThread } from "../../utils/computeFftOffMainThread.js";
-import { formatClockTime } from "../../utils/messtoolParser.js";
+import { formatClockTime, decodeLatin1 } from "../../utils/messtoolParser.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { downsample } from "../../utils/downsample.js";
 import { applyFilter } from "../../utils/messtoolFilter.js";
@@ -1024,10 +1024,6 @@ function toggleCloudSelection(id) {
 
 function toggleSelectAllCloud(checked) {
   selectedCloudIds.value = checked ? selectableCloudFiles.value.map((f) => f.id) : [];
-}
-
-function decodeLatin1(buffer) {
-  return new TextDecoder("iso-8859-1").decode(buffer);
 }
 
 function addCurrent() {

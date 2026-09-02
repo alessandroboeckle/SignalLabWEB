@@ -108,6 +108,7 @@ import { useSignalStore } from "../../stores/signalStore";
 import * as storage from "../../utils/storage";
 import Chart from "../../utils/chartSetup.js";
 import { applyZoomLimits } from "../../utils/chartInteractionMath.js";
+import { formatNumber } from "../../utils/formatNumber.js";
 
 const store = useSignalStore();
 const selectedSignals = ref([]);
@@ -239,10 +240,6 @@ const comparisonHeaders = [
   { title: "Spitzenwert", key: "meta.peak", align: "end" },
   { title: "Spitze-Spitze", key: "meta.peakToPeak", align: "end" },
 ];
-
-function formatNumber(num) {
-  return typeof num === "number" ? num.toFixed(3) : "0";
-}
 
 watch(
   selectedSignals,

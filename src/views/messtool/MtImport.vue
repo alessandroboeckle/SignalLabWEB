@@ -754,7 +754,7 @@ import ChartCard from "./ChartCard.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import CloudFileRow from "../../components/CloudFileRow.vue";
 import MtQuickNav from "./MtQuickNav.vue";
-import { downsample } from "../../utils/downsample.js";
+import { downsample, downsampleForDisplay } from "../../utils/downsample.js";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import { useCloudFileFolders } from "../../composables/useCloudFileFolders.js";
 import { formatDate } from "../../utils/formatDate.js";
@@ -953,7 +953,7 @@ const previewConfig = computed(() => {
     if (!p) return emptyLineChartConfig();
     const s = p.signals[idx];
     const time = p.time;
-    const { rx: labels, ry: values } = downsample(s.data, time, peakMode ? "minmax" : "simple", 800);
+    const { rx: labels, ry: values } = downsampleForDisplay(s.data, time, peakMode);
     return buildLineChartConfig({
       labels,
       datasets: [{

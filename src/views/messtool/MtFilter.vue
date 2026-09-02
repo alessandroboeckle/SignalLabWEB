@@ -195,8 +195,8 @@ import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
 defineEmits(["navigate"]);
-import { downsample } from "../../utils/downsample.js";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
+import { downsampleForDisplay } from "../../utils/downsample.js";
 import { getCsvDecimalCommaPref, setCsvDecimalCommaPref } from "../../utils/csvDecimalPref.js";
 
 const mtStore = useMesstoolStore();
@@ -317,10 +317,6 @@ const cutoffWarning = computed(() => {
   return "";
 });
 
-function down(arr, xs, mode) {
-  return downsample(arr, xs, mode ? 'minmax' : 'simple', 800);
-}
-
 // Number fields (Grenzfrequenz/en, Sperrdämpfung) fire on every keystroke —
 // debounce just those so typing "12.5" doesn't recompute the filter (and
 // re-render two charts) three times over. Selects (Ordnung, Charakteristik,
@@ -420,8 +416,8 @@ const filterConfig = computed(() => {
     } catch {
       filtered = y.slice();
     }
-    const oD = down(y, t, peakMode);
-    const fD = down(filtered, t, peakMode);
+    const oD = downsampleForDisplay(y, t, peakMode);
+    const fD = downsampleForDisplay(filtered, t, peakMode);
     return buildLineChartConfig({
       labels: oD.rx,
       datasets: [
