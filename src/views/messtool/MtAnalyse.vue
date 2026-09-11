@@ -50,7 +50,14 @@
             <v-checkbox v-model="sectionsVisible.integral" label="Integral" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.rollingRms" label="RMS über Zeit" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="comfortable" hide-details></v-checkbox>
-            <v-checkbox v-model="sectionsVisible.group" label="Gruppen-Analyse (mehrere Signale)" density="comfortable" hide-details></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.group" label="Gruppen-Analyse (mehrere Signale)" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <div v-if="sectionsVisible.group" class="ml-8 mb-2">
+              <div class="text-caption text-medium-emphasis mb-1">Y-Achsen (Gruppen-Überlagerung)</div>
+              <v-btn-toggle v-model="groupAxisMode" color="primary" density="comfortable" mandatory divided>
+                <v-btn value="shared" size="small" prepend-icon="mdi-unfold-less-horizontal">Gemeinsam</v-btn>
+                <v-btn value="multi" size="small" prepend-icon="mdi-unfold-more-horizontal">Mehrere</v-btn>
+              </v-btn-toggle>
+            </div>
             <div class="d-flex ga-2 mt-3">
               <v-btn size="small" variant="tonal" block @click="showOnlyStats">Nur Statistik</v-btn>
               <v-btn size="small" variant="text" block @click="showAllSections">Alles zeigen</v-btn>
@@ -527,6 +534,12 @@ const rmsOverlapPct = ref(50);
 // half width.
 const fullWidthPlots = ref(false);
 
+// Gruppen-Analyse "Signale überlagert": either every signal shares the
+// one "y" scale (values need to be roughly comparable), or each signal
+// gets its own auto-scaled axis (readable regardless of unit/magnitude
+// differences) — see groupOverlayConfig.
+const groupAxisMode = ref("shared"); // "shared" | "multi"
+
 const sectionsVisible = reactive({
   stats: true,
   overview: true,
@@ -640,6 +653,7 @@ const groupStats = computed(() => {
 // each with its own time axis / sample count.
 const groupOverlayConfig = computed(() => {
   const entries = groupSignals.value;
+  const multiAxis = groupAxisMode.value === "multi";
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode) => {
     if (!entries.length) return emptyLineChartConfig(false);
@@ -647,17 +661,42 @@ const groupOverlayConfig = computed(() => {
       const { y, t: wt } = windowedYT(s, t);
       const d = downsampleForDisplay(y, wt, peakMode);
       const points = d.rx.map((x, j) => ({ x, y: d.ry[j] }));
+      const color = GROUP_COLORS[i % GROUP_COLORS.length];
       return {
-        label, data: points, borderColor: GROUP_COLORS[i % GROUP_COLORS.length],
+        label, data: points, borderColor: color,
         borderWidth: 1.5, pointRadius: 0,
+        yAxisID: multiAxis ? `y${i}` : "y",
       };
     });
+
+    // One auto-scaled axis per signal, colored to match its line and
+    // alternating left/right so labels don't collide — vs. the default
+    // single shared "y" scale, which only reads well when all selected
+    // signals sit in roughly the same value range.
+    const extraScales = {};
+    if (multiAxis) {
+      entries.forEach(({ label, sig: s }, i) => {
+        const color = GROUP_COLORS[i % GROUP_COLORS.length];
+        extraScales[`y${i}`] = {
+          position: i % 2 === 0 ? "left" : "right",
+          title: { display: true, text: `${label}${s.unit ? ` [${s.unit}]` : ""}`, color },
+          ticks: { color },
+          grid: { drawOnChartArea: i === 0 },
+        };
+      });
+    }
+
     return buildLineChartConfig({
       datasets,
       parsing: false,
       xTitle: "Zeit [s]",
       xScale: { type: "linear", ticks: { maxTicksLimit: 8 } },
       yTitle: "Wert",
+      // buildLineChartConfig always sets up a "y" scale — hide it in
+      // multi-axis mode since no dataset references it (each uses its
+      // own y0/y1/... instead), or it'd render as a stray empty axis.
+      yScale: multiAxis ? { display: false } : {},
+      extraScales,
     });
   };
 });
