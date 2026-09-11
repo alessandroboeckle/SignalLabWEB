@@ -319,29 +319,45 @@
               Anzeigeoptionen
             </v-btn>
           </template>
-          <v-card min-width="300" class="pa-4">
-            <div class="text-subtitle-2 font-weight-bold mb-2">Zeitachse</div>
-            <v-btn-toggle v-model="xAxisMode" color="secondary" density="comfortable" mandatory divided class="mb-3">
+          <v-card min-width="320" class="pa-4">
+            <div class="d-flex align-center ga-2 mb-2">
+              <v-icon size="18" color="secondary">mdi-timer-outline</v-icon>
+              <div class="text-subtitle-2 font-weight-bold">Zeitachse</div>
+            </div>
+            <v-btn-toggle v-model="xAxisMode" color="secondary" density="comfortable" mandatory divided class="mb-1">
               <v-btn value="zeit" size="small" prepend-icon="mdi-timer-outline">Zeit</v-btn>
               <v-btn value="uhrzeit" size="small" prepend-icon="mdi-clock-outline">Uhrzeit</v-btn>
             </v-btn-toggle>
 
-            <div class="text-subtitle-2 font-weight-bold mb-2">Darstellung</div>
-            <v-switch v-model="bigMode" color="primary" density="compact" hide-details label="Alle gross anzeigen" class="mb-1"></v-switch>
-            <v-switch v-model="showFrequencyResponse" color="secondary" density="compact" hide-details label="Frequenzgang anzeigen" class="mb-3"></v-switch>
+            <v-divider class="my-3"></v-divider>
 
-            <div class="text-subtitle-2 font-weight-bold mb-1">Y-Achsen</div>
-            <v-btn-toggle v-model="axisMode" color="secondary" density="comfortable" mandatory divided class="mb-1">
+            <div class="d-flex align-center ga-2 mb-2">
+              <v-icon size="18" color="secondary">mdi-view-dashboard-outline</v-icon>
+              <div class="text-subtitle-2 font-weight-bold">Darstellung</div>
+            </div>
+            <v-switch v-model="bigMode" color="primary" density="compact" hide-details label="Alle gross anzeigen" class="mb-1"></v-switch>
+            <v-switch v-model="showFrequencyResponse" color="secondary" density="compact" hide-details label="Frequenzgang anzeigen"></v-switch>
+
+            <v-divider class="my-3"></v-divider>
+
+            <div class="d-flex align-center ga-2 mb-2">
+              <v-icon size="18" color="secondary">mdi-unfold-more-horizontal</v-icon>
+              <div class="text-subtitle-2 font-weight-bold">Y-Achsen</div>
+            </div>
+            <v-btn-toggle v-model="axisMode" color="secondary" density="comfortable" mandatory divided class="mb-2">
               <v-btn value="shared" size="small" prepend-icon="mdi-unfold-less-horizontal">Geteilt</v-btn>
               <v-btn value="multi" size="small" prepend-icon="mdi-unfold-more-horizontal">Mehrere</v-btn>
             </v-btn-toggle>
-            <div class="text-caption text-medium-emphasis mb-1">
+            <div class="text-caption text-medium-emphasis">
               {{ axisMode === "shared" ? "Alle Signale auf einer Achse (ausser manuell auf \"Zweite Y-Achse\" gestellt)." : "Jedes Signal bekommt automatisch eine eigene Achse." }}
             </div>
 
             <template v-if="displayMode === 'stacked'">
               <v-divider class="my-3"></v-divider>
-              <div class="text-subtitle-2 font-weight-bold mb-2">Nur im Gestapelt-Modus</div>
+              <div class="d-flex align-center ga-2 mb-2">
+                <v-icon size="18" color="secondary">mdi-view-sequential-outline</v-icon>
+                <div class="text-subtitle-2 font-weight-bold">Nur im Gestapelt-Modus</div>
+              </div>
               <v-switch v-model="syncCursors" color="primary" density="compact" hide-details label="Cursor über alle Plots" class="mb-1"></v-switch>
               <v-switch v-model="syncZoom" color="primary" density="compact" hide-details label="Zoom über alle Plots" class="mb-1"></v-switch>
               <v-switch v-model="fullWidthPlots" color="primary" density="compact" hide-details label="Volle Breite"></v-switch>
