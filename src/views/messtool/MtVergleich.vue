@@ -177,9 +177,13 @@
                       color="primary"
                       density="compact"
                       hide-details
+                      :disabled="axisMode === 'multi'"
                       label="Zweite Y-Achse"
                       class="mb-1"
                     ></v-switch>
+                    <div v-if="axisMode === 'multi'" class="text-caption text-medium-emphasis mb-1 ml-8">
+                      Ohne Wirkung — "Mehrere" Y-Achsen ist in den Anzeigeoptionen aktiv, jedes Signal bekommt automatisch eine eigene Achse.
+                    </div>
                     <v-switch
                       v-if="idx > 0"
                       v-model="f.autoAlign"
@@ -324,7 +328,16 @@
 
             <div class="text-subtitle-2 font-weight-bold mb-2">Darstellung</div>
             <v-switch v-model="bigMode" color="primary" density="compact" hide-details label="Alle gross anzeigen" class="mb-1"></v-switch>
-            <v-switch v-model="showFrequencyResponse" color="secondary" density="compact" hide-details label="Frequenzgang anzeigen" class="mb-1"></v-switch>
+            <v-switch v-model="showFrequencyResponse" color="secondary" density="compact" hide-details label="Frequenzgang anzeigen" class="mb-3"></v-switch>
+
+            <div class="text-subtitle-2 font-weight-bold mb-1">Y-Achsen</div>
+            <v-btn-toggle v-model="axisMode" color="secondary" density="comfortable" mandatory divided class="mb-1">
+              <v-btn value="shared" size="small" prepend-icon="mdi-unfold-less-horizontal">Geteilt</v-btn>
+              <v-btn value="multi" size="small" prepend-icon="mdi-unfold-more-horizontal">Mehrere</v-btn>
+            </v-btn-toggle>
+            <div class="text-caption text-medium-emphasis mb-1">
+              {{ axisMode === "shared" ? "Alle Signale auf einer Achse (ausser manuell auf \"Zweite Y-Achse\" gestellt)." : "Jedes Signal bekommt automatisch eine eigene Achse." }}
+            </div>
 
             <template v-if="displayMode === 'stacked'">
               <v-divider class="my-3"></v-divider>
@@ -621,6 +634,10 @@ const bigMode = ref(false); // show every chart bigger, one page's worth at a ti
 const fullWidthPlots = ref(true); // stacked charts: full width (default, unchanged) vs. two side by side
 const syncCursors = ref(false); // cursors placed on one Gestapelt chart appear on all of them
 const syncZoom = ref(true); // zoom/pan on one Gestapelt chart applies to all of them (existing default behavior)
+// Overlay/Gestapelt charts with several signals: either respect each
+// signal's own "Zweite Y-Achse" switch (shared default), or ignore those
+// and give every signal its own auto-scaled axis automatically.
+const axisMode = ref("shared"); // "shared" | "multi"
 
 const showFrequencyResponse = ref(false);
 
@@ -842,24 +859,26 @@ const stackedRenderItems = computed(() => {
 // scoped to just the signals merged into this particular Gestapelt slot.
 function mergedStackedConfig(members) {
   return (peakMode) => {
+    const multiAxis = axisMode.value === "multi";
     const datasets = [];
-    for (const s of members) {
+    members.forEach((s, i) => {
       const f = mtStore.compareFiles.find((cf) => cf.id === s.fileId);
       const useFilter = !!f?.useFilter;
       const filterOnly = !!f?.filterOnly;
       const off = s.offsetSec || 0;
+      const axisId = multiAxis ? `y${i}` : (s.useSecondAxis ? "y1" : "y");
 
       if (!useFilter || !filterOnly) {
         const y = s.signal.data.map((v) => (v == null ? null : v));
         const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
         datasets.push({
           label: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
-          data: d.rx.map((x, i) => ({ x: x + off, y: d.ry[i], clock: s.clockSec ? s.clockSec[d.indices[i]] : null })),
+          data: d.rx.map((x, j) => ({ x: x + off, y: d.ry[j], clock: s.clockSec ? s.clockSec[d.indices[j]] : null })),
           borderColor: s.color,
           backgroundColor: s.color,
           borderWidth: 1.5,
           pointRadius: 0,
-          yAxisID: s.useSecondAxis ? "y1" : "y",
+          yAxisID: axisId,
         });
       }
       if (useFilter) {
@@ -880,21 +899,30 @@ function mergedStackedConfig(members) {
         const fD = downsample(filtered, s.time, peakMode ? "minmax" : "simple", 800);
         datasets.push({
           label: `${s.fileName} — ${s.signal.name} gefiltert [${s.signal.unit || "-"}]`,
-          data: fD.rx.map((x, i) => ({ x: x + off, y: fD.ry[i] })),
+          data: fD.rx.map((x, j) => ({ x: x + off, y: fD.ry[j] })),
           borderColor: "#FF6B35",
           backgroundColor: "#FF6B35",
           borderWidth: 1.5,
           pointRadius: 0,
-          yAxisID: s.useSecondAxis ? "y1" : "y",
+          yAxisID: axisId,
         });
       }
-    }
+    });
 
     const useClock = xAxisMode.value === "uhrzeit";
     const clockOffset = useClock ? clockOffsetFor(members[0]) : null;
 
     const extraScales = {};
-    if (members.some((s) => s.useSecondAxis)) {
+    if (multiAxis) {
+      members.forEach((s, i) => {
+        extraScales[`y${i}`] = {
+          position: i % 2 === 0 ? "left" : "right",
+          title: { display: true, text: `${s.fileName} — ${s.signal.name}${s.signal.unit ? ` [${s.signal.unit}]` : ""}`, color: s.color },
+          ticks: { color: s.color },
+          grid: { drawOnChartArea: i === 0 },
+        };
+      });
+    } else if (members.some((s) => s.useSecondAxis)) {
       extraScales.y1 = {
         position: "right",
         title: { display: true, text: "Wert (rechte Achse)" },
@@ -911,6 +939,7 @@ function mergedStackedConfig(members) {
         ticks: clockOffset != null ? { callback: (val) => formatClockTime(val + clockOffset) } : {},
       },
       yTitle: "Wert",
+      yScale: multiAxis ? { display: false } : {},
       extraScales,
     });
   };
@@ -1175,19 +1204,20 @@ function colorForSeries(fileId, idx) {
 // picked from the same file each get their own line here too.
 const overlayConfig = computed(() => {
   const series = mtStore.compareSeries;
+  const multiAxis = axisMode.value === "multi";
   void xAxisMode.value; // read here so toggling Zeit/Uhrzeit triggers a rebuild
   return (peakMode) => {
-    const datasets = series.map((s) => {
+    const datasets = series.map((s, i) => {
       const y = s.signal.data.map((v) => (v == null ? null : v));
       const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
       const off = s.offsetSec || 0;
-      const points = d.rx.map((x, i) => ({
+      const points = d.rx.map((x, j) => ({
         x: x + off,
-        y: d.ry[i],
-        clock: s.clockSec ? s.clockSec[d.indices[i]] : null,
+        y: d.ry[j],
+        clock: s.clockSec ? s.clockSec[d.indices[j]] : null,
       }));
       const offsetSuffix = off ? ` (${off > 0 ? "+" : ""}${off}s)` : "";
-      const axisSuffix = s.useSecondAxis ? " ▸ rechte Achse" : "";
+      const axisSuffix = !multiAxis && s.useSecondAxis ? " ▸ rechte Achse" : "";
       const label = `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]${offsetSuffix}${axisSuffix}`;
       return {
         label,
@@ -1196,7 +1226,7 @@ const overlayConfig = computed(() => {
         backgroundColor: s.color,
         borderWidth: 1.5,
         pointRadius: 0,
-        yAxisID: s.useSecondAxis ? "y1" : "y",
+        yAxisID: multiAxis ? `y${i}` : (s.useSecondAxis ? "y1" : "y"),
       };
     });
 
@@ -1204,9 +1234,20 @@ const overlayConfig = computed(() => {
     const clockOffset = useClock ? clockOffsetFor(series[0]) : null;
 
     const extraScales = {};
-    // Only add the right-hand axis if at least one series actually uses
-    // it — otherwise an empty second axis would just clutter the chart.
-    if (series.some((s) => s.useSecondAxis)) {
+    if (multiAxis) {
+      // Every signal gets its own auto-scaled axis, colored to match its
+      // line and alternating left/right so titles don't collide.
+      series.forEach((s, i) => {
+        extraScales[`y${i}`] = {
+          position: i % 2 === 0 ? "left" : "right",
+          title: { display: true, text: `${s.fileName} — ${s.signal.name}${s.signal.unit ? ` [${s.signal.unit}]` : ""}`, color: s.color },
+          ticks: { color: s.color },
+          grid: { drawOnChartArea: i === 0 },
+        };
+      });
+    } else if (series.some((s) => s.useSecondAxis)) {
+      // Only add the right-hand axis if at least one series actually uses
+      // it — otherwise an empty second axis would just clutter the chart.
       extraScales.y1 = {
         position: "right",
         title: { display: true, text: "Wert (rechte Achse)" },
@@ -1225,6 +1266,9 @@ const overlayConfig = computed(() => {
           : {},
       },
       yTitle: "Wert",
+      // buildLineChartConfig always sets up a "y" scale — hide it in
+      // multi-axis mode since no dataset references it.
+      yScale: multiAxis ? { display: false } : {},
       extraScales,
     });
   };
