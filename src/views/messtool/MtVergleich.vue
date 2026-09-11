@@ -319,7 +319,7 @@
               Anzeigeoptionen
             </v-btn>
           </template>
-          <v-card min-width="320" class="pa-4">
+          <v-card width="320" class="pa-4">
             <div class="d-flex align-center ga-2 mb-2">
               <v-icon size="18" color="secondary">mdi-timer-outline</v-icon>
               <div class="text-subtitle-2 font-weight-bold">Zeitachse</div>
