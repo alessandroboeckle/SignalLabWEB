@@ -404,7 +404,7 @@ const filterConfig = computed(() => {
   const [c1, c2, rs] = debouncedCutoffs.value;
   const bt = btype.value, ord = order.value;
   const char = characteristic.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const y = s.data.map((v) => (v == null ? 0 : v));
     const unit = s.unit || "";
@@ -416,8 +416,8 @@ const filterConfig = computed(() => {
     } catch {
       filtered = y.slice();
     }
-    const oD = downsampleForDisplay(y, t, peakMode);
-    const fD = downsampleForDisplay(filtered, t, peakMode);
+    const oD = downsampleForDisplay(y, t, peakMode, exactMode);
+    const fD = downsampleForDisplay(filtered, t, peakMode, exactMode);
     return buildLineChartConfig({
       labels: oD.rx,
       datasets: [

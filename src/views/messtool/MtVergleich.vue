@@ -769,7 +769,7 @@ function sampleRateFor(f) {
 // anwenden" switch) — applies the file's own filter settings to this
 // series and renders it as its own chart, same shape as stackedConfig.
 function filteredStackedConfig(s, f) {
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     const rawY = s.signal.data.map((v) => (v == null ? 0 : v));
     let filtered;
     try {
@@ -784,7 +784,7 @@ function filteredStackedConfig(s, f) {
     } catch {
       filtered = rawY;
     }
-    const d = downsample(filtered, s.time, peakMode ? "minmax" : "simple", 800);
+    const d = downsample(filtered, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
     const off = s.offsetSec || 0;
     const points = d.rx.map((x, i) => ({
       x: x + off,
@@ -874,7 +874,7 @@ const stackedRenderItems = computed(() => {
 // overlay chart (offset, second axis, per-file in-place filter) but
 // scoped to just the signals merged into this particular Gestapelt slot.
 function mergedStackedConfig(members) {
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     const multiAxis = axisMode.value === "multi";
     const datasets = [];
     members.forEach((s, i) => {
@@ -886,7 +886,7 @@ function mergedStackedConfig(members) {
 
       if (!useFilter || !filterOnly) {
         const y = s.signal.data.map((v) => (v == null ? null : v));
-        const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
+        const d = downsample(y, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
         datasets.push({
           label: `${s.fileName} — ${s.signal.name} [${s.signal.unit || "-"}]`,
           data: d.rx.map((x, j) => ({ x: x + off, y: d.ry[j], clock: s.clockSec ? s.clockSec[d.indices[j]] : null })),
@@ -912,7 +912,7 @@ function mergedStackedConfig(members) {
         } catch {
           filtered = rawY;
         }
-        const fD = downsample(filtered, s.time, peakMode ? "minmax" : "simple", 800);
+        const fD = downsample(filtered, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
         datasets.push({
           label: `${s.fileName} — ${s.signal.name} gefiltert [${s.signal.unit || "-"}]`,
           data: fD.rx.map((x, j) => ({ x: x + off, y: fD.ry[j] })),
@@ -964,9 +964,9 @@ function mergedStackedConfig(members) {
 // carry the file's real clock time (see messtoolParser's clockSec)
 // alongside elapsed seconds, so ChartCard's tooltip can show both.
 function stackedConfig(s) {
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     const y = s.signal.data.map((v) => (v == null ? null : v));
-    const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
+    const d = downsample(y, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
     const off = s.offsetSec || 0;
     const points = d.rx.map((x, i) => ({
       x: x + off,
@@ -1222,10 +1222,10 @@ const overlayConfig = computed(() => {
   const series = mtStore.compareSeries;
   const multiAxis = axisMode.value === "multi";
   void xAxisMode.value; // read here so toggling Zeit/Uhrzeit triggers a rebuild
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     const datasets = series.map((s, i) => {
       const y = s.signal.data.map((v) => (v == null ? null : v));
-      const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 800);
+      const d = downsample(y, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
       const off = s.offsetSec || 0;
       const points = d.rx.map((x, j) => ({
         x: x + off,

@@ -329,9 +329,9 @@ function exportFilename(extension) {
 
 const exportConfig = computed(() => {
   const s = sig.value, t = time.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
-    const { rx, ry } = downsampleForDisplay(s.data, t, peakMode);
+    const { rx, ry } = downsampleForDisplay(s.data, t, peakMode, exactMode);
     return buildLineChartConfig({
       labels: rx,
       datasets: [{

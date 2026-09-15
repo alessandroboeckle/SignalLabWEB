@@ -655,11 +655,11 @@ const groupOverlayConfig = computed(() => {
   const entries = groupSignals.value;
   const multiAxis = groupAxisMode.value === "multi";
   void zeitbereichStart.value; void zeitbereichEnd.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!entries.length) return emptyLineChartConfig(false);
     const datasets = entries.map(({ label, sig: s, t }, i) => {
       const { y, t: wt } = windowedYT(s, t);
-      const d = downsampleForDisplay(y, wt, peakMode);
+      const d = downsampleForDisplay(y, wt, peakMode, exactMode);
       const points = d.rx.map((x, j) => ({ x, y: d.ry[j] }));
       const color = GROUP_COLORS[i % GROUP_COLORS.length];
       return {
@@ -704,12 +704,12 @@ const groupOverlayConfig = computed(() => {
 const groupFftConfig = computed(() => {
   const entries = groupSignals.value, wt = windowType.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!entries.length) return emptyLineChartConfig(false);
     const datasets = entries.map(({ label, sig: s, t }, i) => {
       const { y, t: wt2 } = windowedYT(s, t);
       const { freq, amp } = A.fft(y, wt2, { windowType: wt, normalize: true });
-      const d = downsampleForDisplay(amp, freq, peakMode);
+      const d = downsampleForDisplay(amp, freq, peakMode, exactMode);
       const points = d.rx.map((x, j) => ({ x, y: d.ry[j] }));
       return {
         label, data: points, borderColor: GROUP_COLORS[i % GROUP_COLORS.length],
@@ -820,11 +820,11 @@ const signalConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void showAvgLine.value; void showRmsLine.value; void showStdBand.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
-    const sD = downsampleForDisplay(y, wt, peakMode);
+    const sD = downsampleForDisplay(y, wt, peakMode, exactMode);
 
     const validY = y.filter((v) => Number.isFinite(v));
     const meanVal = A.mean(validY);
@@ -874,12 +874,12 @@ const signalConfig = computed(() => {
 const derivConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const deriv = A.derivative(y, wt);
-    const dD = downsampleForDisplay(deriv, wt, peakMode);
+    const dD = downsampleForDisplay(deriv, wt, peakMode, exactMode);
 
     return buildLineChartConfig({
       datasets: [{ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1.5, pointRadius: 0 }],
@@ -894,12 +894,12 @@ const derivConfig = computed(() => {
 const integralConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt2 } = windowedYT(s, t);
     const unit = s.unit || "";
     const integ = A.integral(y, wt2);
-    const iD = downsampleForDisplay(integ, wt2, peakMode);
+    const iD = downsampleForDisplay(integ, wt2, peakMode, exactMode);
     return buildLineChartConfig({
       labels: iD.rx,
       datasets: [{ label: `∫ [${unit}·s]`, data: iD.ry, borderColor: "#10B981", backgroundColor: "rgba(16,185,129,0.08)", borderWidth: 1.5, pointRadius: 0, fill: true }],
@@ -914,12 +914,12 @@ const rollingRmsConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void rmsWindowSec.value; void rmsOverlapPct.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const { t: rt, rms: rr } = A.rollingRms(y, wt, rmsWindowSec.value, rmsOverlapPct.value);
-    const rD = downsampleForDisplay(rr, rt, peakMode);
+    const rD = downsampleForDisplay(rr, rt, peakMode, exactMode);
     return buildLineChartConfig({
       labels: rD.rx,
       datasets: [{
@@ -947,11 +947,11 @@ const rmsWindowsOverlayConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void rmsWindowSec.value; void rmsOverlapPct.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
-    const sD = downsampleForDisplay(y, wt, peakMode);
+    const sD = downsampleForDisplay(y, wt, peakMode, exactMode);
 
     const validY = y.filter((v) => Number.isFinite(v));
     const mm = A.minMax(validY);
@@ -1001,12 +1001,12 @@ const rmsWindowsOverlayConfig = computed(() => {
 const fftConfig = computed(() => {
   const s = sig.value, t = time.value, wt = windowType.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt3 } = windowedYT(s, t);
     const unit = s.unit || "";
     const { freq, amp } = A.fft(y, wt3, { windowType: wt, normalize: true });
-    const fD = downsampleForDisplay(amp, freq, peakMode);
+    const fD = downsampleForDisplay(amp, freq, peakMode, exactMode);
     return buildLineChartConfig({
       labels: fD.rx.map((f) => f.toFixed(1)),
       datasets: [{ label: "Amplitude", data: fD.ry, borderColor: "#7C3AED", backgroundColor: "rgba(124,58,237,0.08)", borderWidth: 1, pointRadius: 0, fill: true }],
@@ -1024,7 +1024,7 @@ const fftConfig = computed(() => {
 const phaseConfig = computed(() => {
   const s = sig.value, t = time.value, wt = windowType.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const { y, t: wt4 } = windowedYT(s, t);
     const { freq, amp, phaseDeg } = A.fft(y, wt4, { windowType: wt, normalize: true });
@@ -1034,7 +1034,7 @@ const phaseConfig = computed(() => {
     for (let i = 0; i < freq.length; i++) {
       if (amp[i] >= threshold) { freqF.push(freq[i]); phaseF.push(phaseDeg[i]); }
     }
-    const fD = downsampleForDisplay(phaseF, freqF, peakMode);
+    const fD = downsampleForDisplay(phaseF, freqF, peakMode, exactMode);
     return buildLineChartConfig({
       labels: fD.rx.map((f) => f.toFixed(1)),
       datasets: [{ label: "Phase", data: fD.ry, borderColor: "#F59E0B", borderWidth: 1, pointRadius: 0 }],

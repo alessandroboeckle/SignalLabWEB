@@ -13,7 +13,7 @@
 
 export function downsample(values, xs, mode = "simple", target = 800) {
   const n = values.length;
-  if (n <= target) {
+  if (mode === "exact" || n <= target) {
     return { rx: xs.slice(), ry: values.slice(), indices: xs.map((_, i) => i) };
   }
 
@@ -62,6 +62,6 @@ export function downsample(values, xs, mode = "simple", target = 800) {
 // the same 800-point target with the same peakMode->mode mapping — this
 // was defined identically three times as a local `down()` helper in each
 // view. `peakMode` true picks "minmax" (preserve spikes) over "simple".
-export function downsampleForDisplay(values, xs, peakMode) {
-  return downsample(values, xs, peakMode ? "minmax" : "simple", 800);
+export function downsampleForDisplay(values, xs, peakMode, exactMode = false) {
+  return downsample(values, xs, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
 }

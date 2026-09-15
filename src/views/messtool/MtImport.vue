@@ -949,11 +949,11 @@ const previewStats = computed(() => {
 const previewConfig = computed(() => {
   const p = parsed.value;
   const idx = selectedIdx.value;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!p) return emptyLineChartConfig();
     const s = p.signals[idx];
     const time = p.time;
-    const { rx: labels, ry: values } = downsampleForDisplay(s.data, time, peakMode);
+    const { rx: labels, ry: values } = downsampleForDisplay(s.data, time, peakMode, exactMode);
     return buildLineChartConfig({
       labels,
       datasets: [{
@@ -1074,10 +1074,10 @@ const compareAddingId = ref(null);
 // its extra controls (offset inputs, stats table, batch export).
 const quickCompareConfig = computed(() => {
   const series = mtStore.compareSeries;
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     const datasets = series.map((s) => {
       const y = s.signal.data.map((v) => (v == null ? null : v));
-      const d = downsample(y, s.time, peakMode ? "minmax" : "simple", 600);
+      const d = downsample(y, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 600);
       const off = s.offsetSec || 0;
       const points = d.rx.map((x, i) => ({
         x: x + off,

@@ -389,13 +389,13 @@ const compareConfig = computed(() => {
   const s = sig.value, t = time.value, _v = version.value, _idx = selectedIdx.value;
   // snapshot ops (id + params) so identity changes when they change
   const opSnapshot = ops.value.map((o) => o);
-  return (peakMode) => {
+  return (peakMode, exactMode = false) => {
     if (!s) return emptyLineChartConfig();
     const y = s.data.map((v) => (v == null ? 0 : v));
     const processed = applyChain(y, t, opSnapshot);
     const unit = s.unit || "";
-    const oD = downsampleForDisplay(y, t, peakMode);
-    const pD = downsampleForDisplay(processed, t, peakMode);
+    const oD = downsampleForDisplay(y, t, peakMode, exactMode);
+    const pD = downsampleForDisplay(processed, t, peakMode, exactMode);
     return buildLineChartConfig({
       labels: oD.rx,
       datasets: [

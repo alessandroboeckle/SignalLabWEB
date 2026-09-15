@@ -39,6 +39,7 @@
             size="small"
             :variant="peakMode ? 'flat' : 'outlined'"
             :color="peakMode ? 'primary' : 'default'"
+            :disabled="exactMode"
             icon="mdi-pulse"
             :aria-label="`Spitzen-Modus ${peakMode ? 'ausschalten' : 'einschalten'}`"
             :aria-pressed="peakMode"
@@ -46,8 +47,37 @@
             @click="peakMode = !peakMode"
           ></v-btn>
         </template>
-        Spitzen {{ peakMode ? "AN" : "AUS" }} — {{ peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen' }}
+        {{ exactMode ? 'Ohne Wirkung — Exakt zeigt bereits alle Punkte' : `Spitzen ${peakMode ? "AN" : "AUS"} — ${peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen'}` }}
       </v-tooltip>
+      <v-menu :close-on-content-click="false">
+        <template #activator="{ props: menuProps }">
+          <v-tooltip location="bottom">
+            <template #activator="{ props: tooltipProps }">
+              <v-btn
+                size="small"
+                variant="outlined"
+                icon="mdi-view-grid-outline"
+                aria-label="Anzeigeoptionen"
+                v-bind="{ ...menuProps, ...tooltipProps }"
+              ></v-btn>
+            </template>
+            Anzeigeoptionen
+          </v-tooltip>
+        </template>
+        <v-card min-width="260" class="pa-3">
+          <div class="text-subtitle-2 font-weight-bold mb-2">Anzeigeoptionen</div>
+          <v-checkbox
+            v-model="exactMode"
+            label="Exakte Messpunkte (keine Reduktion)"
+            density="comfortable"
+            hide-details
+            class="mb-1"
+          ></v-checkbox>
+          <div class="text-caption text-medium-emphasis">
+            Zeigt alle Rohpunkte statt auf 800 reduziert — kann bei grossen Dateien langsamer rendern.
+          </div>
+        </v-card>
+      </v-menu>
       <v-tooltip location="bottom">
         <template #activator="{ props: tooltipProps }">
           <v-btn
@@ -398,6 +428,7 @@ const inlineCanvas = ref(null);
 const fsCanvas = ref(null);
 const fullscreen = ref(false);
 const peakMode = ref(false);
+const exactMode = ref(true);
 const cursorMode = ref(false);
 const markerMode = ref(false);
 const outlierMode = ref(false);
@@ -1041,7 +1072,7 @@ function buildInline() {
   if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
   if (!inlineCanvas.value) return;
   try {
-    const cfg = withInteractions(props.config(peakMode.value));
+    const cfg = withInteractions(props.config(peakMode.value, exactMode.value));
     cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
     inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
     applyZoomLimits(inlineChart);
@@ -1061,7 +1092,7 @@ function buildFullscreen() {
   if (fsChart) { fsChart.destroy(); fsChart = null; }
   if (!fsCanvas.value) return;
   try {
-    const cfg = withInteractions(props.config(peakMode.value));
+    const cfg = withInteractions(props.config(peakMode.value, exactMode.value));
     cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
     fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
     applyZoomLimits(fsChart);
@@ -1085,7 +1116,7 @@ async function openFullscreen() {
 }
 
 watch(() => props.config, async () => { await nextTick(); buildInline(); buildCursorRows(); });
-watch(peakMode, async () => { await nextTick(); buildInline(); if (fullscreen.value) buildFullscreen(); buildCursorRows(); });
+watch([peakMode, exactMode], async () => { await nextTick(); buildInline(); if (fullscreen.value) buildFullscreen(); buildCursorRows(); });
 watch(() => theme.global.name.value, () => { buildInline(); if (fullscreen.value) buildFullscreen(); buildCursorRows(); });
 
 watch(fullscreen, (open) => {
