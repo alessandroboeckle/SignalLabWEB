@@ -64,14 +64,15 @@
             </div>
             <v-divider class="my-3"></v-divider>
             <div class="text-subtitle-2 font-weight-bold mb-2">Diagramm-Darstellung</div>
-            <v-checkbox
+            <v-switch
               v-model="mtStore.chartExactMode"
-              label="Exakte Messpunkte (keine Reduktion)"
-              density="comfortable"
+              color="primary"
+              density="compact"
               hide-details
-            ></v-checkbox>
+              label="Exakte Messpunkte"
+            ></v-switch>
             <div class="text-caption text-medium-emphasis">
-              Zeigt alle Rohpunkte statt auf 800 reduziert — kann bei grossen Dateien langsamer rendern.
+              Keine Punktreduktion — bei grossen Dateien langsamer.
             </div>
           </v-card>
         </v-menu>

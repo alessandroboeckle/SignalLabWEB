@@ -337,14 +337,15 @@
             </div>
             <v-switch v-model="bigMode" color="primary" density="compact" hide-details label="Alle gross anzeigen" class="mb-1"></v-switch>
             <v-switch v-model="showFrequencyResponse" color="secondary" density="compact" hide-details label="Frequenzgang anzeigen" class="mb-1"></v-switch>
-            <v-checkbox
+            <v-switch
               v-model="mtStore.chartExactMode"
-              label="Exakte Messpunkte (keine Reduktion)"
-              density="comfortable"
+              color="primary"
+              density="compact"
               hide-details
-            ></v-checkbox>
+              label="Exakte Messpunkte"
+            ></v-switch>
             <div class="text-caption text-medium-emphasis">
-              Zeigt alle Rohpunkte statt auf 800 reduziert — kann bei grossen Dateien langsamer rendern.
+              Keine Punktreduktion — bei grossen Dateien langsamer.
             </div>
 
             <v-divider class="my-3"></v-divider>
