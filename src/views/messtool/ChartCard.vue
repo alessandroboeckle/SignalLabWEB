@@ -49,35 +49,6 @@
         </template>
         {{ exactMode ? 'Ohne Wirkung — Exakt zeigt bereits alle Punkte' : `Spitzen ${peakMode ? "AN" : "AUS"} — ${peakMode ? 'Min/Max-Modus: Spitzen bleiben sichtbar' : 'Schneller Modus: kurze Spitzen können fehlen'}` }}
       </v-tooltip>
-      <v-menu :close-on-content-click="false">
-        <template #activator="{ props: menuProps }">
-          <v-tooltip location="bottom">
-            <template #activator="{ props: tooltipProps }">
-              <v-btn
-                size="small"
-                variant="outlined"
-                icon="mdi-view-grid-outline"
-                aria-label="Anzeigeoptionen"
-                v-bind="{ ...menuProps, ...tooltipProps }"
-              ></v-btn>
-            </template>
-            Anzeigeoptionen
-          </v-tooltip>
-        </template>
-        <v-card min-width="260" class="pa-3">
-          <div class="text-subtitle-2 font-weight-bold mb-2">Anzeigeoptionen</div>
-          <v-checkbox
-            v-model="exactMode"
-            label="Exakte Messpunkte (keine Reduktion)"
-            density="comfortable"
-            hide-details
-            class="mb-1"
-          ></v-checkbox>
-          <div class="text-caption text-medium-emphasis">
-            Zeigt alle Rohpunkte statt auf 800 reduziert — kann bei grossen Dateien langsamer rendern.
-          </div>
-        </v-card>
-      </v-menu>
       <v-tooltip location="bottom">
         <template #activator="{ props: tooltipProps }">
           <v-btn
@@ -428,7 +399,7 @@ const inlineCanvas = ref(null);
 const fsCanvas = ref(null);
 const fullscreen = ref(false);
 const peakMode = ref(false);
-const exactMode = ref(true);
+const exactMode = computed(() => mtStore.chartExactMode);
 const cursorMode = ref(false);
 const markerMode = ref(false);
 const outlierMode = ref(false);

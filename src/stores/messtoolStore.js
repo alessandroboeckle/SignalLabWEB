@@ -48,6 +48,14 @@ export const useMesstoolStore = defineStore("messtool", () => {
     stopbandDb: 40,
   });
 
+  // Whether ChartCard plots render every raw measurement point ("Exakt")
+  // or get downsampled to ~800 points for faster rendering. Shared across
+  // every ChartCard on every Messtool page (like markers above) so the
+  // Anzeigeoptionen checkbox on one page controls all charts everywhere.
+  // Defaults to true — exact points by default, downsampling is the
+  // opt-out for very large files.
+  const chartExactMode = ref(true);
+
   // Time-point annotations on the current file (e.g. "Bremsereignis hier"),
   // shared across every ChartCard on every Messtool page so a marker set
   // while looking at Filter also shows up in Analyse/Verarbeitung/etc.
@@ -318,6 +326,7 @@ export const useMesstoolStore = defineStore("messtool", () => {
     setCloudRef,
     verarbeitungSnapshot,
     filterSettings,
+    chartExactMode,
     markers,
     addMarker,
     removeMarker,

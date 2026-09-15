@@ -62,6 +62,17 @@
               <v-btn size="small" variant="tonal" block @click="showOnlyStats">Nur Statistik</v-btn>
               <v-btn size="small" variant="text" block @click="showAllSections">Alles zeigen</v-btn>
             </div>
+            <v-divider class="my-3"></v-divider>
+            <div class="text-subtitle-2 font-weight-bold mb-2">Diagramm-Darstellung</div>
+            <v-checkbox
+              v-model="mtStore.chartExactMode"
+              label="Exakte Messpunkte (keine Reduktion)"
+              density="comfortable"
+              hide-details
+            ></v-checkbox>
+            <div class="text-caption text-medium-emphasis">
+              Zeigt alle Rohpunkte statt auf 800 reduziert — kann bei grossen Dateien langsamer rendern.
+            </div>
           </v-card>
         </v-menu>
       </div>
