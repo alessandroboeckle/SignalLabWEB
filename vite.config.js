@@ -9,7 +9,7 @@ export default defineConfig({
   // imports the ~54 tags we actually use. That's the bulk of what made
   // the main chunk 640 KB (see index-CeJs9xgM.js before this change).
   plugins: [vue(), vuetify({ autoImport: true })],
-  base: '/SignalLabWEB/',
+  base: '/',
   server: { port: 3000 },
   resolve: {
     alias: {
