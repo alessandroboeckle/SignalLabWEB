@@ -556,7 +556,25 @@ const ACTIVE_TAB_KEY = "signallab.activeTab";
 // the actual measurement data survives (see messtoolStore's IndexedDB
 // session). localStorage is fine here: this is a single short string, not
 // the multi-MB payload that forced IndexedDB for the file data itself.
+// The URL's path doubles as the tab name ("/overview", "/mt-import", ...),
+// with "start" living at "/" itself — no vue-router needed for a flat set
+// of top-level tabs like this, just the History API directly.
+function tabFromPath() {
+  const slug = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  if (!slug) return null;
+  return VALID_TABS.has(slug) && (slug !== "admin" || auth.isAdmin) ? slug : null;
+}
+
+function pathFromTab(tab) {
+  return tab === "start" ? "/" : `/${tab}`;
+}
+
 function restoreActiveTab() {
+  // The URL wins over the saved tab (e.g. someone opened a bookmarked
+  // link) — the localStorage value is only a fallback for a plain
+  // reload where the URL itself carries no tab info.
+  const fromUrl = tabFromPath();
+  if (fromUrl) return fromUrl;
   try {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
     if (saved && VALID_TABS.has(saved) && (saved !== "admin" || auth.isAdmin)) {
@@ -575,7 +593,39 @@ watch(activeTab, (tab) => {
   } catch {
     // storage unavailable — not persisting the tab is not worth surfacing an error for
   }
+  const path = pathFromTab(tab);
+  if (window.location.pathname !== path) {
+    window.history.pushState({ tab }, "", path);
+  }
 });
+
+// Browser back/forward should move between tabs too, not just do nothing
+// (or worse, leave the URL and the on-screen tab out of sync).
+function onPopState() {
+  const fromUrl = tabFromPath();
+  activeTab.value = fromUrl || "start";
+}
+onMounted(() => window.addEventListener("popstate", onPopState));
+onBeforeUnmount(() => window.removeEventListener("popstate", onPopState));
+
+// Not logged in -> the URL should say so, so "/login" is a real, shareable
+// address rather than just whatever path happened to be open when the
+// LoginScreen kicked in. Once logged in, hand the URL back to the normal
+// tab routing above.
+watch(
+  () => [auth.loading, auth.user],
+  ([loading, user]) => {
+    if (loading) return;
+    if (!user) {
+      if (window.location.pathname !== "/login") {
+        window.history.pushState({}, "", "/login");
+      }
+    } else if (window.location.pathname === "/login") {
+      window.history.replaceState({ tab: activeTab.value }, "", pathFromTab(activeTab.value));
+    }
+  },
+  { immediate: true },
+);
 
 // Any page's help icon (see HelpIconButton.vue) sets this via the ui
 // store instead of needing its own "navigate" emit threaded through —
