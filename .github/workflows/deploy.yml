@@ -10,14 +10,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  # Was true — but killing an in-progress deploy-pages step mid-flight can
-  # leave the Pages-side deployment lock stuck (that's the "Cancelled" run
-  # from earlier, and why the very next run then hung forever in
-  # "deployment_queued": GitHub Pages only allows one deployment at a time
-  # and the old one never released its slot). GitHub's own starter workflow
-  # deliberately uses false for this reason — queue behind the running
-  # deploy instead of cancelling it.
+  group: deploy
+  # Was true — but killing an in-progress deploy mid-flight can leave a
+  # deployment lock stuck (GitHub Pages) or the remote /var/www/signallab
+  # directory half-synced (own server). Queue behind the running deploy
+  # instead of cancelling it.
   cancel-in-progress: false
 
 jobs:
@@ -47,8 +44,14 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-raw
+          path: dist
 
-  deploy:
+  # Target 1: GitHub Pages (kept for now, alongside the own-server deploy
+  # below — drop this job once the own-server setup is confirmed working).
+  deploy-pages:
     needs: build
     runs-on: ubuntu-latest
     environment:
@@ -58,8 +61,27 @@ jobs:
       - uses: actions/deploy-pages@v5
         id: deployment
 
+  # Target 2: own Proxmox server, over the Cloudflare Tunnel.
+  deploy-server:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-raw
+          path: dist
+      - name: Deploy via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete
+          path: dist/
+          remote_path: /var/www/signallab/
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
   announce:
-    needs: deploy
+    needs: [deploy-pages, deploy-server]
     runs-on: ubuntu-latest
     # Never let this fail the deploy itself — the site is already live by
     # this point regardless of whether the announcement goes out. Most
