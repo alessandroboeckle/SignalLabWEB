@@ -1,6 +1,24 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
+import { copyFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+// GitHub Pages has no SPA fallback: reloading /SignalLabWEB/mt-import
+// would return GitHub's own 404 page. Serving index.html as 404.html
+// lets App.vue boot and pick the tab from the URL instead.
+// (Harmless on the Proxmox LXC — nginx uses try_files there.)
+let outDir = 'dist'
+const spaFallback404 = {
+  name: 'spa-fallback-404',
+  apply: 'build',
+  configResolved(config) {
+    outDir = resolve(config.root, config.build.outDir)
+  },
+  closeBundle() {
+    copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, '404.html'))
+  },
+}
 
 export default defineConfig({
 // autoImport: true replaces the old "import * as components from
@@ -8,7 +26,7 @@ export default defineConfig({
 // Vuetify components, it scans every .vue file's <template> and only
 // imports the ~54 tags we actually use. That's the bulk of what made
 // the main chunk 640 KB (see index-CeJs9xgM.js before this change).
-  plugins: [vue(), vuetify({ autoImport: true })],
+  plugins: [vue(), vuetify({ autoImport: true }), spaFallback404],
 // Default = GitHub Pages (served under /SignalLabWEB/).
 // Proxmox/LXC serves from root → build there with "npm run build:proxmox",
 // which passes --base=/ and overrides this value.

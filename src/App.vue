@@ -557,16 +557,40 @@ const ACTIVE_TAB_KEY = "signallab.activeTab";
 // session). localStorage is fine here: this is a single short string, not
 // the multi-MB payload that forced IndexedDB for the file data itself.
 // The URL's path doubles as the tab name ("/overview", "/mt-import", ...),
-// with "start" living at "/" itself — no vue-router needed for a flat set
+// with "start" living at the app root itself — no vue-router needed for a flat set
 // of top-level tabs like this, just the History API directly.
+//
+// All paths are relative to Vite's BASE_URL: "/SignalLabWEB/" on GitHub
+// Pages, "/" on the Proxmox LXC (build:proxmox). Hardcoding "/" here
+// pushed URLs outside the app's folder on GitHub Pages (e.g.
+// github.io/login), which 404s on the next reload.
+const BASE_URL = import.meta.env.BASE_URL; // always ends with "/"
+
+// Current path with BASE_URL stripped, no leading/trailing slashes:
+// "/SignalLabWEB/mt-import/" -> "mt-import", "/SignalLabWEB" -> "".
+function currentSlug() {
+  let path = window.location.pathname;
+  if (path.startsWith(BASE_URL)) path = path.slice(BASE_URL.length);
+  else if (`${path}/` === BASE_URL) path = "";
+  return path.replace(/^\/+|\/+$/g, "");
+}
+
+function urlFromSlug(slug) {
+  return BASE_URL + slug;
+}
+
 function tabFromPath() {
-  const slug = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  const slug = currentSlug();
   if (!slug) return null;
   return VALID_TABS.has(slug) && (slug !== "admin" || auth.isAdmin) ? slug : null;
 }
 
+function slugFromTab(tab) {
+  return tab === "start" ? "" : tab;
+}
+
 function pathFromTab(tab) {
-  return tab === "start" ? "/" : `/${tab}`;
+  return urlFromSlug(slugFromTab(tab));
 }
 
 function restoreActiveTab() {
@@ -593,9 +617,8 @@ watch(activeTab, (tab) => {
   } catch {
     // storage unavailable — not persisting the tab is not worth surfacing an error for
   }
-  const path = pathFromTab(tab);
-  if (window.location.pathname !== path) {
-    window.history.pushState({ tab }, "", path);
+  if (currentSlug() !== slugFromTab(tab)) {
+    window.history.pushState({ tab }, "", pathFromTab(tab));
   }
 });
 
@@ -617,10 +640,10 @@ watch(
   ([loading, user]) => {
     if (loading) return;
     if (!user) {
-      if (window.location.pathname !== "/login") {
-        window.history.pushState({}, "", "/login");
+      if (currentSlug() !== "login") {
+        window.history.pushState({}, "", urlFromSlug("login"));
       }
-    } else if (window.location.pathname === "/login") {
+    } else if (currentSlug() === "login") {
       window.history.replaceState({ tab: activeTab.value }, "", pathFromTab(activeTab.value));
     }
   },
