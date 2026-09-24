@@ -103,10 +103,23 @@ describe("getFullXRange", () => {
 });
 
 describe("applyZoomLimits", () => {
-  it("fills limits with a 1% minRange per scale", () => {
+  it("falls back to a 1% x minRange when the sample spacing is unknown", () => {
     const chart = makeLinearChart({ min: 0, max: 10 });
     applyZoomLimits(chart);
     expect(chart.options.plugins.zoom.limits.x).toEqual({ min: 0, max: 10, minRange: 0.1 });
+  });
+
+  it("lets the x-axis zoom down to a few samples of point data", () => {
+    const chart = makeLinearChart({ min: 0, max: 7200 });
+    chart.data = { datasets: [{ data: Array.from({ length: 72001 }, (_, i) => ({ x: i * 0.1, y: 0 })) }] };
+    applyZoomLimits(chart);
+    expect(chart.options.plugins.zoom.limits.x.minRange).toBeCloseTo(0.4, 6);
+  });
+
+  it("uses one label step (index axis) for category charts", () => {
+    const chart = makeCategoryChart({ labels: Array.from({ length: 1000 }, (_, i) => String(i)), min: 0, max: 999 });
+    applyZoomLimits(chart);
+    expect(chart.options.plugins.zoom.limits.x.minRange).toBe(4);
   });
 
   it("skips scales without a numeric min/max", () => {
@@ -114,6 +127,13 @@ describe("applyZoomLimits", () => {
     chart.scales.y = {};
     applyZoomLimits(chart);
     expect(chart.options.plugins.zoom.limits.y).toBeUndefined();
+  });
+});
+
+describe("xValueToPixel on a chart without an x scale", () => {
+  it("returns NaN instead of throwing (empty placeholder chart)", () => {
+    const chart = { data: { labels: [], datasets: [] }, scales: {} };
+    expect(Number.isNaN(xValueToPixel(chart, 5))).toBe(true);
   });
 });
 

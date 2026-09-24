@@ -359,10 +359,58 @@
           <ChartCard title="Fenster-Überlappung" :config="rmsWindowsOverlayConfig" :height="260" sync-group="analyse-zeit" />
         </v-col>
         <v-col v-if="sectionsVisible.fft" :cols="12" :md="fullWidthPlots ? 12 : 6">
-          <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" hide-playback />
+          <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" x-axis="frequency">
+            <template #extra-toolbar>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props: fftMenuProps }">
+                  <v-tooltip location="bottom">
+                    <template #activator="{ props: tooltipProps }">
+                      <v-btn
+                        v-bind="{ ...fftMenuProps, ...tooltipProps }"
+                        size="small"
+                        :variant="fftSegmentActive ? 'flat' : 'text'"
+                        :color="fftSegmentActive ? 'secondary' : 'default'"
+                        icon="mdi-tune-variant"
+                        aria-label="FFT-Zeitfenster-Optionen"
+                      ></v-btn>
+                    </template>
+                    Zeitfenster (Mittelung)
+                  </v-tooltip>
+                </template>
+                <v-card min-width="280" max-width="340" class="pa-4">
+                  <div class="text-subtitle-2 font-weight-bold mb-2">Spektrum über Zeitfenster mitteln</div>
+                  <v-text-field
+                    v-model.number="fftSegmentSec"
+                    type="number"
+                    label="Fensterlänge [s]"
+                    placeholder="leer = ganzes Signal"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    clearable
+                    min="0"
+                    step="0.1"
+                  ></v-text-field>
+                  <p class="text-caption text-medium-emphasis mt-2 mb-0">
+                    Signal wird in gleich lange Fenster <strong>ohne Überlappung</strong> geteilt,
+                    jedes Fenster einzeln transformiert und das Spektrum gemittelt — weniger Rauschen,
+                    dafür gröbere Auflösung (df = 1 / Fensterlänge). Ein unvollständiges letztes Fenster
+                    wird ignoriert.
+                  </p>
+                  <p v-if="fftSegmentInfo" class="text-caption mt-2 mb-0">
+                    <strong>{{ fftSegmentInfo.segments }}</strong> Fenster à {{ fftSegmentInfo.segmentSamples }} Samples ·
+                    df = {{ fftSegmentInfo.df }} Hz
+                  </p>
+                  <p v-else-if="fftSegmentSec" class="text-caption text-warning mt-2 mb-0">
+                    Fenster ist länger als der Zeitbereich — es wird das ganze Signal verwendet.
+                  </p>
+                </v-card>
+              </v-menu>
+            </template>
+          </ChartCard>
         </v-col>
         <v-col v-if="sectionsVisible.fft" :cols="12" :md="fullWidthPlots ? 12 : 6">
-          <ChartCard title="Phase" :config="phaseConfig" :height="240" hide-playback />
+          <ChartCard title="Phase" :config="phaseConfig" :height="240" x-axis="frequency" />
         </v-col>
       </v-row>
 
@@ -416,7 +464,7 @@
                 <ChartCard title="Signale überlagert" :config="groupOverlayConfig" :height="280" sync-group="analyse-gruppe" />
               </v-col>
               <v-col :cols="12" :md="fullWidthPlots ? 12 : 6">
-                <ChartCard title="FFT überlagert" :config="groupFftConfig" :height="280" hide-playback />
+                <ChartCard title="FFT überlagert" :config="groupFftConfig" :height="280" x-axis="frequency" />
               </v-col>
             </v-row>
           </template>
@@ -540,6 +588,23 @@ const showRmsLine = ref(false);
 const showStdBand = ref(false);
 const rmsWindowSec = ref(1);
 const rmsOverlapPct = ref(50);
+// FFT "Zeitfenster": split into non-overlapping windows of this length
+// and average the spectra (A.segmentedFft). null/"" = whole signal.
+const fftSegmentSec = ref(null);
+const fftSegmentActive = computed(() => Number(fftSegmentSec.value) > 0);
+
+// Every chart on this page plots {x, y} points on a real linear x-axis
+// (seconds or Hz) instead of a label array on a category axis. With
+// labels, the axis is an *index* axis: zoom, zoom-sync between charts
+// with different point counts (e.g. "RMS über Zeit" vs "Signal") and
+// the time-based markers/cursors all got mapped to the wrong place, and
+// the "Fenster-Überlappung" chart (mixing both) was stretched to the
+// sample count instead of the duration.
+function toPoints(rx, ry) {
+  const out = new Array(rx.length);
+  for (let i = 0; i < rx.length; i++) out[i] = { x: rx[i], y: ry[i] };
+  return out;
+}
 
 // Stack charts full-width (one per row) instead of two side by side —
 // handy on a big monitor when a plot's fine details are hard to read at
@@ -714,13 +779,13 @@ const groupOverlayConfig = computed(() => {
 });
 
 const groupFftConfig = computed(() => {
-  const entries = groupSignals.value, wt = windowType.value;
+  const entries = groupSignals.value, wt = windowType.value, seg = fftSegmentSec.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode, exactMode = false) => {
     if (!entries.length) return emptyLineChartConfig(false);
     const datasets = entries.map(({ label, sig: s, t }, i) => {
       const { y, t: wt2 } = windowedYT(s, t);
-      const { freq, amp } = A.fft(y, wt2, { windowType: wt, normalize: true });
+      const { freq, amp } = A.segmentedFft(y, wt2, seg, { windowType: wt, normalize: true });
       const d = downsampleForDisplay(amp, freq, peakMode, exactMode);
       const points = d.rx.map((x, j) => ({ x, y: d.ry[j] }));
       return {
@@ -799,9 +864,38 @@ const windowInfo = computed(() => {
   if (n < 2) return null;
   const dt = (t[t.length - 1] - t[0]) / (n - 1);
   if (!(dt > 0)) return null;
-  const df = 1 / (n * dt);
-  return { dt: dt.toFixed(4), df: df.toFixed(4), n };
+  const seg = fftSegmentInfo.value;
+  const df = seg ? 1 / (seg.segmentSamples * dt) : 1 / (n * dt);
+  return { dt: dt.toFixed(4), df: formatSig(df), n, segN: seg ? seg.segmentSamples : n };
 });
+
+// Segment layout for the FFT "Zeitfenster" option — null when the whole
+// signal is transformed in one go (option off, or window ≥ time range).
+const fftSegmentInfo = computed(() => {
+  const segSec = Number(fftSegmentSec.value);
+  if (!sig.value || !(segSec > 0)) return null;
+  const [i0, i1] = findWindowBounds(time.value, zeitbereichStart.value, zeitbereichEnd.value);
+  const n = i1 - i0;
+  if (n < 4) return null;
+  const t = time.value;
+  const dt = (t[i1 - 1] - t[i0]) / (n - 1);
+  if (!(dt > 0)) return null;
+  const segN = Math.round(segSec / dt);
+  if (segN < 4 || segN >= n) return null;
+  return { segments: Math.floor(n / segN), segmentSamples: segN, df: formatSig(1 / (segN * dt)) };
+});
+
+// Readable number for the stat tiles: fixed 3 decimals in the normal
+// range, but switches to exponent notation for very large/small values
+// (e.g. the variance of a 750 V signal is ~10⁵ V², of a mA signal ~10⁻⁷ A²)
+// instead of "0.000" or an overlong digit string.
+function formatSig(v) {
+  if (v == null || !Number.isFinite(v)) return "-";
+  const a = Math.abs(v);
+  if (a !== 0 && (a >= 1e6 || a < 1e-3)) return v.toExponential(3);
+  if (a >= 1e4) return v.toFixed(1); // keeps e.g. a variance of 123749.9 on one line in the tile
+  return v.toFixed(3);
+}
 
 const stats = computed(() => {
   if (!sig.value) return [];
@@ -809,19 +903,24 @@ const stats = computed(() => {
   const y = sig.value.data.slice(i0, i1).filter((v) => v != null && Number.isFinite(v));
   const mm = A.minMax(y);
   const u = sig.value.unit || "";
-  const f = (v) => (v == null ? "-" : v.toFixed(3));
+  const f = formatSig;
   const wi = windowInfo.value;
-  return [
+  const seg = fftSegmentInfo.value;
+  const rows = [
     { label: `Mittel [${u}]`, value: f(A.mean(y)) },
     { label: `RMS [${u}]`, value: f(A.rms(y)) },
     { label: `Std [${u}]`, value: f(A.stddev(y)) },
-    { label: `Varianz`, value: f(A.variance(y)) },
+    // Variance is in the SQUARED unit (V² for a V signal) — the tile used
+    // to show no unit at all, which read like it should match Std/RMS.
+    { label: u ? `Varianz [${u}²]` : "Varianz", value: f(A.variance(y)) },
     { label: `Min [${u}]`, value: f(mm.min) },
     { label: `Max [${u}]`, value: f(mm.max) },
     { label: `dt [s]`, value: wi ? wi.dt : "-" },
-    { label: `df [Hz]`, value: wi ? wi.df : "-" },
+    { label: seg ? `df [Hz] (Fenster)` : `df [Hz]`, value: wi ? wi.df : "-" },
     { label: `N [Samples]`, value: wi ? String(wi.n) : "-" },
   ];
+  if (seg) rows.push({ label: "FFT-Fenster", value: `${seg.segments} × ${seg.segmentSamples}` });
+  return rows;
 });
 
 // Each config is a computed returning a FRESH function.
@@ -833,7 +932,7 @@ const signalConfig = computed(() => {
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void showAvgLine.value; void showRmsLine.value; void showStdBand.value;
   return (peakMode, exactMode = false) => {
-    if (!s) return emptyLineChartConfig();
+    if (!s) return emptyLineChartConfig(false);
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const sD = downsampleForDisplay(y, wt, peakMode, exactMode);
@@ -848,36 +947,36 @@ const signalConfig = computed(() => {
     // line renders on top of it, not hidden underneath.
     if (showStdBand.value && meanVal != null && stdVal != null) {
       datasets.push({
-        label: "Mittel + 1σ", data: sD.rx.map(() => meanVal + stdVal),
+        label: "Mittel + 1σ", data: sD.rx.map((x) => ({ x, y: meanVal + stdVal })),
         borderColor: "rgba(37,99,235,0.25)", borderWidth: 1, pointRadius: 0,
         yAxisID: "y", fill: "+1",
         backgroundColor: "rgba(37,99,235,0.1)",
       });
       datasets.push({
-        label: "Mittel − 1σ", data: sD.rx.map(() => meanVal - stdVal),
+        label: "Mittel − 1σ", data: sD.rx.map((x) => ({ x, y: meanVal - stdVal })),
         borderColor: "rgba(37,99,235,0.25)", borderWidth: 1, pointRadius: 0,
         yAxisID: "y", fill: false,
       });
     }
-    datasets.push({ label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, yAxisID: "y" });
+    datasets.push({ label: `Signal [${unit}]`, data: toPoints(sD.rx, sD.ry), borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, yAxisID: "y" });
     if (showAvgLine.value && meanVal != null) {
       datasets.push({
-        label: `Mittelwert [${unit}]`, data: sD.rx.map(() => meanVal),
+        label: `Mittelwert [${unit}]`, data: sD.rx.map((x) => ({ x, y: meanVal })),
         borderColor: "#10B981", borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, yAxisID: "y",
       });
     }
     if (showRmsLine.value && rmsVal != null) {
       datasets.push({
-        label: `RMS [${unit}]`, data: sD.rx.map(() => rmsVal),
+        label: `RMS [${unit}]`, data: sD.rx.map((x) => ({ x, y: rmsVal })),
         borderColor: "#DB2777", borderWidth: 1.5, borderDash: [2, 3], pointRadius: 0, yAxisID: "y",
       });
     }
 
     return buildLineChartConfig({
       datasets,
-      labels: sD.rx,
+      parsing: false,
       xTitle: "Zeit [s]",
-      xScale: { ticks: { maxTicksLimit: 8 } },
+      xScale: { type: "linear", ticks: { maxTicksLimit: 8 } },
       yTitle: unit,
     });
   };
@@ -887,17 +986,17 @@ const derivConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode, exactMode = false) => {
-    if (!s) return emptyLineChartConfig();
+    if (!s) return emptyLineChartConfig(false);
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const deriv = A.derivative(y, wt);
     const dD = downsampleForDisplay(deriv, wt, peakMode, exactMode);
 
     return buildLineChartConfig({
-      datasets: [{ label: `Ableitung [${unit}/s]`, data: dD.ry, borderColor: "#FF6B35", borderWidth: 1.5, pointRadius: 0 }],
-      labels: dD.rx,
+      datasets: [{ label: `Ableitung [${unit}/s]`, data: toPoints(dD.rx, dD.ry), borderColor: "#FF6B35", borderWidth: 1.5, pointRadius: 0 }],
+      parsing: false,
       xTitle: "Zeit [s]",
-      xScale: { ticks: { maxTicksLimit: 8 } },
+      xScale: { type: "linear", ticks: { maxTicksLimit: 8 } },
       yTitle: `${unit}/s`,
     });
   };
@@ -907,16 +1006,16 @@ const integralConfig = computed(() => {
   const s = sig.value, t = time.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode, exactMode = false) => {
-    if (!s) return emptyLineChartConfig();
+    if (!s) return emptyLineChartConfig(false);
     const { y, t: wt2 } = windowedYT(s, t);
     const unit = s.unit || "";
     const integ = A.integral(y, wt2);
     const iD = downsampleForDisplay(integ, wt2, peakMode, exactMode);
     return buildLineChartConfig({
-      labels: iD.rx,
-      datasets: [{ label: `∫ [${unit}·s]`, data: iD.ry, borderColor: "#10B981", backgroundColor: "rgba(16,185,129,0.08)", borderWidth: 1.5, pointRadius: 0, fill: true }],
+      parsing: false,
+      datasets: [{ label: `∫ [${unit}·s]`, data: toPoints(iD.rx, iD.ry), borderColor: "#10B981", backgroundColor: "rgba(16,185,129,0.08)", borderWidth: 1.5, pointRadius: 0, fill: true }],
       xTitle: "Zeit [s]",
-      xScale: { ticks: { maxTicksLimit: 8 } },
+      xScale: { type: "linear", ticks: { maxTicksLimit: 8 } },
       yTitle: `${unit}·s`,
     });
   };
@@ -927,20 +1026,20 @@ const rollingRmsConfig = computed(() => {
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void rmsWindowSec.value; void rmsOverlapPct.value;
   return (peakMode, exactMode = false) => {
-    if (!s) return emptyLineChartConfig();
+    if (!s) return emptyLineChartConfig(false);
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const { t: rt, rms: rr } = A.rollingRms(y, wt, rmsWindowSec.value, rmsOverlapPct.value);
     const rD = downsampleForDisplay(rr, rt, peakMode, exactMode);
     return buildLineChartConfig({
-      labels: rD.rx,
+      parsing: false,
       datasets: [{
         label: `RMS (${rmsWindowSec.value}s, ${rmsOverlapPct.value}% Überlappung) [${unit}]`,
-        data: rD.ry, borderColor: "#EC4899", backgroundColor: "rgba(236,72,153,0.08)",
+        data: toPoints(rD.rx, rD.ry), borderColor: "#EC4899", backgroundColor: "rgba(236,72,153,0.08)",
         borderWidth: 1.5, pointRadius: 0, fill: true,
       }],
       xTitle: "Zeit [s]",
-      xScale: { ticks: { maxTicksLimit: 8 } },
+      xScale: { type: "linear", ticks: { maxTicksLimit: 8 } },
       yTitle: unit,
     });
   };
@@ -960,7 +1059,7 @@ const rmsWindowsOverlayConfig = computed(() => {
   void zeitbereichStart.value; void zeitbereichEnd.value;
   void rmsWindowSec.value; void rmsOverlapPct.value;
   return (peakMode, exactMode = false) => {
-    if (!s) return emptyLineChartConfig();
+    if (!s) return emptyLineChartConfig(false);
     const { y, t: wt } = windowedYT(s, t);
     const unit = s.unit || "";
     const sD = downsampleForDisplay(y, wt, peakMode, exactMode);
@@ -988,10 +1087,10 @@ const rmsWindowsOverlayConfig = computed(() => {
     }));
 
     return buildLineChartConfig({
-      labels: sD.rx,
+      parsing: false,
       datasets: [
         ...bandDatasets,
-        { label: `Signal [${unit}]`, data: sD.ry, borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, order: 0 },
+        { label: `Signal [${unit}]`, data: toPoints(sD.rx, sD.ry), borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, order: 0 },
       ],
       plugins: {
         legend: {
@@ -1011,19 +1110,19 @@ const rmsWindowsOverlayConfig = computed(() => {
 });
 
 const fftConfig = computed(() => {
-  const s = sig.value, t = time.value, wt = windowType.value;
+  const s = sig.value, t = time.value, wt = windowType.value, seg = fftSegmentSec.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode, exactMode = false) => {
-    if (!s) return emptyLineChartConfig();
+    if (!s) return emptyLineChartConfig(false);
     const { y, t: wt3 } = windowedYT(s, t);
     const unit = s.unit || "";
-    const { freq, amp } = A.fft(y, wt3, { windowType: wt, normalize: true });
+    const { freq, amp, segments } = A.segmentedFft(y, wt3, seg, { windowType: wt, normalize: true });
     const fD = downsampleForDisplay(amp, freq, peakMode, exactMode);
     return buildLineChartConfig({
-      labels: fD.rx.map((f) => f.toFixed(1)),
-      datasets: [{ label: "Amplitude", data: fD.ry, borderColor: "#7C3AED", backgroundColor: "rgba(124,58,237,0.08)", borderWidth: 1, pointRadius: 0, fill: true }],
+      parsing: false,
+      datasets: [{ label: segments > 1 ? `Amplitude (Mittel aus ${segments} Fenstern)` : "Amplitude", data: toPoints(fD.rx, fD.ry), borderColor: "#7C3AED", backgroundColor: "rgba(124,58,237,0.08)", borderWidth: 1, pointRadius: 0, fill: true }],
       xTitle: "Frequenz [Hz]",
-      xScale: { ticks: { maxTicksLimit: 12 } },
+      xScale: { type: "linear", ticks: { maxTicksLimit: 12 } },
       yTitle: `Amplitude [${unit}]`,
     });
   };
@@ -1034,12 +1133,12 @@ const fftConfig = computed(() => {
 // essentially random/meaningless phase (numerical noise dominates), so
 // those are filtered out rather than cluttering the plot with noise.
 const phaseConfig = computed(() => {
-  const s = sig.value, t = time.value, wt = windowType.value;
+  const s = sig.value, t = time.value, wt = windowType.value, seg = fftSegmentSec.value;
   void zeitbereichStart.value; void zeitbereichEnd.value;
   return (peakMode, exactMode = false) => {
-    if (!s) return emptyLineChartConfig();
+    if (!s) return emptyLineChartConfig(false);
     const { y, t: wt4 } = windowedYT(s, t);
-    const { freq, amp, phaseDeg } = A.fft(y, wt4, { windowType: wt, normalize: true });
+    const { freq, amp, phaseDeg } = A.segmentedFft(y, wt4, seg, { windowType: wt, normalize: true });
     const ampMax = Math.max(0, ...amp.filter((v) => Number.isFinite(v)));
     const threshold = ampMax * 0.01; // below 1% of peak amplitude, phase is just noise
     const freqF = [], phaseF = [];
@@ -1048,10 +1147,10 @@ const phaseConfig = computed(() => {
     }
     const fD = downsampleForDisplay(phaseF, freqF, peakMode, exactMode);
     return buildLineChartConfig({
-      labels: fD.rx.map((f) => f.toFixed(1)),
-      datasets: [{ label: "Phase", data: fD.ry, borderColor: "#F59E0B", borderWidth: 1, pointRadius: 0 }],
+      parsing: false,
+      datasets: [{ label: "Phase", data: toPoints(fD.rx, fD.ry), borderColor: "#F59E0B", borderWidth: 1, pointRadius: 0 }],
       xTitle: "Frequenz [Hz]",
-      xScale: { ticks: { maxTicksLimit: 12 } },
+      xScale: { type: "linear", ticks: { maxTicksLimit: 12 } },
       yTitle: "Phase [°]",
       yScale: { min: -180, max: 180 },
     });

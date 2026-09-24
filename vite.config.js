@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
 import { copyFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 // GitHub Pages has no SPA fallback: reloading /SignalLabWEB/mt-import
 // would return GitHub's own 404 page. Serving index.html as 404.html
@@ -38,8 +39,12 @@ export default defineConfig({
 // we never call — see src/utils/html2canvasStub.js for the full
 // explanation. Without this, ~200 KB of unused code ships in the
 // PDF-export chunk.
-      html2canvas: '/src/utils/html2canvasStub.js',
-      dompurify: '/src/utils/dompurifyStub.js',
+// Real filesystem paths, not "/src/..." — the root-relative form only
+// works in the Rollup build; Vite's dev-server dependency pre-bundling
+// (esbuild) reads it as an absolute path from the disk root and crashes
+// "npm run dev" with "Could not read from file: /src/utils/...".
+      html2canvas: fileURLToPath(new URL('./src/utils/html2canvasStub.js', import.meta.url)),
+      dompurify: fileURLToPath(new URL('./src/utils/dompurifyStub.js', import.meta.url)),
     },
   },
   test: {

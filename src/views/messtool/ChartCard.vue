@@ -18,7 +18,7 @@
         </template>
         Cursor {{ cursorMode ? "AN" : "AUS" }} — Klicken setzt einen Cursor, mehrere möglich, per Checkbox einzeln ein-/ausschaltbar
       </v-tooltip>
-      <v-tooltip location="bottom">
+      <v-tooltip v-if="isTimeAxis" location="bottom">
         <template #activator="{ props: tooltipProps }">
           <v-btn
             size="small"
@@ -64,6 +64,62 @@
         </template>
         Ausreisser {{ outlierMode ? "AN" : "AUS" }} — markiert Punkte, die statistisch stark aus der Reihe tanzen (&gt;3σ)
       </v-tooltip>
+      <v-menu v-model="xMenuOpen" :close-on-content-click="false">
+        <template #activator="{ props: xMenuProps }">
+          <v-tooltip location="bottom">
+            <template #activator="{ props: tooltipProps }">
+              <v-btn
+                v-bind="{ ...xMenuProps, ...tooltipProps }"
+                size="small"
+                :variant="xLogMode || xRangeActive ? 'flat' : 'outlined'"
+                :color="xLogMode || xRangeActive ? 'secondary' : 'default'"
+                icon="mdi-axis-x-arrow"
+                aria-label="X-Achse einstellen"
+              ></v-btn>
+            </template>
+            X-Achse{{ xLogMode ? " — logarithmisch" : "" }}{{ xRangeActive ? " — Bereich gesetzt" : "" }}
+          </v-tooltip>
+        </template>
+        <v-card min-width="280" class="pa-4">
+          <div class="text-subtitle-2 font-weight-bold mb-2">X-Achse</div>
+          <v-switch
+            v-if="!isTimeAxis"
+            :model-value="xLogMode"
+            color="secondary"
+            density="compact"
+            hide-details
+            label="Logarithmisch"
+            class="mb-2"
+            @update:model-value="setXLog"
+          ></v-switch>
+          <div class="d-flex ga-2">
+            <v-text-field
+              v-model.number="xRangeMin"
+              type="number"
+              :label="`Von ${xUnitLabel}`"
+              variant="outlined"
+              density="compact"
+              hide-details
+            ></v-text-field>
+            <v-text-field
+              v-model.number="xRangeMax"
+              type="number"
+              :label="`Bis ${xUnitLabel}`"
+              variant="outlined"
+              density="compact"
+              hide-details
+            ></v-text-field>
+          </div>
+          <p v-if="xRangeError" class="text-caption text-error mt-1 mb-0">{{ xRangeError }}</p>
+          <div class="d-flex ga-2 mt-3">
+            <v-btn size="small" color="primary" variant="flat" @click="applyXRange">Anwenden</v-btn>
+            <v-btn size="small" variant="text" @click="clearXRange">Ganzer Bereich</v-btn>
+          </div>
+          <p v-if="xLogMode" class="text-caption text-medium-emphasis mt-2 mb-0">
+            Log-Achse: Werte ≤ 0 (z. B. der 0-Hz-Anteil) werden nicht gezeichnet.
+          </p>
+        </v-card>
+      </v-menu>
       <v-tooltip location="bottom">
         <template #activator="{ props: tooltipProps }">
           <v-btn
@@ -94,7 +150,7 @@
         </template>
         Y-Achsen-Zoom {{ yZoomMode ? "AN" : "AUS" }} — Mausrad & Rechteck-Zoom wirken dann auch auf die Y-Achse
       </v-tooltip>
-      <template v-if="!hidePlayback">
+      <template v-if="showPlaybackUi">
         <v-btn
           size="small"
           :variant="playing ? 'flat' : 'outlined'"
@@ -139,10 +195,10 @@
       <div class="hint text-caption text-medium-emphasis mb-1">
         Mausrad = Zoom · Rechteck ziehen = Bereich · Ziehen mit gedrückter Umschalt = verschieben
         <span v-if="cursorMode"> · Cursor-Modus: Klicken setzt weiteren Cursor</span>
-        <span v-if="markerMode"> · Marker-Modus: Stelle anklicken für Notiz</span>
+        <span v-if="markerMode && isTimeAxis"> · Marker-Modus: Stelle anklicken für Notiz</span>
       </div>
 
-      <div v-if="mtStore.markers.length" class="d-flex flex-wrap ga-1 mb-2">
+      <div v-if="isTimeAxis && mtStore.markers.length" class="d-flex flex-wrap ga-1 mb-2">
         <v-chip
           v-for="m in mtStore.markers"
           :key="m.id"
@@ -229,7 +285,10 @@
       <v-alert v-if="buildError" type="error" variant="tonal" density="compact" class="mb-2">
         Diagramm konnte nicht erstellt werden: {{ buildError }}
       </v-alert>
-      <div v-if="!buildError" :style="{ height: height + 'px' }">
+      <!-- v-show, not v-if: with v-if a single failed build removed the
+           canvas, so every later rebuild bailed out early (no canvas) and
+           the error message stayed forever even once the data was fine. -->
+      <div v-show="!buildError" :style="{ height: height + 'px' }">
         <canvas ref="inlineCanvas" @click="onCanvasClick($event, 'inline')"></canvas>
       </div>
     </v-card-text>
@@ -336,7 +395,7 @@
           <v-alert v-if="buildError" type="error" variant="tonal" density="compact" class="mb-2">
             Diagramm konnte nicht erstellt werden: {{ buildError }}
           </v-alert>
-          <canvas v-if="!buildError" ref="fsCanvas" @click="onCanvasClick($event, 'fs')"></canvas>
+          <canvas v-show="!buildError" ref="fsCanvas" @click="onCanvasClick($event, 'fs')"></canvas>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -393,7 +452,19 @@ const props = defineProps({
   // x-axis is something else (e.g. an FFT's frequency axis), where a
   // time-labelled playhead would just be misleading.
   hidePlayback: { type: Boolean, default: false },
+  // What the x-axis measures: "time" (default — markers, playback) or
+  // "frequency" (FFT/Bode plots). File markers are time stamps, so they're
+  // only drawn/settable on time axes — on a frequency chart a marker at
+  // "12.5 s" used to show up as a line at 12.5 Hz. Frequency charts also
+  // get the optional logarithmic x-axis.
+  xAxis: { type: String, default: "time" },
+  // Start frequency charts with a logarithmic x-axis (Bode plots).
+  xLogDefault: { type: Boolean, default: false },
 });
+
+const isTimeAxis = computed(() => props.xAxis !== "frequency");
+const showPlaybackUi = computed(() => isTimeAxis.value && !props.hidePlayback);
+const xUnitLabel = computed(() => (isTimeAxis.value ? "[s]" : "[Hz]"));
 
 const inlineCanvas = ref(null);
 const fsCanvas = ref(null);
@@ -405,6 +476,15 @@ const markerMode = ref(false);
 const outlierMode = ref(false);
 const yLogMode = ref(false);
 const yZoomMode = ref(false); // false = wheel zooms X (default), true = wheel zooms Y
+const xLogMode = ref(props.xAxis === "frequency" && props.xLogDefault);
+// Manual x-range from the "X-Achse" menu — applied as a zoom (not baked
+// into the config), so wheel/drag zoom and "Zoom zurücksetzen" keep
+// working on top of it.
+const xMenuOpen = ref(false);
+const xRangeMin = ref(null);
+const xRangeMax = ref(null);
+const xRangeError = ref("");
+const xRangeActive = ref(false);
 const cursors = ref([]); // [{id, x, active}] — click adds a new one, unlimited, each toggleable
 // Per-series value breakdown is collapsed by default — with several
 // cursors active it used to push the whole panel very tall. Click a
@@ -546,6 +626,53 @@ function toggleYLog() {
   if (fullscreen.value) buildFullscreen();
 }
 
+function setXLog(on) {
+  xLogMode.value = !!on;
+  xRangeActive.value = false;
+  buildInline();
+  if (fullscreen.value) buildFullscreen();
+  buildCursorRows();
+}
+
+function readNum(v) {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function applyXRange() {
+  xRangeError.value = "";
+  const chart = activeChart();
+  if (!chart?.scales?.x) return;
+  const full = getFullXRange(chart);
+  const min = readNum(xRangeMin.value) ?? full.min;
+  const max = readNum(xRangeMax.value) ?? full.max;
+  if (!(max > min)) {
+    xRangeError.value = "„Bis“ muss grösser als „Von“ sein.";
+    return;
+  }
+  if (xLogMode.value && min <= 0) {
+    xRangeError.value = "Bei logarithmischer Achse muss „Von“ grösser als 0 sein.";
+    return;
+  }
+  for (const c of [inlineChart, fsChart]) {
+    if (c && typeof c.zoomScale === "function") c.zoomScale("x", { min, max }, "none");
+  }
+  xRangeActive.value = true;
+  broadcastOwnRange(chart);
+  buildCursorRows();
+  xMenuOpen.value = false;
+}
+
+function clearXRange() {
+  xRangeMin.value = null;
+  xRangeMax.value = null;
+  xRangeError.value = "";
+  xRangeActive.value = false;
+  resetZoom("inline");
+  resetZoom("fs");
+}
+
 // No rebuild needed — the zoom mode callback below reads yZoomMode.value
 // live on every wheel event, since it closes over the ref itself.
 function toggleYZoomMode() {
@@ -678,7 +805,7 @@ function clearAllCursors() {
 const cursorPlugin = {
   id: "cursorMarkers",
   afterDraw(chart) {
-    if (!cursorMode.value) return;
+    if (!cursorMode.value || !chart.scales?.x) return;
     const active = cursors.value.filter((c) => c.active);
     if (!active.length) return;
     const { ctx, chartArea } = chart;
@@ -686,7 +813,7 @@ const cursorPlugin = {
     active.forEach((c, i) => {
       const color = CURSOR_COLORS[i % CURSOR_COLORS.length];
       const px = xValueToPixel(chart, c.x);
-      if (px < chartArea.left || px > chartArea.right) return;
+      if (!Number.isFinite(px) || px < chartArea.left || px > chartArea.right) return;
 
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
@@ -723,7 +850,7 @@ const cursorPlugin = {
 const markerPlugin = {
   id: "fileMarkers",
   afterDraw(chart) {
-    if (!mtStore.markers.length) return;
+    if (!isTimeAxis.value || !mtStore.markers.length || !chart.scales?.x) return;
     const { ctx, chartArea } = chart;
     ctx.save();
     for (const m of mtStore.markers) {
@@ -739,7 +866,8 @@ const markerPlugin = {
       ctx.setLineDash([]);
       ctx.fillStyle = "#D97706";
       ctx.font = "10px sans-serif";
-      const label = m.note.length > 18 ? m.note.slice(0, 17) + "…" : m.note;
+      const note = String(m.note ?? "");
+      const label = note.length > 18 ? note.slice(0, 17) + "…" : note;
       ctx.fillText(label, px + 3, chartArea.bottom - 4);
     }
     ctx.restore();
@@ -791,10 +919,10 @@ const outlierPlugin = {
 const playheadPlugin = {
   id: "playhead",
   afterDraw(chart) {
-    if (playheadX.value == null) return;
+    if (playheadX.value == null || !chart.scales?.x) return;
     const { ctx, chartArea } = chart;
     const px = xValueToPixel(chart, playheadX.value);
-    if (px < chartArea.left || px > chartArea.right) return;
+    if (!Number.isFinite(px) || px < chartArea.left || px > chartArea.right) return;
 
     ctx.save();
     ctx.strokeStyle = "#059669";
@@ -823,6 +951,26 @@ const playheadPlugin = {
     ctx.restore();
   },
 };
+
+// An overlay (markers, cursors, outliers, playhead) must never be able to
+// take the whole chart down: an exception thrown in afterDraw aborts
+// Chart.js's constructor, which is exactly how one marker used to make
+// the "Frequenzgang" charts fail with "Diagramm konnte nicht erstellt
+// werden". Log and skip the overlay instead.
+function safePlugin(plugin) {
+  return {
+    id: plugin.id,
+    afterDraw(chart) {
+      try {
+        plugin.afterDraw(chart);
+      } catch (err) {
+        try { chart.ctx.restore(); } catch { /* ctx state already balanced */ }
+        console.warn(`[ChartCard] overlay "${plugin.id}" skipped:`, err);
+      }
+    },
+  };
+}
+const overlayPlugins = () => [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin].map(safePlugin);
 
 // Chart.js has no idea about Vuetify's theme, so left alone it always
 // renders axis ticks/titles and gridlines in its own (dark) default color
@@ -922,6 +1070,25 @@ function withInteractions(cfg) {
     for (const key of Object.keys(cfg.options.scales || {})) {
       if (key === "x") continue;
       cfg.options.scales[key].type = "logarithmic";
+    }
+  }
+
+  // Frequency charts: linear or logarithmic x-axis, switchable from the
+  // "X-Achse" menu. Log can't show x ≤ 0 (the 0 Hz bin), so those points
+  // are dropped from point datasets rather than squashed onto the edge.
+  if (!isTimeAxis.value && cfg.options.scales?.x) {
+    const x = cfg.options.scales.x;
+    x.type = xLogMode.value ? "logarithmic" : "linear";
+    if (x.title?.text) {
+      const base = String(x.title.text).replace(/\s*\(log\)\s*$/, "");
+      x.title.text = xLogMode.value ? `${base} (log)` : base;
+    }
+    if (xLogMode.value) {
+      for (const ds of cfg.data?.datasets || []) {
+        if (Array.isArray(ds.data) && ds.data.length && typeof ds.data[0] === "object") {
+          ds.data = ds.data.filter((p) => p && p.x > 0);
+        }
+      }
     }
   }
 
@@ -1038,16 +1205,29 @@ const buildError = ref(null);
 // Capture the outgoing chart's actual visible range and re-apply it
 // after the new one is built, so only genuinely new data (nothing to
 // carry over) falls back to auto-fit.
+// A zoom range captured on a linear axis is meaningless (min can be 0)
+// on a freshly toggled log axis and vice versa — only carry it over when
+// the x-axis type is unchanged.
+function sameXType(prevChart, cfg) {
+  const prevType = prevChart?.options?.scales?.x?.type ?? prevChart?.scales?.x?.type;
+  return (cfg?.options?.scales?.x?.type ?? prevType) === prevType;
+}
+
 function buildInline() {
-  const previousRange = captureXRange(inlineChart);
-  if (inlineChart) { inlineChart.destroy(); inlineChart = null; }
-  if (!inlineCanvas.value) return;
+  const prev = inlineChart;
+  const previousRange = captureXRange(prev);
+  if (!inlineCanvas.value) {
+    if (prev) { prev.destroy(); inlineChart = null; }
+    return;
+  }
   try {
     const cfg = withInteractions(props.config(peakMode.value, exactMode.value));
-    cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
+    cfg.plugins = overlayPlugins();
+    const keepRange = sameXType(prev, cfg);
+    if (prev) { prev.destroy(); inlineChart = null; }
     inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
     applyZoomLimits(inlineChart);
-    restoreXRange(inlineChart, previousRange);
+    if (keepRange) restoreXRange(inlineChart, previousRange);
     buildError.value = null;
   } catch (err) {
     // A single bad chart (malformed data, a config bug) shouldn't take
@@ -1059,15 +1239,20 @@ function buildInline() {
 }
 
 function buildFullscreen() {
-  const previousRange = captureXRange(fsChart);
-  if (fsChart) { fsChart.destroy(); fsChart = null; }
-  if (!fsCanvas.value) return;
+  const prev = fsChart;
+  const previousRange = captureXRange(prev);
+  if (!fsCanvas.value) {
+    if (prev) { prev.destroy(); fsChart = null; }
+    return;
+  }
   try {
     const cfg = withInteractions(props.config(peakMode.value, exactMode.value));
-    cfg.plugins = [cursorPlugin, markerPlugin, outlierPlugin, playheadPlugin];
+    cfg.plugins = overlayPlugins();
+    const keepRange = sameXType(prev, cfg);
+    if (prev) { prev.destroy(); fsChart = null; }
     fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
     applyZoomLimits(fsChart);
-    restoreXRange(fsChart, previousRange);
+    if (keepRange) restoreXRange(fsChart, previousRange);
     buildError.value = null;
   } catch (err) {
     console.error("[ChartCard] failed to build fullscreen chart:", err);
@@ -1076,6 +1261,7 @@ function buildFullscreen() {
 }
 
 function resetZoom(which) {
+  xRangeActive.value = false;
   if (which === "inline" && inlineChart) inlineChart.resetZoom();
   if (which === "fs" && fsChart) fsChart.resetZoom();
 }

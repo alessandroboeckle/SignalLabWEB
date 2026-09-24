@@ -739,6 +739,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from "vue";
 import { decodeLatin1 } from "../../utils/messtoolParser.js";
 import { listExcelSheets, parseMesstoolExcel } from "../../utils/messtoolExcelParser.js";
+import { downloadAndParseMessfile } from "../../utils/loadMessfile.js";
 import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { groupByDate } from "../../utils/groupByDate.js";
@@ -1126,9 +1127,7 @@ async function addSelectedToCompare() {
   for (const f of files) {
     if (mtStore.compareFiles.some((c) => c.name === f.name)) continue; // already added
     try {
-      const buffer = await withTimeout(mtStorage.downloadMessfile(f.storage_path), 25000, `"${f.name}": Zeitüberschreitung beim Download.`);
-      const text = decodeLatin1(buffer);
-      const result = await parseCsvOffMainThread(text, {});
+      const result = await downloadAndParseMessfile({ name: f.name, storagePath: f.storage_path });
       mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
     } catch {
       failed.push(f.name);
@@ -1156,9 +1155,7 @@ async function addCloudFileToCompare(f) {
   compareAddingId.value = f.id;
   errorMsg.value = "";
   try {
-    const buffer = await withTimeout(mtStorage.downloadMessfile(f.storage_path), 25000, `"${f.name}": Zeitüberschreitung beim Download.`);
-    const text = decodeLatin1(buffer);
-    const result = await parseCsvOffMainThread(text, {});
+    const result = await downloadAndParseMessfile({ name: f.name, storagePath: f.storage_path });
     mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
     showToast(`"${f.name}" zur Anzeige hinzugefügt.`);
   } catch (e) {

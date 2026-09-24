@@ -9,8 +9,16 @@
     </div>
     <p class="text-medium-emphasis mb-6">Signale anzeigen, überlagern und vergleichen</p>
 
-    <!-- Add files -->
-    <v-card variant="outlined" rounded="lg" class="mb-4">
+    <!-- Add files — the whole card is also a drop target -->
+    <v-card
+      variant="outlined"
+      rounded="lg"
+      class="mb-4 add-files-card"
+      :class="{ dragging: isDragging }"
+      @dragover.prevent="isDragging = true"
+      @dragleave.prevent="isDragging = false"
+      @drop.prevent="onDrop"
+    >
       <v-card-text class="d-flex flex-wrap ga-3 align-center">
         <span>
           <v-btn
@@ -25,8 +33,8 @@
             Zuerst auf der Import-Seite eine Datei laden
           </v-tooltip>
         </span>
-        <v-btn variant="outlined" prepend-icon="mdi-upload" @click="fileInput?.click()">
-          Datei hochladen
+        <v-btn variant="outlined" prepend-icon="mdi-upload" :loading="localUpload.active" @click="fileInput?.click()">
+          Datei(en) hochladen
         </v-btn>
         <v-btn variant="outlined" prepend-icon="mdi-cloud" @click="openCloudDialog">
           Aus Cloud hinzufügen
@@ -41,8 +49,23 @@
         >
           Alle entfernen
         </v-btn>
-        <input ref="fileInput" type="file" accept=".csv" class="d-none" @change="onFileSelect" />
+        <input ref="fileInput" type="file" accept=".csv,.xlsx,.xls" multiple class="d-none" @change="onFileSelect" />
       </v-card-text>
+      <v-card-text class="pt-0 d-flex flex-wrap align-center ga-2">
+        <v-checkbox-btn v-model="alsoSaveToCloud" density="compact" color="primary"></v-checkbox-btn>
+        <span class="text-body-2 cursor-pointer" @click="alsoSaveToCloud = !alsoSaveToCloud">
+          Hochgeladene Dateien auch in der Cloud speichern
+        </span>
+        <span class="text-caption text-medium-emphasis">
+          · CSV oder Excel, mehrere auf einmal — oder einfach hierher ziehen
+        </span>
+      </v-card-text>
+      <v-progress-linear
+        v-if="localUpload.active"
+        :model-value="localUpload.total ? (localUpload.done / localUpload.total) * 100 : 0"
+        color="primary"
+        height="3"
+      ></v-progress-linear>
     </v-card>
 
     <v-alert v-if="errorMsg" type="error" variant="tonal" density="compact" class="mb-4" closable @click:close="errorMsg = ''">
@@ -76,9 +99,27 @@
             <v-row align="center" dense class="ml-1">
               <v-col cols="12" sm="3">
                 <div class="text-body-2 font-weight-medium">{{ f.name }}</div>
-                <div class="text-caption text-medium-emphasis mb-1">
-                  {{ f.parsed.signals.length }} Signale · {{ f.parsed.time.length }} Punkte
+                <div class="text-caption text-medium-emphasis mb-1 d-flex align-center ga-1">
+                  <span>{{ f.parsed.signals.length }} Signale · {{ f.parsed.time.length }} Punkte</span>
+                  <v-tooltip v-if="f.messfileStoragePath" location="bottom">
+                    <template #activator="{ props: tp }">
+                      <v-icon v-bind="tp" size="14" color="success">mdi-cloud-check-outline</v-icon>
+                    </template>
+                    In der Cloud gespeichert
+                  </v-tooltip>
                 </div>
+                <v-btn
+                  v-if="!f.messfileStoragePath && localFileFor(f)"
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  prepend-icon="mdi-cloud-upload-outline"
+                  class="mb-1 mr-1"
+                  :loading="cloudSavingId === f.id"
+                  @click="saveCompareFileToCloud(f)"
+                >
+                  In Cloud speichern
+                </v-btn>
                 <v-menu>
                   <template #activator="{ props }">
                     <v-btn size="x-small" variant="outlined" prepend-icon="mdi-folder-star-outline" v-bind="props">
@@ -392,14 +433,16 @@
           title="Frequenzgang — Amplitude (FFT)"
           :config="freqAmplitudeConfig"
           :height="260"
-          hide-playback
+          x-axis="frequency"
+          x-log-default
           class="mb-4"
         />
         <ChartCard
           title="Frequenzgang — Phase (FFT)"
           :config="freqPhaseConfig"
           :height="260"
-          hide-playback
+          x-axis="frequency"
+          x-log-default
           class="mb-4"
         />
       </template>
@@ -611,8 +654,7 @@ import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { showToast, showUndoToast } from "../../composables/useToast.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { computeFftOffMainThread } from "../../utils/computeFftOffMainThread.js";
-import { formatClockTime, decodeLatin1 } from "../../utils/messtoolParser.js";
-import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
+import { formatClockTime } from "../../utils/messtoolParser.js";
 import { downsample } from "../../utils/downsample.js";
 import { applyFilter } from "../../utils/messtoolFilter.js";
 import { findBestOffset } from "../../utils/crossCorrelate.js";
@@ -620,6 +662,8 @@ import { correlateSeries } from "../../utils/correlation.js";
 import * as groupsApi from "../../utils/messtoolSignalGroups.js";
 import * as mtStorage from "../../utils/messtoolStorage.js";
 import { withTimeout } from "../../utils/withTimeout.js";
+import { downloadAndParseMessfile, parseMessfileUpload } from "../../utils/loadMessfile.js";
+import { friendlyError } from "../../utils/friendlyError.js";
 import { useSignalMergeGroups } from "../../composables/useSignalMergeGroups.js";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import ChartCard from "./ChartCard.vue";
@@ -702,6 +746,22 @@ watch(
   { immediate: true },
 );
 
+// Phase is only meaningful where there's actual signal content — bins
+// below 1% of the peak amplitude carry numerical noise whose phase jumps
+// randomly between ±180° (the solid "band" that filled the old plot).
+// Same threshold as the Analyse page's phase plot.
+function spectrumPoints(sp, field) {
+  if (field !== "phaseDeg") return sp.freq.map((f, i) => ({ x: f, y: sp[field][i] }));
+  let ampMax = 0;
+  for (const a of sp.amp) if (Number.isFinite(a) && a > ampMax) ampMax = a;
+  const threshold = ampMax * 0.01;
+  const out = [];
+  for (let i = 0; i < sp.freq.length; i++) {
+    if (sp.amp[i] >= threshold) out.push({ x: sp.freq[i], y: sp.phaseDeg[i] });
+  }
+  return out;
+}
+
 function freqChartConfig(field, yLabel) {
   // Reads freqSpectra.value here (not just inside the returned closure)
   // so this outer computed actually tracks it as a dependency and
@@ -715,7 +775,7 @@ function freqChartConfig(field, yLabel) {
     return buildLineChartConfig({
       datasets: spectra.map((sp) => ({
         label: sp.label,
-        data: sp.freq.map((f, i) => ({ x: f, y: sp[field][i] })),
+        data: spectrumPoints(sp, field),
         borderColor: sp.color,
         backgroundColor: sp.color,
         borderWidth: 1.5,
@@ -1091,19 +1151,121 @@ function addCurrent() {
   if (!added) errorMsg.value = `"${name}" ist bereits in der Liste.`;
 }
 
-async function onFileSelect(e) {
-  const file = e.target.files?.[0];
-  e.target.value = "";
-  if (!file) return;
+// ---- Local upload (button or drag & drop) ----
+// Several files at once, CSV and Excel, and — unless unticked — each one
+// is also stored in the cloud right away, same as on the Import page.
+// That way a file added here can later be reopened from the cloud and
+// is part of a saved Vergleichs-Session (sessions only reference cloud
+// files). The checkbox choice is remembered per browser.
+const CLOUD_PREF_KEY = "signallab.anzeige.alsoSaveToCloud";
+function readCloudPref() {
   try {
-    const buffer = await file.arrayBuffer();
-    const text = decodeLatin1(buffer);
-    const result = await parseCsvOffMainThread(text, {});
-    if (result.signals.length === 0) throw new Error("Keine Signale gefunden.");
-    const added = mtStore.addCompareFile(file.name, result);
-    if (!added) errorMsg.value = `"${file.name}" ist bereits in der Liste.`;
-  } catch (err) {
-    errorMsg.value = err.message || "Datei konnte nicht gelesen werden.";
+    const v = localStorage.getItem(CLOUD_PREF_KEY);
+    return v == null ? true : v === "1";
+  } catch {
+    return true;
+  }
+}
+const alsoSaveToCloud = ref(readCloudPref());
+watch(alsoSaveToCloud, (v) => {
+  try { localStorage.setItem(CLOUD_PREF_KEY, v ? "1" : "0"); } catch { /* storage unavailable */ }
+});
+
+const isDragging = ref(false);
+const localUpload = ref({ active: false, done: 0, total: 0 });
+const cloudSavingId = ref(null);
+
+// The original File objects of local uploads that aren't in the cloud
+// yet — kept (non-reactively, File isn't worth proxying) so "In Cloud
+// speichern" can still upload them later. Keyed by compare-entry id.
+const localFiles = new Map();
+const localFilesVersion = ref(0); // bumps so the template re-checks localFileFor()
+function localFileFor(f) {
+  void localFilesVersion.value;
+  return localFiles.get(f.id) || null;
+}
+
+async function uploadEntryToCloud(entry, file) {
+  const row = await mtStorage.uploadMessfile(file, entry.parsed.meta || {}, entry.parsed.signals.map((s) => s.name));
+  entry.messfileId = row.id;
+  entry.messfileStoragePath = row.storage_path;
+  localFiles.delete(entry.id);
+  localFilesVersion.value++;
+}
+
+async function addLocalFiles(files) {
+  const list = Array.from(files || []).filter((f) => /\.(csv|xlsx?)$/i.test(f.name));
+  if (!list.length) {
+    if (files?.length) errorMsg.value = "Nur CSV- oder Excel-Dateien (.csv, .xlsx, .xls) werden unterstützt.";
+    return;
+  }
+  errorMsg.value = "";
+  localUpload.value = { active: true, done: 0, total: list.length };
+  const failed = [];
+  const cloudFailed = [];
+  let added = 0;
+  for (const file of list) {
+    try {
+      if (mtStore.compareFiles.some((c) => c.name === file.name)) {
+        failed.push(`${file.name} (bereits in der Liste)`);
+        continue;
+      }
+      const result = await parseMessfileUpload(file);
+      const entry = mtStore.addCompareFile(file.name, result);
+      if (!entry) {
+        failed.push(`${file.name} (bereits in der Liste)`);
+        continue;
+      }
+      added++;
+      localFiles.set(entry.id, file);
+      localFilesVersion.value++;
+      if (alsoSaveToCloud.value) {
+        try {
+          await uploadEntryToCloud(entry, file);
+        } catch (e) {
+          cloudFailed.push(`${file.name}: ${friendlyError(e)}`);
+        }
+      }
+    } catch (e) {
+      failed.push(`${file.name}: ${e.message || "konnte nicht gelesen werden"}`);
+    } finally {
+      localUpload.value = { ...localUpload.value, done: localUpload.value.done + 1 };
+    }
+  }
+  localUpload.value = { active: false, done: 0, total: 0 };
+  const problems = [];
+  if (failed.length) problems.push("Nicht hinzugefügt: " + failed.join(", "));
+  if (cloudFailed.length) problems.push("Angezeigt, aber nicht in der Cloud gespeichert: " + cloudFailed.join(", "));
+  if (problems.length) errorMsg.value = problems.join(" · ");
+  if (added) {
+    const cloudNote = alsoSaveToCloud.value && !cloudFailed.length ? " und in der Cloud gespeichert" : "";
+    showToast(`${added} Datei(en) hinzugefügt${cloudNote}.`);
+  }
+}
+
+async function onFileSelect(e) {
+  const files = Array.from(e.target.files || []);
+  e.target.value = "";
+  await addLocalFiles(files);
+}
+
+async function onDrop(e) {
+  isDragging.value = false;
+  await addLocalFiles(e.dataTransfer?.files);
+}
+
+async function saveCompareFileToCloud(f) {
+  const file = localFiles.get(f.id);
+  if (!file) return;
+  cloudSavingId.value = f.id;
+  errorMsg.value = "";
+  try {
+    await uploadEntryToCloud(f, file);
+    showToast(`"${f.name}" in der Cloud gespeichert.`);
+  } catch (e) {
+    errorMsg.value = `"${f.name}" konnte nicht in der Cloud gespeichert werden: ` + friendlyError(e);
+  } finally {
+    cloudSavingId.value = null;
   }
 }
 
@@ -1123,9 +1285,7 @@ async function openCloudDialog() {
 async function addFromCloud(f) {
   cloudBusyId.value = f.id;
   try {
-    const buffer = await withTimeout(mtStorage.downloadMessfile(f.storage_path), 25000, `"${f.name}": Zeitüberschreitung beim Download.`);
-    const text = decodeLatin1(buffer);
-    const result = await parseCsvOffMainThread(text, {});
+    const result = await downloadAndParseMessfile({ name: f.name, storagePath: f.storage_path });
     mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
   } catch (err) {
     errorMsg.value = err.message || "Datei konnte nicht geladen werden.";
@@ -1147,9 +1307,7 @@ async function addSelectedFromCloud() {
   for (const f of files) {
     if (mtStore.compareFiles.some((c) => c.name === f.name)) continue; // already added
     try {
-      const buffer = await withTimeout(mtStorage.downloadMessfile(f.storage_path), 25000, `"${f.name}": Zeitüberschreitung beim Download.`);
-      const text = decodeLatin1(buffer);
-      const result = await parseCsvOffMainThread(text, {});
+      const result = await downloadAndParseMessfile({ name: f.name, storagePath: f.storage_path });
       mtStore.addCompareFile(f.name, result, { messfileId: f.id, storagePath: f.storage_path });
     } catch {
       failed.push(f.name);
@@ -1334,3 +1492,17 @@ onBeforeUnmount(() => {
   errorMsg.value = "";
 });
 </script>
+
+<style scoped>
+.add-files-card {
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.add-files-card.dragging {
+  border-color: rgb(var(--v-theme-primary)) !important;
+  border-style: dashed !important;
+  background: rgba(var(--v-theme-primary), 0.05);
+}
+.cursor-pointer {
+  cursor: pointer;
+}
+</style>

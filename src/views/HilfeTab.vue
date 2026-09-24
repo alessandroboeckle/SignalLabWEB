@@ -348,7 +348,7 @@ const sections = [
     blocks: [
       {
         h: "Einzelsignal-Analyse",
-        p: "Statistik (Mittel, RMS, Std, Varianz, Min/Max, sowie dt/df/N der aktuellen Fenster-Auflösung) als Kachel-Reihe oben, Signal und Ableitung als eigene Charts nebeneinander, dazu Integral und FFT (mit Fensterfunktion: Hann/Hamming/Blackman/Rechteck) für ein ausgewähltes Signal — inklusive Phasenspektrum als eigener Plot neben der Amplitude. Zeitbereich per Start/Ende einschränkbar — alle Berechnungen greifen dann nur auf diesen Ausschnitt zu.",
+        p: "Statistik (Mittel, RMS, Std, Varianz, Min/Max, sowie dt/df/N der aktuellen Fenster-Auflösung) als Kachel-Reihe oben, Signal und Ableitung als eigene Charts nebeneinander, dazu Integral und FFT (mit Fensterfunktion: Hann/Hamming/Blackman/Rechteck) für ein ausgewähltes Signal — inklusive Phasenspektrum als eigener Plot neben der Amplitude. Zeitbereich per Start/Ende einschränkbar — alle Berechnungen greifen dann nur auf diesen Ausschnitt zu. Das Spektrum lässt sich optional über gleich lange Zeitfenster ohne Überlappung mitteln (Regler-Symbol am FFT-Plot). Über das X-Achsen-Symbol an jedem Plot kann ein fester Bereich eingestellt werden, bei Frequenz-Plots zusätzlich eine logarithmische X-Achse.",
       },
       {
         h: "RMS über Zeit",

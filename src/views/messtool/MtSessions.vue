@@ -243,12 +243,9 @@ import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 import * as sessionsApi from "../../utils/messtoolSessionStorage.js";
 import { SessionConflictError } from "../../utils/messtoolSessionStorage.js";
-import * as mtStorage from "../../utils/messtoolStorage.js";
-import { withTimeout } from "../../utils/withTimeout.js";
 import { friendlyError } from "../../utils/friendlyError.js";
-import { parseCsvOffMainThread } from "../../utils/parseCsvOffMainThread.js";
 import { showToast } from "../../composables/useToast.js";
-import { decodeLatin1 } from "../../utils/messtoolParser.js";
+import { downloadAndParseMessfile } from "../../utils/loadMessfile.js";
 
 defineEmits(["navigate"]);
 
@@ -364,9 +361,7 @@ async function loadSession(s) {
   loadingId.value = s.id;
   errorMsg.value = "";
   try {
-    const buffer = await withTimeout(mtStorage.downloadMessfile(s.messfile_storage_path), 25000, `"${s.name}": Zeitüberschreitung beim Download.`);
-    const text = decodeLatin1(buffer);
-    const result = await parseCsvOffMainThread(text, {});
+    const result = await downloadAndParseMessfile({ name: s.messfile_name || s.name, storagePath: s.messfile_storage_path });
     mtStore.setData(result, s.messfile_name || "");
     mtStore.setCloudRef(s.messfile_id, s.messfile_storage_path);
     mtStore.selectedSignalIdx = s.selected_signal_idx || 0;
@@ -382,9 +377,7 @@ async function loadSession(s) {
     const failed = [];
     for (const entry of compareEntries) {
       try {
-        const cBuffer = await withTimeout(mtStorage.downloadMessfile(entry.messfileStoragePath), 25000, `"${entry.name}": Zeitüberschreitung beim Download.`);
-        const cText = decodeLatin1(cBuffer);
-        const cResult = await parseCsvOffMainThread(cText, {});
+        const cResult = await downloadAndParseMessfile({ name: entry.name, storagePath: entry.messfileStoragePath });
         const added = mtStore.addCompareFile(entry.name, cResult, {
           messfileId: entry.messfileId,
           storagePath: entry.messfileStoragePath,

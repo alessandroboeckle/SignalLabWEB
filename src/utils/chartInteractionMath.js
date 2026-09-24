@@ -47,7 +47,12 @@ export function xValueAtEvent(chart, evt) {
 // the two bracketing labels), or the value itself for a linear scale
 // (e.g. Vergleich's overlay, which isn't label-based at all).
 export function xValueToPixel(chart, value) {
-  const xScale = chart.scales.x;
+  const xScale = chart.scales?.x;
+  // A chart built from an empty placeholder config (no datasets yet —
+  // e.g. Anzeige's "Frequenzgang" while the FFT is still computing) has
+  // no x scale at all. Returning NaN lets every caller's existing
+  // "off-screen, skip it" check handle it instead of throwing.
+  if (!xScale || value == null || !Number.isFinite(value)) return NaN;
   if (!chart.data.labels || !chart.data.labels.length) {
     return xScale.getPixelForValue(value);
   }
@@ -79,6 +84,14 @@ export function getFullXRange(chart) {
 // inside it any more and the chart appears to just vanish. Cap how far in
 // you can go to a small fraction of the chart's own full data range, and
 // keep pan/zoom from wandering past the actual data on either side.
+//
+// minRange used to be a flat 1% of the full span, which made the mouse
+// wheel simply stop zooming far too early on long recordings (a 2 h file
+// could never be zoomed closer than a ~72 s window). For the x-axis of
+// point-based ({x,y}) charts it's now derived from the actual sample
+// spacing instead — you can zoom until only a handful of samples are
+// visible — with the old 1% kept only as a fallback when the spacing
+// can't be determined.
 export function applyZoomLimits(chart) {
   const limits = chart.options.plugins.zoom.limits;
   for (const key of Object.keys(chart.scales || {})) {
@@ -86,8 +99,36 @@ export function applyZoomLimits(chart) {
     if (!scale || typeof scale.min !== "number" || typeof scale.max !== "number") continue;
     const span = scale.max - scale.min;
     if (!(span > 0)) continue;
-    limits[key] = { min: scale.min, max: scale.max, minRange: span * 0.01 };
+    let minRange = span * 0.01;
+    if (key === "x") {
+      const dx = smallestXStep(chart);
+      if (dx > 0) minRange = Math.min(minRange, Math.max(dx * 4, span * 1e-9));
+    } else {
+      minRange = span * 1e-4;
+    }
+    limits[key] = { min: scale.min, max: scale.max, minRange };
   }
+}
+
+// Smallest positive x step in the chart's point data ({x,y} datasets) —
+// or 1 for a label/category chart, where the x-axis is an index axis.
+// Scans at most ~20k points per dataset so huge files stay cheap.
+function smallestXStep(chart) {
+  const labels = chart.data?.labels;
+  if (Array.isArray(labels) && labels.length) return 1;
+  let best = Infinity;
+  for (const ds of chart.data?.datasets || []) {
+    const d = ds?.data;
+    if (!Array.isArray(d) || d.length < 2 || typeof d[0] !== "object" || d[0] == null) continue;
+    const stride = Math.max(1, Math.floor(d.length / 20000));
+    for (let i = stride; i < d.length; i += stride) {
+      const a = d[i - stride]?.x, b = d[i]?.x;
+      if (typeof a !== "number" || typeof b !== "number") continue;
+      const step = (b - a) / stride;
+      if (step > 0 && step < best) best = step;
+    }
+  }
+  return Number.isFinite(best) ? best : 0;
 }
 
 // Captures/restores the visible x-range across a chart rebuild — see the

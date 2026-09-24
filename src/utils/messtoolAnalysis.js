@@ -291,8 +291,12 @@ export function fft(y, t, { windowType = "hann", normalize = true } = {}) {
   const N = y.length;
   if (N < 2) return { freq: [], amp: [], phaseDeg: [], sampleRate: 0 };
 
+  // N samples span N-1 intervals: fs = (N-1)/T, i.e. 1/dt. Was N/T,
+  // which stretched every frequency by N/(N-1) versus numpy's
+  // rfftfreq(N, dt) — negligible for a whole recording, but ~0.5% off
+  // for a 200-sample window of the segmented spectrum below.
   const T = t[t.length - 1] - t[0];
-  const sampleRate = N / T;
+  const sampleRate = (N - 1) / T;
 
   const win = getWindow(N, windowType);
   const reIn = new Array(N);
@@ -319,4 +323,52 @@ export function fft(y, t, { windowType = "hann", normalize = true } = {}) {
     phaseDeg[k] = (Math.atan2(im[k], re[k]) * 180) / Math.PI;
   }
   return { freq, amp, phaseDeg, sampleRate };
+}
+
+// Segmented ("block-averaged") spectrum: splits the signal into
+// consecutive, NON-overlapping time windows of `segmentSec` each, runs
+// fft() on every full window and averages the results — like the RMS
+// window option, but for the spectrum. Averaging over several windows
+// suppresses random noise in the spectrum at the cost of frequency
+// resolution (df = 1 / segmentSec instead of 1 / total duration).
+//
+// Amplitude = mean of the per-window amplitudes. Phase = angle of the
+// mean complex spectrum (averaging raw angles would be meaningless
+// because of the ±180° wrap).
+//
+// A trailing partial window is dropped (it would have a different bin
+// spacing). If segmentSec is empty/invalid or at least as long as the
+// signal, this is exactly fft() over everything, with segments = 1.
+export function segmentedFft(y, t, segmentSec, { windowType = "hann", normalize = true } = {}) {
+  const N = y?.length || 0;
+  const whole = () => ({ ...fft(y, t, { windowType, normalize }), segments: N >= 2 ? 1 : 0, segmentSamples: N });
+  if (N < 4 || !t || t.length !== N || !(segmentSec > 0)) return whole();
+
+  const dt = (t[N - 1] - t[0]) / (N - 1);
+  if (!(dt > 0)) return whole();
+  const segN = Math.round(segmentSec / dt);
+  if (segN < 4 || segN >= N) return whole();
+
+  const segments = Math.floor(N / segN);
+  let freq = null, ampSum = null, reSum = null, imSum = null, sampleRate = 0;
+  for (let s = 0; s < segments; s++) {
+    const i0 = s * segN, i1 = i0 + segN;
+    const r = fft(y.slice(i0, i1), t.slice(i0, i1), { windowType, normalize });
+    if (!freq) {
+      freq = r.freq;
+      sampleRate = r.sampleRate;
+      ampSum = new Array(r.amp.length).fill(0);
+      reSum = new Array(r.amp.length).fill(0);
+      imSum = new Array(r.amp.length).fill(0);
+    }
+    for (let k = 0; k < r.amp.length; k++) {
+      ampSum[k] += r.amp[k];
+      const ph = (r.phaseDeg[k] * Math.PI) / 180;
+      reSum[k] += r.amp[k] * Math.cos(ph);
+      imSum[k] += r.amp[k] * Math.sin(ph);
+    }
+  }
+  const amp = ampSum.map((a) => a / segments);
+  const phaseDeg = reSum.map((re, k) => (Math.atan2(imSum[k], re) * 180) / Math.PI);
+  return { freq, amp, phaseDeg, sampleRate, segments, segmentSamples: segN };
 }

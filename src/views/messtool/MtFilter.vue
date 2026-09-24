@@ -165,14 +165,16 @@
             title="Frequenzgang des Filters (Bode-Plot) — Amplitude"
             :config="frequencyResponseConfig"
             :height="320"
-            hide-playback
+            x-axis="frequency"
+            x-log-default
           />
           <ChartCard
             v-if="showFrequencyResponse"
             title="Frequenzgang des Filters (Bode-Plot) — Phase"
             :config="phaseResponseConfig"
             :height="320"
-            hide-playback
+            x-axis="frequency"
+            x-log-default
           />
         </v-col>
       </v-row>

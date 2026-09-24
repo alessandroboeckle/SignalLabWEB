@@ -25,7 +25,14 @@ export async function uploadMessfile(file, meta, signalNames = []) {
   // 1. upload the raw file to the bucket
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
-    .upload(path, file, { upsert: false, contentType: "text/csv" });
+    .upload(path, file, {
+      upsert: false,
+      // Excel files were stored as "text/csv" too — harmless for our own
+      // download, but wrong for anyone downloading from the dashboard.
+      contentType: /\.xlsx?$/i.test(file.name)
+        ? (file.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        : "text/csv",
+    });
   if (upErr) throw upErr;
 
   // 2. insert the metadata row
