@@ -361,56 +361,103 @@
         <v-col v-if="sectionsVisible.fft" :cols="12" :md="fullWidthPlots ? 12 : 6">
           <ChartCard title="Frequenzspektrum (FFT)" :config="fftConfig" :height="240" x-axis="frequency">
             <template #extra-toolbar>
-              <v-menu :close-on-content-click="false">
+              <v-menu v-model="fftMenuOpen" :close-on-content-click="false" location="bottom end" offset="6">
                 <template #activator="{ props: fftMenuProps }">
-                  <v-tooltip location="bottom">
+                  <v-tooltip location="bottom" :disabled="fftMenuOpen">
                     <template #activator="{ props: tooltipProps }">
                       <v-btn
                         v-bind="{ ...fftMenuProps, ...tooltipProps }"
                         size="small"
-                        :variant="fftSegmentActive ? 'flat' : 'text'"
+                        :variant="fftSegmentActive ? 'flat' : 'outlined'"
                         :color="fftSegmentActive ? 'secondary' : 'default'"
-                        icon="mdi-tune-variant"
+                        icon="mdi-view-week-outline"
                         aria-label="FFT-Zeitfenster-Optionen"
                       ></v-btn>
                     </template>
-                    Zeitfenster (Mittelung)
+                    Spektrum über Zeitfenster mitteln
                   </v-tooltip>
                 </template>
-                <v-card min-width="280" max-width="340" class="pa-4">
-                  <div class="text-subtitle-2 font-weight-bold mb-2">Spektrum über Zeitfenster mitteln</div>
-                  <v-text-field
-                    v-model.number="fftSegmentSec"
-                    type="number"
-                    label="Fensterlänge [s]"
-                    placeholder="leer = ganzes Signal"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    clearable
-                    min="0"
-                    step="0.1"
-                  ></v-text-field>
-                  <p class="text-caption text-medium-emphasis mt-2 mb-0">
-                    Signal wird in gleich lange Fenster <strong>ohne Überlappung</strong> geteilt,
-                    jedes Fenster einzeln transformiert und das Spektrum gemittelt — weniger Rauschen,
-                    dafür gröbere Auflösung (df = 1 / Fensterlänge). Ein unvollständiges letztes Fenster
-                    wird ignoriert.
-                  </p>
-                  <p v-if="fftSegmentInfo" class="text-caption mt-2 mb-0">
-                    <strong>{{ fftSegmentInfo.segments }}</strong> Fenster à {{ fftSegmentInfo.segmentSamples }} Samples ·
-                    df = {{ fftSegmentInfo.df }} Hz
-                  </p>
-                  <p v-else-if="fftSegmentSec" class="text-caption text-warning mt-2 mb-0">
-                    Fenster ist länger als der Zeitbereich — es wird das ganze Signal verwendet.
-                  </p>
+                <v-card width="320" class="chart-popover">
+                  <div class="popover-head">
+                    <v-icon size="18" color="primary">mdi-view-week-outline</v-icon>
+                    <div>
+                      <div class="popover-title">Zeitfenster-Mittelung</div>
+                      <div class="popover-sub">Fenster ohne Überlappung, Spektren gemittelt</div>
+                    </div>
+                  </div>
+                  <div class="pa-4 pt-3">
+                    <div class="popover-label">Fensterlänge</div>
+                    <v-text-field
+                      v-model.number="fftSegmentSec"
+                      type="number"
+                      suffix="s"
+                      placeholder="aus — ganzes Signal"
+                      persistent-placeholder
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                      clearable
+                      min="0"
+                      step="0.1"
+                    ></v-text-field>
+                    <div class="d-flex flex-wrap ga-1 mt-2">
+                      <v-chip
+                        v-for="p in fftSegmentPresets"
+                        :key="p"
+                        size="small"
+                        :variant="Number(fftSegmentSec) === p ? 'flat' : 'outlined'"
+                        :color="Number(fftSegmentSec) === p ? 'primary' : undefined"
+                        @click="fftSegmentSec = p"
+                      >{{ p }} s</v-chip>
+                    </div>
+
+                    <div v-if="fftSegmentInfo" class="segment-summary mt-4">
+                      <div>
+                        <div class="segment-value">{{ fftSegmentInfo.segments }}</div>
+                        <div class="segment-caption">Fenster</div>
+                      </div>
+                      <div>
+                        <div class="segment-value">{{ fftSegmentInfo.segmentSamples }}</div>
+                        <div class="segment-caption">Samples/Fenster</div>
+                      </div>
+                      <div>
+                        <div class="segment-value">{{ fftSegmentInfo.df }}</div>
+                        <div class="segment-caption">df [Hz]</div>
+                      </div>
+                    </div>
+                    <v-alert
+                      v-else-if="fftSegmentActive"
+                      type="warning"
+                      variant="tonal"
+                      density="compact"
+                      class="mt-4 text-caption"
+                    >
+                      Fenster ist länger als der Zeitbereich — es wird das ganze Signal verwendet.
+                    </v-alert>
+
+                    <div class="popover-hint mt-3">
+                      Mehr Fenster = weniger Rauschen, aber gröbere Frequenzauflösung
+                      (df = 1 / Fensterlänge). Ein unvollständiges letztes Fenster wird ignoriert.
+                    </div>
+                  </div>
                 </v-card>
               </v-menu>
+            </template>
+            <template v-if="fftSegmentInfo" #status>
+              <v-chip size="small" color="secondary" variant="tonal" prepend-icon="mdi-view-week-outline" closable @click:close="fftSegmentSec = null">
+                Mittel aus {{ fftSegmentInfo.segments }} Fenstern à {{ fftSegmentSec }} s · df {{ fftSegmentInfo.df }} Hz
+              </v-chip>
             </template>
           </ChartCard>
         </v-col>
         <v-col v-if="sectionsVisible.fft" :cols="12" :md="fullWidthPlots ? 12 : 6">
-          <ChartCard title="Phase" :config="phaseConfig" :height="240" x-axis="frequency" />
+          <ChartCard title="Phase" :config="phaseConfig" :height="240" x-axis="frequency">
+            <template v-if="fftSegmentInfo" #status>
+              <v-chip size="small" color="secondary" variant="tonal" prepend-icon="mdi-view-week-outline">
+                Mittel aus {{ fftSegmentInfo.segments }} Fenstern
+              </v-chip>
+            </template>
+          </ChartCard>
         </v-col>
       </v-row>
 
@@ -592,6 +639,8 @@ const rmsOverlapPct = ref(50);
 // and average the spectra (A.segmentedFft). null/"" = whole signal.
 const fftSegmentSec = ref(null);
 const fftSegmentActive = computed(() => Number(fftSegmentSec.value) > 0);
+const fftSegmentPresets = [1, 5, 10, 30, 60];
+const fftMenuOpen = ref(false);
 
 // Every chart on this page plots {x, y} points on a real linear x-axis
 // (seconds or Hz) instead of a label array on a category axis. With
@@ -1165,6 +1214,24 @@ const phaseConfig = computed(() => {
    second row. Each tile keeps a sane minimum width so labels/values
    stay readable; if there genuinely isn't room for all of them the
    strip scrolls horizontally instead of squeezing text unreadably. */
+.segment-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.06);
+  text-align: center;
+}
+.segment-value {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.segment-caption {
+  font-size: 0.68rem;
+  opacity: 0.65;
+}
 .stat-strip {
   overflow-x: auto;
   padding-bottom: 4px; /* keeps the scrollbar from touching the card border */

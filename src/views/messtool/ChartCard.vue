@@ -64,60 +64,87 @@
         </template>
         Ausreisser {{ outlierMode ? "AN" : "AUS" }} — markiert Punkte, die statistisch stark aus der Reihe tanzen (&gt;3σ)
       </v-tooltip>
-      <v-menu v-model="xMenuOpen" :close-on-content-click="false">
+      <v-menu v-model="xMenuOpen" :close-on-content-click="false" location="bottom end" offset="6" @update:model-value="onXMenuToggle">
         <template #activator="{ props: xMenuProps }">
-          <v-tooltip location="bottom">
+          <v-tooltip location="bottom" :disabled="xMenuOpen">
             <template #activator="{ props: tooltipProps }">
               <v-btn
                 v-bind="{ ...xMenuProps, ...tooltipProps }"
                 size="small"
                 :variant="xLogMode || xRangeActive ? 'flat' : 'outlined'"
                 :color="xLogMode || xRangeActive ? 'secondary' : 'default'"
-                icon="mdi-axis-x-arrow"
+                icon="mdi-arrow-expand-horizontal"
                 aria-label="X-Achse einstellen"
               ></v-btn>
             </template>
-            X-Achse{{ xLogMode ? " — logarithmisch" : "" }}{{ xRangeActive ? " — Bereich gesetzt" : "" }}
+            X-Achse einstellen{{ xLogMode ? " · logarithmisch" : "" }}{{ xRangeActive ? " · Bereich gesetzt" : "" }}
           </v-tooltip>
         </template>
-        <v-card min-width="280" class="pa-4">
-          <div class="text-subtitle-2 font-weight-bold mb-2">X-Achse</div>
-          <v-switch
-            v-if="!isTimeAxis"
-            :model-value="xLogMode"
-            color="secondary"
-            density="compact"
-            hide-details
-            label="Logarithmisch"
-            class="mb-2"
-            @update:model-value="setXLog"
-          ></v-switch>
-          <div class="d-flex ga-2">
-            <v-text-field
-              v-model.number="xRangeMin"
-              type="number"
-              :label="`Von ${xUnitLabel}`"
-              variant="outlined"
-              density="compact"
-              hide-details
-            ></v-text-field>
-            <v-text-field
-              v-model.number="xRangeMax"
-              type="number"
-              :label="`Bis ${xUnitLabel}`"
-              variant="outlined"
-              density="compact"
-              hide-details
-            ></v-text-field>
+        <v-card width="300" class="chart-popover">
+          <div class="popover-head">
+            <v-icon size="18" color="primary">mdi-arrow-expand-horizontal</v-icon>
+            <div>
+              <div class="popover-title">X-Achse</div>
+              <div class="popover-sub">{{ isTimeAxis ? "Zeitbereich" : "Frequenzbereich" }} festlegen</div>
+            </div>
           </div>
-          <p v-if="xRangeError" class="text-caption text-error mt-1 mb-0">{{ xRangeError }}</p>
-          <div class="d-flex ga-2 mt-3">
-            <v-btn size="small" color="primary" variant="flat" @click="applyXRange">Anwenden</v-btn>
-            <v-btn size="small" variant="text" @click="clearXRange">Ganzer Bereich</v-btn>
+          <div class="pa-4 pt-3">
+            <template v-if="!isTimeAxis">
+              <div class="popover-label">Skalierung</div>
+              <v-btn-toggle
+                :model-value="xLogMode ? 'log' : 'lin'"
+                mandatory
+                divided
+                density="compact"
+                color="primary"
+                variant="outlined"
+                class="mb-4 w-100"
+                @update:model-value="(v) => setXLog(v === 'log')"
+              >
+                <v-btn value="lin" class="flex-grow-1" prepend-icon="mdi-chart-line-variant">Linear</v-btn>
+                <v-btn value="log" class="flex-grow-1" prepend-icon="mdi-math-log">Logarithmisch</v-btn>
+              </v-btn-toggle>
+            </template>
+            <div class="popover-label">Bereich</div>
+            <div class="d-flex ga-2">
+              <v-text-field
+                v-model.number="xRangeMin"
+                type="number"
+                label="Von"
+                :suffix="xUnit"
+                :placeholder="xVisible ? formatAxisNum(xVisible.min) : 'auto'"
+                persistent-placeholder
+                variant="outlined"
+                density="compact"
+                hide-details
+                @keyup.enter="applyXRange"
+              ></v-text-field>
+              <v-text-field
+                v-model.number="xRangeMax"
+                type="number"
+                label="Bis"
+                :suffix="xUnit"
+                :placeholder="xVisible ? formatAxisNum(xVisible.max) : 'auto'"
+                persistent-placeholder
+                variant="outlined"
+                density="compact"
+                hide-details
+                @keyup.enter="applyXRange"
+              ></v-text-field>
+            </div>
+            <div v-if="xRangeError" class="text-caption text-error mt-2 d-flex align-center ga-1">
+              <v-icon size="14">mdi-alert-circle-outline</v-icon>{{ xRangeError }}
+            </div>
+            <div v-else class="popover-hint mt-2">
+              Leer lassen = bis zum Rand der Daten.
+              <template v-if="xLogMode"> Log-Achse zeigt nur Werte &gt; 0 (ohne 0-Hz-Anteil).</template>
+            </div>
           </div>
-          <p v-if="xLogMode" class="text-caption text-medium-emphasis mt-2 mb-0">
-            Log-Achse: Werte ≤ 0 (z. B. der 0-Hz-Anteil) werden nicht gezeichnet.
-          </p>
+          <v-divider></v-divider>
+          <div class="d-flex justify-end ga-2 pa-3">
+            <v-btn size="small" variant="text" prepend-icon="mdi-arrow-expand-all" @click="clearXRange">Ganzer Bereich</v-btn>
+            <v-btn size="small" color="primary" variant="flat" prepend-icon="mdi-check" @click="applyXRange">Anwenden</v-btn>
+          </div>
         </v-card>
       </v-menu>
       <v-tooltip location="bottom">
@@ -196,6 +223,19 @@
         Mausrad = Zoom · Rechteck ziehen = Bereich · Ziehen mit gedrückter Umschalt = verschieben
         <span v-if="cursorMode"> · Cursor-Modus: Klicken setzt weiteren Cursor</span>
         <span v-if="markerMode && isTimeAxis"> · Marker-Modus: Stelle anklicken für Notiz</span>
+      </div>
+
+      <!-- Active view settings at a glance, each removable in one click —
+           so a chart that's log-scaled, range-limited or averaged never
+           silently looks "normal". Pages add their own via #status. -->
+      <div v-if="xLogMode || xRangeActive || $slots.status" class="d-flex flex-wrap ga-1 mb-2">
+        <v-chip v-if="xLogMode" size="small" color="secondary" variant="tonal" prepend-icon="mdi-math-log" closable @click:close="setXLog(false)">
+          Log-X-Achse
+        </v-chip>
+        <v-chip v-if="xRangeActive" size="small" color="secondary" variant="tonal" prepend-icon="mdi-arrow-expand-horizontal" closable @click:close="clearXRange">
+          X: {{ formatAxisNum(appliedXRange.min) }} – {{ formatAxisNum(appliedXRange.max) }} {{ xUnit }}
+        </v-chip>
+        <slot name="status"></slot>
       </div>
 
       <div v-if="isTimeAxis && mtStore.markers.length" class="d-flex flex-wrap ga-1 mb-2">
@@ -464,7 +504,15 @@ const props = defineProps({
 
 const isTimeAxis = computed(() => props.xAxis !== "frequency");
 const showPlaybackUi = computed(() => isTimeAxis.value && !props.hidePlayback);
-const xUnitLabel = computed(() => (isTimeAxis.value ? "[s]" : "[Hz]"));
+const xUnit = computed(() => (isTimeAxis.value ? "s" : "Hz"));
+
+// Compact axis number for chips/placeholders: 12.5, 0.034, 1.2e+4.
+function formatAxisNum(v) {
+  if (v == null || !Number.isFinite(v)) return "–";
+  const a = Math.abs(v);
+  if (a !== 0 && (a >= 1e5 || a < 1e-3)) return v.toExponential(2);
+  return String(Number(v.toPrecision(4)));
+}
 
 const inlineCanvas = ref(null);
 const fsCanvas = ref(null);
@@ -485,6 +533,17 @@ const xRangeMin = ref(null);
 const xRangeMax = ref(null);
 const xRangeError = ref("");
 const xRangeActive = ref(false);
+const appliedXRange = ref({ min: null, max: null });
+// Currently visible x-range, shown as placeholder in the "X-Achse" menu
+// so you can see what you're editing before typing anything.
+const xVisible = ref(null);
+function onXMenuToggle(open) {
+  if (!open) return;
+  xRangeError.value = "";
+  const chart = activeChart();
+  const x = chart?.scales?.x;
+  xVisible.value = x && Number.isFinite(x.min) && Number.isFinite(x.max) ? { min: x.min, max: x.max } : null;
+}
 const cursors = ref([]); // [{id, x, active}] — click adds a new one, unlimited, each toggleable
 // Per-series value breakdown is collapsed by default — with several
 // cursors active it used to push the whole panel very tall. Click a
@@ -659,6 +718,7 @@ function applyXRange() {
     if (c && typeof c.zoomScale === "function") c.zoomScale("x", { min, max }, "none");
   }
   xRangeActive.value = true;
+  appliedXRange.value = { min, max };
   broadcastOwnRange(chart);
   buildCursorRows();
   xMenuOpen.value = false;

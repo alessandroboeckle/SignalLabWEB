@@ -16,56 +16,85 @@
       class="mb-4 add-files-card"
       :class="{ dragging: isDragging }"
       @dragover.prevent="isDragging = true"
-      @dragleave.prevent="isDragging = false"
+      @dragleave.prevent="onDragLeave"
       @drop.prevent="onDrop"
     >
-      <v-card-text class="d-flex flex-wrap ga-3 align-center">
+      <v-card-text class="d-flex flex-wrap ga-2 align-center pb-3">
         <span>
           <v-btn
-            variant="outlined"
+            variant="tonal"
+            color="primary"
             prepend-icon="mdi-file-plus-outline"
             :disabled="!mtStore.parsed"
             @click="addCurrent"
           >
-            Aktuelle Datei hinzufügen
+            Aktuelle Datei
           </v-btn>
           <v-tooltip v-if="!mtStore.parsed" activator="parent" location="bottom">
             Zuerst auf der Import-Seite eine Datei laden
           </v-tooltip>
         </span>
-        <v-btn variant="outlined" prepend-icon="mdi-upload" :loading="localUpload.active" @click="fileInput?.click()">
-          Datei(en) hochladen
+        <v-btn variant="outlined" prepend-icon="mdi-upload-outline" :disabled="localUpload.active" @click="fileInput?.click()">
+          Vom Computer
         </v-btn>
-        <v-btn variant="outlined" prepend-icon="mdi-cloud" @click="openCloudDialog">
-          Aus Cloud hinzufügen
+        <v-btn variant="outlined" prepend-icon="mdi-cloud-outline" @click="openCloudDialog">
+          Aus der Cloud
         </v-btn>
         <v-spacer></v-spacer>
         <v-btn
           v-if="mtStore.compareFiles.length"
           variant="text"
           color="error"
-          prepend-icon="mdi-delete-sweep"
+          prepend-icon="mdi-delete-sweep-outline"
           @click="clearCompareWithUndo"
         >
           Alle entfernen
         </v-btn>
         <input ref="fileInput" type="file" accept=".csv,.xlsx,.xls" multiple class="d-none" @change="onFileSelect" />
       </v-card-text>
-      <v-card-text class="pt-0 d-flex flex-wrap align-center ga-2">
-        <v-checkbox-btn v-model="alsoSaveToCloud" density="compact" color="primary"></v-checkbox-btn>
-        <span class="text-body-2 cursor-pointer" @click="alsoSaveToCloud = !alsoSaveToCloud">
-          Hochgeladene Dateien auch in der Cloud speichern
-        </span>
-        <span class="text-caption text-medium-emphasis">
-          · CSV oder Excel, mehrere auf einmal — oder einfach hierher ziehen
-        </span>
-      </v-card-text>
-      <v-progress-linear
-        v-if="localUpload.active"
-        :model-value="localUpload.total ? (localUpload.done / localUpload.total) * 100 : 0"
-        color="primary"
-        height="3"
-      ></v-progress-linear>
+
+      <div class="drop-strip mx-4 mb-4" @click="!localUpload.active && fileInput?.click()">
+        <template v-if="localUpload.active">
+          <v-progress-circular indeterminate size="22" width="2" color="primary"></v-progress-circular>
+          <div class="flex-grow-1">
+            <div class="text-body-2 font-weight-medium">
+              Lade Datei {{ Math.min(localUpload.done + 1, localUpload.total) }} von {{ localUpload.total }} …
+            </div>
+            <v-progress-linear
+              :model-value="(localUpload.done / localUpload.total) * 100"
+              color="primary"
+              rounded
+              height="4"
+              class="mt-1"
+            ></v-progress-linear>
+          </div>
+        </template>
+        <template v-else>
+          <v-icon :color="isDragging ? 'primary' : 'medium-emphasis'" size="26">
+            {{ isDragging ? "mdi-tray-arrow-down" : "mdi-file-upload-outline" }}
+          </v-icon>
+          <div class="flex-grow-1">
+            <div class="text-body-2 font-weight-medium">
+              {{ isDragging ? "Loslassen zum Hinzufügen" : "Dateien hierher ziehen oder klicken" }}
+            </div>
+            <div class="text-caption text-medium-emphasis">CSV (LOGDATA) oder Excel · mehrere auf einmal möglich</div>
+          </div>
+        </template>
+        <v-switch
+          v-model="alsoSaveToCloud"
+          color="primary"
+          density="compact"
+          hide-details
+          inset
+          class="flex-grow-0 cloud-switch"
+          @click.stop
+        >
+          <template #label>
+            <v-icon size="18" class="mr-1" :color="alsoSaveToCloud ? 'primary' : undefined">mdi-cloud-upload-outline</v-icon>
+            <span class="text-body-2">Auch in Cloud speichern</span>
+          </template>
+        </v-switch>
+      </div>
     </v-card>
 
     <v-alert v-if="errorMsg" type="error" variant="tonal" density="compact" class="mb-4" closable @click:close="errorMsg = ''">
@@ -94,32 +123,47 @@
         <v-list density="comfortable">
           <v-list-item v-for="(f, idx) in mtStore.compareFiles" :key="f.id">
             <template #prepend>
-              <v-icon color="grey" class="mr-1">mdi-file-outline</v-icon>
+              <v-icon :color="f.messfileStoragePath ? 'primary' : 'grey'" class="mr-1">
+                {{ /\.xlsx?$/i.test(f.name) ? "mdi-file-excel-outline" : f.messfileStoragePath ? "mdi-file-cloud-outline" : "mdi-file-outline" }}
+              </v-icon>
             </template>
             <v-row align="center" dense class="ml-1">
               <v-col cols="12" sm="3">
                 <div class="text-body-2 font-weight-medium">{{ f.name }}</div>
-                <div class="text-caption text-medium-emphasis mb-1 d-flex align-center ga-1">
-                  <span>{{ f.parsed.signals.length }} Signale · {{ f.parsed.time.length }} Punkte</span>
-                  <v-tooltip v-if="f.messfileStoragePath" location="bottom">
-                    <template #activator="{ props: tp }">
-                      <v-icon v-bind="tp" size="14" color="success">mdi-cloud-check-outline</v-icon>
-                    </template>
-                    In der Cloud gespeichert
-                  </v-tooltip>
+                <div class="text-caption text-medium-emphasis mb-1">
+                  {{ f.parsed.signals.length }} Signale · {{ f.parsed.time.length.toLocaleString("de-CH") }} Punkte
                 </div>
-                <v-btn
-                  v-if="!f.messfileStoragePath && localFileFor(f)"
+                <v-chip
+                  v-if="f.messfileStoragePath"
                   size="x-small"
+                  color="success"
                   variant="tonal"
+                  prepend-icon="mdi-cloud-check-outline"
+                  class="mb-1 mr-1"
+                >
+                  In der Cloud
+                </v-chip>
+                <v-chip
+                  v-else-if="localFileFor(f)"
+                  size="x-small"
                   color="primary"
+                  variant="outlined"
                   prepend-icon="mdi-cloud-upload-outline"
                   class="mb-1 mr-1"
-                  :loading="cloudSavingId === f.id"
+                  :disabled="cloudSavingId === f.id"
                   @click="saveCompareFileToCloud(f)"
                 >
-                  In Cloud speichern
-                </v-btn>
+                  {{ cloudSavingId === f.id ? "Speichere …" : "In Cloud speichern" }}
+                </v-chip>
+                <v-chip
+                  v-else
+                  size="x-small"
+                  variant="tonal"
+                  prepend-icon="mdi-laptop"
+                  class="mb-1 mr-1"
+                >
+                  Nur lokal
+                </v-chip>
                 <v-menu>
                   <template #activator="{ props }">
                     <v-btn size="x-small" variant="outlined" prepend-icon="mdi-folder-star-outline" v-bind="props">
@@ -1249,6 +1293,12 @@ async function onFileSelect(e) {
   await addLocalFiles(files);
 }
 
+// dragleave also fires when moving over a child element of the card —
+// only reset the highlight once the pointer has really left the card.
+function onDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) isDragging.value = false;
+}
+
 async function onDrop(e) {
   isDragging.value = false;
   await addLocalFiles(e.dataTransfer?.files);
@@ -1495,14 +1545,29 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .add-files-card {
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .add-files-card.dragging {
   border-color: rgb(var(--v-theme-primary)) !important;
-  border-style: dashed !important;
-  background: rgba(var(--v-theme-primary), 0.05);
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.15);
 }
-.cursor-pointer {
+.drop-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 12px 16px;
+  border: 1.5px dashed rgba(var(--v-border-color), 0.35);
+  border-radius: 10px;
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.drop-strip:hover,
+.add-files-card.dragging .drop-strip {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.04);
+}
+.cloud-switch {
+  cursor: default;
 }
 </style>
