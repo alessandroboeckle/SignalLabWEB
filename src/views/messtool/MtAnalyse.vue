@@ -49,7 +49,8 @@
             <v-checkbox v-model="sectionsVisible.derivative" label="Signal & Ableitung" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.integral" label="Integral" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <v-checkbox v-model="sectionsVisible.rollingRms" label="RMS über Zeit" density="comfortable" hide-details class="mb-1"></v-checkbox>
-            <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="comfortable" hide-details></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.fft" label="Frequenzspektrum (FFT)" density="comfortable" hide-details class="mb-1"></v-checkbox>
+            <v-checkbox v-model="sectionsVisible.spectrogram" label="Spektrogramm" density="comfortable" hide-details></v-checkbox>
             <v-checkbox v-model="sectionsVisible.group" label="Gruppen-Analyse (mehrere Signale)" density="comfortable" hide-details class="mb-1"></v-checkbox>
             <div v-if="sectionsVisible.group" class="ml-8 mb-2">
               <div class="text-caption text-medium-emphasis mb-1">Y-Achsen (Gruppen-Überlagerung)</div>
@@ -459,6 +460,134 @@
             </template>
           </ChartCard>
         </v-col>
+        <!-- Spektrogramm: always full width — it's a time axis like the
+             Signal chart (same zoom sync group), and a picture that
+             needs the horizontal room. -->
+        <v-col v-if="sectionsVisible.spectrogram" cols="12">
+          <ChartCard title="Spektrogramm" :config="spectrogramConfig" :height="320" sync-group="analyse-zeit">
+            <template #extra-toolbar>
+              <v-menu v-model="specMenuOpen" :close-on-content-click="false" location="bottom end" offset="6">
+                <template #activator="{ props: specMenuProps }">
+                  <v-tooltip location="bottom" :disabled="specMenuOpen">
+                    <template #activator="{ props: tooltipProps }">
+                      <v-btn
+                        v-bind="{ ...specMenuProps, ...tooltipProps }"
+                        size="small"
+                        variant="outlined"
+                        icon="mdi-tune-variant"
+                        aria-label="Spektrogramm-Einstellungen"
+                      ></v-btn>
+                    </template>
+                    Spektrogramm-Einstellungen
+                  </v-tooltip>
+                </template>
+                <v-card width="340" class="chart-popover">
+                  <div class="popover-head">
+                    <v-icon size="18" color="primary">mdi-chart-scatter-plot-hexbin</v-icon>
+                    <div>
+                      <div class="popover-title">Spektrogramm</div>
+                      <div class="popover-sub">Frequenzinhalt über der Zeit (STFT)</div>
+                    </div>
+                  </div>
+                  <div class="pa-4 pt-3">
+                    <div class="popover-label">Fensterlänge</div>
+                    <v-text-field
+                      v-model.number="specSegmentSec"
+                      type="number"
+                      suffix="s"
+                      :placeholder="spectrogramInfo ? `auto (${spectrogramInfo.segSec})` : 'auto'"
+                      persistent-placeholder
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                      clearable
+                      min="0"
+                      step="0.01"
+                      class="mb-3"
+                    ></v-text-field>
+                    <div class="popover-label">Überlappung</div>
+                    <OptionToggle v-model="specOverlap" :options="specOverlapOptions" size="small" fill class="mb-3" />
+                    <div class="popover-label">Dynamikbereich</div>
+                    <OptionToggle v-model="specDbRange" :options="specDbOptions" size="small" fill class="mb-3" />
+                    <div class="popover-label">Max. Frequenz</div>
+                    <v-text-field
+                      v-model.number="specMaxFreq"
+                      type="number"
+                      suffix="Hz"
+                      :placeholder="spectrogramInfo ? `bis Nyquist (${spectrogramInfo.nyquist})` : 'bis Nyquist'"
+                      persistent-placeholder
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                      clearable
+                      min="0"
+                      class="mb-2"
+                    ></v-text-field>
+                    <v-switch
+                      v-model="specDetrend"
+                      color="primary"
+                      density="compact"
+                      hide-details
+                      label="Gleichanteil je Fenster entfernen"
+                    ></v-switch>
+                    <v-switch
+                      v-model="specShowDominant"
+                      color="primary"
+                      density="compact"
+                      hide-details
+                      label="Dominante Frequenz als Linie"
+                    ></v-switch>
+
+                    <div v-if="spectrogramInfo" class="segment-summary mt-3">
+                      <div>
+                        <div class="segment-value">{{ spectrogramInfo.segN }}</div>
+                        <div class="segment-caption">Samples/Fenster</div>
+                      </div>
+                      <div>
+                        <div class="segment-value">{{ spectrogramInfo.hopSec }}</div>
+                        <div class="segment-caption">Schritt [s]</div>
+                      </div>
+                      <div>
+                        <div class="segment-value">{{ spectrogramInfo.df }}</div>
+                        <div class="segment-caption">df [Hz]</div>
+                      </div>
+                    </div>
+                    <v-alert
+                      v-if="spectrogramInfo?.hopIncreased"
+                      type="info"
+                      variant="tonal"
+                      density="compact"
+                      class="mt-3 text-caption"
+                    >
+                      Lange Messung: der Schritt wurde auf {{ spectrogramInfo.hopSec }} s vergrössert, damit die
+                      Berechnung flüssig bleibt. Für feinere Auflösung einen kürzeren Zeitbereich wählen.
+                    </v-alert>
+                    <div class="popover-hint mt-3">
+                      Längeres Fenster = feinere Frequenz-, gröbere Zeitauflösung. Farbe = Amplitude in dB relativ zum
+                      stärksten Wert. Fensterfunktion wie oben beim FFT-Fenster gewählt.
+                    </div>
+                  </div>
+                </v-card>
+              </v-menu>
+            </template>
+            <template #status>
+              <template v-if="spectrogramInfo">
+                <div class="colorbar-chip">
+                  <span class="font-mono">−{{ specDbRange }} dB</span>
+                  <span class="colorbar" :style="{ background: colormapGradient }"></span>
+                  <span class="font-mono">0 dB</span>
+                  <span class="text-medium-emphasis">(rel. Maximum)</span>
+                </div>
+                <v-chip size="small" variant="tonal" color="secondary" prepend-icon="mdi-view-week-outline">
+                  Fenster {{ spectrogramInfo.segSec }} s · {{ specOverlap }} % Überlappung · df {{ spectrogramInfo.df }} Hz
+                </v-chip>
+              </template>
+              <v-chip v-else-if="sig" size="small" variant="tonal" color="warning" prepend-icon="mdi-alert-outline">
+                Zu wenige Messpunkte im Zeitbereich für ein Spektrogramm
+              </v-chip>
+            </template>
+          </ChartCard>
+        </v-col>
       </v-row>
 
       <v-card v-if="sectionsVisible.group" variant="outlined" rounded="lg" class="mb-4">
@@ -535,6 +664,8 @@ import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import { downsampleForDisplay } from "../../utils/downsample.js";
+import * as SG from "../../utils/spectrogram.js";
+import OptionToggle from "../../components/OptionToggle.vue";
 
 defineEmits(["navigate"]);
 
@@ -674,6 +805,7 @@ const sectionsVisible = reactive({
   integral: true,
   rollingRms: true,
   fft: true,
+  spectrogram: true,
   group: false,
 });
 
@@ -685,6 +817,7 @@ function showOnlyStats() {
   sectionsVisible.integral = false;
   sectionsVisible.rollingRms = false;
   sectionsVisible.fft = false;
+  sectionsVisible.spectrogram = false;
   sectionsVisible.group = false;
 }
 function showAllSections() {
@@ -695,6 +828,7 @@ function showAllSections() {
   sectionsVisible.integral = true;
   sectionsVisible.rollingRms = true;
   sectionsVisible.fft = true;
+  sectionsVisible.spectrogram = true;
   sectionsVisible.group = true;
 }
 
@@ -998,26 +1132,26 @@ const signalConfig = computed(() => {
       datasets.push({
         label: "Mittel + 1σ", data: sD.rx.map((x) => ({ x, y: meanVal + stdVal })),
         borderColor: "rgba(37,99,235,0.25)", borderWidth: 1, pointRadius: 0,
-        yAxisID: "y", fill: "+1",
+        yAxisID: "y", fill: "+1", statsExclude: true,
         backgroundColor: "rgba(37,99,235,0.1)",
       });
       datasets.push({
         label: "Mittel − 1σ", data: sD.rx.map((x) => ({ x, y: meanVal - stdVal })),
         borderColor: "rgba(37,99,235,0.25)", borderWidth: 1, pointRadius: 0,
-        yAxisID: "y", fill: false,
+        yAxisID: "y", fill: false, statsExclude: true,
       });
     }
     datasets.push({ label: `Signal [${unit}]`, data: toPoints(sD.rx, sD.ry), borderColor: "#2563EB", borderWidth: 1.5, pointRadius: 0, yAxisID: "y" });
     if (showAvgLine.value && meanVal != null) {
       datasets.push({
         label: `Mittelwert [${unit}]`, data: sD.rx.map((x) => ({ x, y: meanVal })),
-        borderColor: "#10B981", borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, yAxisID: "y",
+        borderColor: "#10B981", borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, yAxisID: "y", statsExclude: true,
       });
     }
     if (showRmsLine.value && rmsVal != null) {
       datasets.push({
         label: `RMS [${unit}]`, data: sD.rx.map((x) => ({ x, y: rmsVal })),
-        borderColor: "#DB2777", borderWidth: 1.5, borderDash: [2, 3], pointRadius: 0, yAxisID: "y",
+        borderColor: "#DB2777", borderWidth: 1.5, borderDash: [2, 3], pointRadius: 0, yAxisID: "y", statsExclude: true,
       });
     }
 
@@ -1132,6 +1266,8 @@ const rmsWindowsOverlayConfig = computed(() => {
       backgroundColor: i % 2 === 0 ? "rgba(37,99,235,0.10)" : "rgba(236,72,153,0.10)",
       borderWidth: 0,
       pointRadius: 0,
+      statsExclude: true,
+      cursorExclude: true,
       order: 10, // bands drawn first (Chart.js: lower order = on top), signal line stays visible above them
     }));
 
@@ -1205,6 +1341,155 @@ const phaseConfig = computed(() => {
     });
   };
 });
+
+// ---- Spektrogramm -------------------------------------------------------
+// STFT of the selected signal (current Zeitbereich, FFT window type from
+// above), drawn as a colour image behind an invisible "dominant
+// frequency" dataset. That dataset gives the chart its scales, lets the
+// cursor read off the dominant frequency at any time, and can be shown
+// as a line. The image is drawn by a Chart.js plugin through the live
+// scales, so zoom/pan, zoom sync with the Signal chart, Y-log and the
+// PDF export all work on it like on any other chart.
+const specSegmentSec = ref(null);
+const specOverlap = ref(50);
+const specDbRange = ref(60);
+const specMaxFreq = ref(null);
+const specShowDominant = ref(false);
+const specDetrend = ref(true);
+const specMenuOpen = ref(false);
+const specOverlapOptions = [
+  { value: 0, label: "0 %" },
+  { value: 50, label: "50 %" },
+  { value: 75, label: "75 %" },
+];
+const specDbOptions = [
+  { value: 40, label: "40 dB" },
+  { value: 60, label: "60 dB" },
+  { value: 80, label: "80 dB" },
+];
+const colormapGradient = SG.colormapCss();
+
+function positiveOrNull(v) {
+  const n = Number(v);
+  return v !== "" && v != null && Number.isFinite(n) && n > 0 ? n : null;
+}
+
+const spectrogramResult = computed(() => {
+  if (!sig.value || !sectionsVisible.spectrogram) return null;
+  const { y, t } = windowedYT(sig.value, time.value);
+  const spec = SG.spectrogram(y, t, {
+    segmentSec: positiveOrNull(specSegmentSec.value),
+    overlapPct: specOverlap.value,
+    windowType: windowType.value,
+    detrend: specDetrend.value,
+  });
+  if (!spec.cols) return null;
+  const nyquist = spec.freqs[spec.bins - 1];
+  const maxF = positiveOrNull(specMaxFreq.value);
+  const yMax = maxF != null ? Math.min(maxF, nyquist) : nyquist;
+  // maxW = the column cap of spectrogram() → no pooling along time, so
+  // zooming into a short stretch keeps its full time resolution.
+  const img = SG.buildSpectrogramPixels(spec, { dbRange: specDbRange.value, maxFreq: yMax, maxW: 4000, maxH: 1024 });
+  if (!img) return null;
+  return {
+    spec, img, yMax, nyquist,
+    dom: SG.dominantFrequencies(spec, yMax),
+    canvas: SG.pixelsToCanvas(img),
+    tStart: t[0],
+    tEnd: t[t.length - 1],
+  };
+});
+
+const spectrogramInfo = computed(() => {
+  const r = spectrogramResult.value;
+  if (!r) return null;
+  const f = (v) => formatSig(v).replace(/\.?0+$/, "") || "0";
+  return {
+    segN: r.spec.segN,
+    segSec: f(r.spec.segN * r.spec.dt),
+    hopSec: f(r.spec.hopSec),
+    df: f(r.spec.df),
+    nyquist: `${f(r.nyquist)} Hz`,
+    hopIncreased: r.spec.hopIncreased,
+  };
+});
+
+function makeSpectrogramPlugin(r) {
+  const [c0r, c0g, c0b] = [SG.COLORMAP[0], SG.COLORMAP[1], SG.COLORMAP[2]];
+  return {
+    id: "spectrogramImage",
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: area, scales } = chart;
+      const xs = scales.x, ys = scales.y;
+      if (!xs || !ys || !r.canvas) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(area.left, area.top, area.right - area.left, area.bottom - area.top);
+      ctx.clip();
+      // Plot background = "lowest level" colour, so the half-window
+      // margins at the very start/end blend in instead of showing a gap.
+      ctx.fillStyle = `rgb(${c0r},${c0g},${c0b})`;
+      ctx.fillRect(area.left, area.top, area.right - area.left, area.bottom - area.top);
+      ctx.imageSmoothingEnabled = false;
+      const { img, canvas } = r;
+      const left = xs.getPixelForValue(img.x0);
+      const right = xs.getPixelForValue(img.x1);
+      const w = right - left;
+      if (!(Number.isFinite(w) && w > 0)) { ctx.restore(); return; }
+      if (ys.type === "logarithmic") {
+        // Non-linear y: draw row by row so each frequency band lands on
+        // its own log-scaled position.
+        const rowF = (img.f1 - img.f0) / img.height;
+        for (let row = 0; row < img.height; row++) {
+          const fHi = img.f1 - row * rowF;
+          const fLo = fHi - rowF;
+          if (fHi <= 0) continue;
+          const top = ys.getPixelForValue(fHi);
+          const bottom = ys.getPixelForValue(Math.max(fLo, ys.min || fHi / 10));
+          if (!Number.isFinite(top) || !Number.isFinite(bottom) || bottom <= top) continue;
+          ctx.drawImage(canvas, 0, row, img.width, 1, left, top, w, bottom - top + 0.5);
+        }
+      } else {
+        const top = ys.getPixelForValue(img.f1);
+        const bottom = ys.getPixelForValue(img.f0);
+        if (Number.isFinite(top) && Number.isFinite(bottom) && bottom > top) {
+          ctx.drawImage(canvas, left, top, w, bottom - top);
+        }
+      }
+      ctx.restore();
+    },
+  };
+}
+
+const spectrogramConfig = computed(() => {
+  const r = spectrogramResult.value;
+  const showDom = specShowDominant.value;
+  return () => {
+    if (!r || !r.canvas) return emptyLineChartConfig(false);
+    const cfg = buildLineChartConfig({
+      parsing: false,
+      datasets: [{
+        label: "Dominante Frequenz [Hz]",
+        data: toPoints(r.spec.times, r.dom),
+        borderColor: "#FFFFFF",
+        borderWidth: showDom ? 1.5 : 0,
+        showLine: showDom,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+        statsExclude: true,
+      }],
+      xTitle: "Zeit [s]",
+      xScale: { type: "linear", min: r.tStart, max: r.tEnd, ticks: { maxTicksLimit: 10 } },
+      yTitle: "Frequenz [Hz]",
+      yScale: { type: "linear", min: 0, max: r.yMax, grid: { color: "rgba(255,255,255,0.12)" } },
+      plugins: { legend: { display: showDom }, tooltip: { enabled: false } },
+    });
+    cfg.options.scales.x.grid = { color: "rgba(255,255,255,0.12)" };
+    cfg.plugins = [makeSpectrogramPlugin(r)];
+    return cfg;
+  };
+});
 </script>
 
 <style scoped>
@@ -1214,6 +1499,21 @@ const phaseConfig = computed(() => {
    second row. Each tile keeps a sane minimum width so labels/values
    stay readable; if there genuinely isn't room for all of them the
    strip scrolls horizontally instead of squeezing text unreadably. */
+.colorbar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  padding: 2px 10px;
+  border-radius: 14px;
+  background: rgba(var(--v-theme-on-surface), 0.05);
+}
+.colorbar {
+  display: inline-block;
+  width: 120px;
+  height: 10px;
+  border-radius: 3px;
+}
 .segment-summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

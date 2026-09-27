@@ -238,7 +238,7 @@ import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useReportSettingsStore } from "../../stores/reportSettingsStore.js";
 import AnzeigePdfExportForm from "./AnzeigePdfExportForm.vue";
-import { createdByLine, cursorTableHeight, drawCursorTable } from "../../utils/chartsPdf.js";
+import { createdByLine, cursorTableHeight, drawCursorTable, rangeTableHeight, drawRangeTable } from "../../utils/chartsPdf.js";
 import OptionToggle from "../../components/OptionToggle.vue";
 import ExportActionButton from "../../components/ExportActionButton.vue";
 import { useAuthStore } from "../../stores/authStore.js";
@@ -588,7 +588,7 @@ async function buildReportPdf(s, t, fileLabel, {
     const pxW = Math.round(boxW * 4.2), pxH = Math.round(boxH * 4.2);
     if (renderChart) return renderChart({ width: pxW, height: pxH });
     const image = await renderOffscreenChart(s, t, pxW, pxH, { showMarkers });
-    return { image, width: pxW, height: pxH, cursors: [], xUnit: "s" };
+    return { image, width: pxW, height: pxH, cursors: [], ranges: [], xUnit: "s" };
   }
   function footer() {
     doc.setFontSize(8);
@@ -603,7 +603,7 @@ async function buildReportPdf(s, t, fileLabel, {
     return h;
   }
   const cursorEstimate = (renderChart && exportChartRef.value?.cursorCountForExport?.()) || 0;
-  const tableEst = cursorEstimate ? 7.5 + (2 * cursorEstimate - 1) * 4.8 : 0;
+  const tableEst = cursorEstimate ? 7.5 + (2 * cursorEstimate - 1) * 4.8 + (cursorEstimate - 1) * 13 : 0;
 
   // "Nur Plot" — the chart as large as the page allows, with just the
   // signal name as a label (+ cursor values if any). For dropping it
@@ -614,8 +614,10 @@ async function buildReportPdf(s, t, fileLabel, {
     doc.text(`${s.name}${s.unit ? ` [${s.unit}]` : ""}`, margin, 18);
     const maxH = footerY - 6 - 24 - tableEst - 4;
     const item = await plotFor(contentW, Math.min(maxH, contentW * 0.62));
-    const h = placePlot(item, margin, 24, contentW, maxH);
+    const actualTables = cursorTableHeight(doc, item.cursors, contentW) + rangeTableHeight(item.ranges);
+    const h = placePlot(item, margin, 24, contentW, Math.max(40, footerY - 6 - 24 - actualTables - 4));
     drawCursorTable(doc, item.cursors, margin, 24 + h + 2, contentW, item.xUnit);
+    drawRangeTable(doc, item.ranges, margin, 24 + h + 2 + cursorTableHeight(doc, item.cursors, contentW), contentW, item.xUnit);
     footer();
     return doc;
   }
@@ -696,11 +698,22 @@ async function buildReportPdf(s, t, fileLabel, {
   const imgY = Math.max(53, fieldsBottomY);
   const maxImgH = footerY - 6 - imgY - statsH - tableEst - 8;
   const item = await plotFor(contentW, Math.max(40, Math.min(maxImgH, contentW * 0.55)));
-  const imgH = placePlot(item, margin, imgY, contentW, Math.max(40, maxImgH));
-  const tableH = cursorTableHeight(doc, item.cursors, contentW);
+  // Size the image from the ACTUAL table heights (known only after the
+  // render) — the estimate above only picks the render's aspect ratio.
+  const cursorH = cursorTableHeight(doc, item.cursors, contentW);
+  const tableH = cursorH + rangeTableHeight(item.ranges);
+  const imgH = placePlot(item, margin, imgY, contentW, Math.max(40, footerY - 6 - imgY - statsH - tableH - 8));
   drawCursorTable(doc, item.cursors, margin, imgY + imgH + 2, contentW, item.xUnit);
+  drawRangeTable(doc, item.ranges, margin, imgY + imgH + 2 + cursorH, contentW, item.xUnit);
 
   let y0 = imgY + imgH + 2 + tableH + 8;
+  // Many cursors/signals can make the tables taller than estimated —
+  // never let the Kennzahlen run off the page: continue on a new one.
+  if (y0 + statsH > footerY - 4) {
+    footer();
+    doc.addPage();
+    y0 = 20;
+  }
   doc.setFontSize(13);
   doc.setTextColor(30);
   doc.text("Kennzahlen", margin, y0);

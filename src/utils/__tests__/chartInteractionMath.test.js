@@ -150,6 +150,13 @@ describe("captureXRange / restoreXRange", () => {
     expect(called).toEqual(["x", range]);
   });
 
+  it("does nothing on a chart without an x scale (empty placeholder)", () => {
+    let called = false;
+    const empty = { scales: {}, zoomScale: () => { called = true; } };
+    restoreXRange(empty, { min: 0, max: 1 });
+    expect(called).toBe(false);
+  });
+
   it("does nothing when there is no captured range or no chart", () => {
     expect(() => restoreXRange(null, { min: 0, max: 1 })).not.toThrow();
     expect(() => restoreXRange(makeLinearChart(), null)).not.toThrow();

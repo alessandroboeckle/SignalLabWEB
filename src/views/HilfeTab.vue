@@ -348,7 +348,7 @@ const sections = [
     blocks: [
       {
         h: "Einzelsignal-Analyse",
-        p: "Statistik (Mittel, RMS, Std, Varianz, Min/Max, sowie dt/df/N der aktuellen Fenster-Auflösung) als Kachel-Reihe oben, Signal und Ableitung als eigene Charts nebeneinander, dazu Integral und FFT (mit Fensterfunktion: Hann/Hamming/Blackman/Rechteck) für ein ausgewähltes Signal — inklusive Phasenspektrum als eigener Plot neben der Amplitude. Zeitbereich per Start/Ende einschränkbar — alle Berechnungen greifen dann nur auf diesen Ausschnitt zu. Das Spektrum lässt sich optional über gleich lange Zeitfenster ohne Überlappung mitteln (Regler-Symbol am FFT-Plot). Über das X-Achsen-Symbol an jedem Plot kann ein fester Bereich eingestellt werden, bei Frequenz-Plots zusätzlich eine logarithmische X-Achse.",
+        p: "Statistik (Mittel, RMS, Std, Varianz, Min/Max, sowie dt/df/N der aktuellen Fenster-Auflösung) als Kachel-Reihe oben, Signal und Ableitung als eigene Charts nebeneinander, dazu Integral und FFT (mit Fensterfunktion: Hann/Hamming/Blackman/Rechteck) für ein ausgewähltes Signal — inklusive Phasenspektrum als eigener Plot neben der Amplitude. Zeitbereich per Start/Ende einschränkbar — alle Berechnungen greifen dann nur auf diesen Ausschnitt zu. Das Spektrum lässt sich optional über gleich lange Zeitfenster ohne Überlappung mitteln (Regler-Symbol am FFT-Plot). Über das X-Achsen-Symbol an jedem Plot kann ein fester Bereich eingestellt werden, bei Frequenz-Plots zusätzlich eine logarithmische X-Achse. Spektrogramm: zeigt den Frequenzinhalt über der Zeit (Farbe = Amplitude in dB relativ zum Maximum). Einstellbar über das Regler-Symbol: Fensterlänge (leer = automatisch), Überlappung, Dynamikbereich, maximale Frequenz, Gleichanteil entfernen und die dominante Frequenz als Linie. Zoom ist mit dem Signal-Plot gekoppelt; ein Cursor zeigt die dominante Frequenz an seiner Zeit.",
       },
       {
         h: "RMS über Zeit",
@@ -394,7 +394,7 @@ const sections = [
       },
       {
         h: "Cursor",
-        p: "Unbegrenzt viele Cursor pro Chart setzbar (Cursor-Modus an, dann klicken). Werte aller Serien an der Cursor-Position erscheinen in der Cursorbox (eingeklappt per Default — auf die x-Position klicken, um sie für diesen Cursor aufzuklappen); bei genau zwei aktiven Cursorn wird zusätzlich Δx/Δy angezeigt. 'Cursor über alle Plots' (im 'Anzeigeoptionen'-Menü, nur im Gestapelt-Modus) sorgt dafür, dass ein neu gesetzter Cursor auf allen Gestapelt-Charts gleichzeitig erscheint — praktisch um denselben Zeitpunkt in mehreren Signalen zu vergleichen.",
+        p: "Unbegrenzt viele Cursor pro Chart setzbar (Cursor-Modus an, dann klicken). Werte aller Serien an der Cursor-Position erscheinen in der Cursorbox (eingeklappt per Default — auf die x-Position klicken, um sie für diesen Cursor aufzuklappen); bei genau zwei aktiven Cursorn wird zusätzlich Δx/Δy angezeigt. 'Cursor über alle Plots' (im 'Anzeigeoptionen'-Menü, nur im Gestapelt-Modus) sorgt dafür, dass ein neu gesetzter Cursor auf allen Gestapelt-Charts gleichzeitig erscheint — praktisch um denselben Zeitpunkt in mehreren Signalen zu vergleichen. Ab zwei aktiven Cursorn erscheint ausserdem die Statistik zwischen je zwei aufeinanderfolgenden Cursorn (C1–C2, C2–C3, …): Mittelwert, RMS, Min, Max (Mauszeiger drauf zeigt die Zeit), Spitze-Spitze und Anzahl Messpunkte für jedes Signal im Plot — Hilfslinien wie Mittelwert-/RMS-Linie werden dabei ignoriert. Die Tabelle erscheint auch in den PDF-Exporten.",
       },
       {
         h: "Zoom & Breite",
@@ -430,7 +430,7 @@ const sections = [
     page: "mt-export",
     blocks: [
       { p: "Export als PNG, PDF, CSV oder XLSX — inklusive optionaler Zusatzspalten (AVG, RMS, Ableitung, Integral). Auch als Batch über mehrere Dateien hinweg möglich (Export-Seite in der Import-Ansicht)." },
-      { p: "„Anzeige komplett als PDF“ (Export-Seite oder Button „Als PDF“ direkt in der Anzeige): alle Plots der Anzeige in einem Dokument, jeweils so wie sie gerade angezeigt werden — mit Zoom, Markern und Cursor. Unter jedem Plot stehen die Cursor-Positionen, die Werte aller Signale dort und die Differenzen zwischen aufeinanderfolgenden Cursorn. Layout wahlweise 1 Plot pro Seite (quer) oder 2 pro Seite (hoch)." },
+      { p: "„Anzeige komplett als PDF“ (Export-Seite oder Button „Als PDF“ direkt in der Anzeige): alle Plots der Anzeige in einem Dokument, jeweils so wie sie gerade angezeigt werden — mit Zoom, Markern und Cursor. Unter jedem Plot stehen die Cursor-Positionen, die Werte aller Signale dort, die Differenzen zwischen aufeinanderfolgenden Cursorn und die Statistik der Bereiche dazwischen. Ausrichtung (hoch/quer) und Anzahl Plots pro Seite frei wählbar." },
     ],
   },
   {

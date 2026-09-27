@@ -320,6 +320,7 @@
             </span>
           </div>
         </div>
+        <CursorRangeStats :ranges="cursorRanges" :x-unit="xUnit" :reduced="!exactMode" />
       </v-card>
 
       <v-alert v-if="buildError" type="error" variant="tonal" density="compact" class="mb-2">
@@ -431,6 +432,7 @@
                 </span>
               </div>
             </div>
+            <CursorRangeStats :ranges="cursorRanges" :x-unit="xUnit" :reduced="!exactMode" />
           </v-card>
           <v-alert v-if="buildError" type="error" variant="tonal" density="compact" class="mb-2">
             Diagramm konnte nicht erstellt werden: {{ buildError }}
@@ -454,6 +456,8 @@ import { formatClockTime } from "../../utils/messtoolParser.js";
 import { interpolateDatasetsAtX } from "../../utils/interpolateDatasetsAtX.js";
 import { showUndoToast } from "../../composables/useToast.js";
 import { registerExportChart } from "../../composables/useChartExportRegistry.js";
+import { cursorRangeStats } from "../../utils/cursorRangeStats.js";
+import CursorRangeStats from "./CursorRangeStats.vue";
 import {
   xValueAtEvent,
   xValueToPixel,
@@ -584,12 +588,31 @@ let fsChart = null;
 // reactive computed — Chart.js instances aren't reactive-friendly data.
 const cursorRows = ref([]);
 
+// Statistics between consecutive active cursors (C1–C2, C2–C3, …),
+// rebuilt together with cursorRows — see utils/cursorRangeStats.js.
+const cursorRanges = ref([]);
+
+// Charts without any analysable series (e.g. the spectrogram, whose only
+// dataset is the dominant-frequency helper) get no range table at all.
+function rangesWithSeries(ranges) {
+  return ranges.some((r) => r.series.length) ? ranges : [];
+}
+
+function activeCursorList() {
+  return cursors.value
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.active)
+    .map(({ c, i }) => ({ label: `C${i + 1}`, x: c.x, color: CURSOR_COLORS[i % CURSOR_COLORS.length] }));
+}
+
 function buildCursorRows() {
   const chart = fullscreen.value ? fsChart : inlineChart;
   if (!chart || !cursorMode.value) {
     cursorRows.value = [];
+    cursorRanges.value = [];
     return;
   }
+  cursorRanges.value = rangesWithSeries(cursorRangeStats(chart, activeCursorList()));
   cursorRows.value = cursors.value
     .filter((c) => c.active)
     .map((c) => ({
@@ -719,7 +742,7 @@ function applyXRange() {
     return;
   }
   for (const c of [inlineChart, fsChart]) {
-    if (c && typeof c.zoomScale === "function") c.zoomScale("x", { min, max }, "none");
+    if (c?.scales?.x && typeof c.zoomScale === "function") c.zoomScale("x", { min, max }, "none");
   }
   xRangeActive.value = true;
   appliedXRange.value = { min, max };
@@ -1134,6 +1157,11 @@ function withInteractions(cfg, { forExport = false } = {}) {
     for (const key of Object.keys(cfg.options.scales || {})) {
       if (key === "x") continue;
       cfg.options.scales[key].type = "logarithmic";
+      // A fixed min ≤ 0 (e.g. the spectrogram's 0 Hz floor) is invalid
+      // on a log axis — let Chart.js pick the lowest positive value.
+      if (typeof cfg.options.scales[key].min === "number" && cfg.options.scales[key].min <= 0) {
+        delete cfg.options.scales[key].min;
+      }
     }
   }
 
@@ -1208,7 +1236,7 @@ function onIncomingSyncedRange(range, sourceId) {
   applyingSyncedRange = true;
   try {
     for (const chart of [inlineChart, fsChart]) {
-      if (chart && typeof chart.zoomScale === "function") {
+      if (chart?.scales?.x && typeof chart.zoomScale === "function") {
         chart.zoomScale("x", range, "none");
       }
     }
@@ -1292,7 +1320,7 @@ function buildInline() {
   }
   try {
     const cfg = withInteractions(props.config(peakMode.value, exactMode.value));
-    cfg.plugins = overlayPlugins();
+    cfg.plugins = [...(Array.isArray(cfg.plugins) ? cfg.plugins : []), ...overlayPlugins()];
     const keepRange = sameXType(prev, cfg);
     if (prev) { prev.destroy(); inlineChart = null; }
     inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
@@ -1317,7 +1345,7 @@ function buildFullscreen() {
   }
   try {
     const cfg = withInteractions(props.config(peakMode.value, exactMode.value));
-    cfg.plugins = overlayPlugins();
+    cfg.plugins = [...(Array.isArray(cfg.plugins) ? cfg.plugins : []), ...overlayPlugins()];
     const keepRange = sameXType(prev, cfg);
     if (prev) { prev.destroy(); fsChart = null; }
     fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
@@ -1402,7 +1430,11 @@ async function renderForExport({ width = 1100, height = 520, pixelRatio = 3 } = 
       }
     }
   }
-  cfg.plugins = [whiteBackgroundPlugin, ...[cursorPlugin, markerPlugin, outlierPlugin].map(safePlugin)];
+  cfg.plugins = [
+    whiteBackgroundPlugin,
+    ...(Array.isArray(cfg.plugins) ? cfg.plugins : []),
+    ...[cursorPlugin, markerPlugin, outlierPlugin].map(safePlugin),
+  ];
 
   // Logical size = the size fonts/lines are laid out for; Chart.js
   // multiplies the backing store by devicePixelRatio itself for sharpness.
@@ -1423,9 +1455,11 @@ async function renderForExport({ width = 1100, height = 520, pixelRatio = 3 } = 
             series: interpolateDatasetsAtX(chart, c.x).map((p) => ({ label: p.label, value: p.value })),
           }))
       : [];
+    const ranges = cursorMode.value ? rangesWithSeries(cursorRangeStats(chart, activeCursorList())) : [];
     return {
       title: props.title,
       xUnit: xUnit.value,
+      ranges,
       image: chart.toBase64Image("image/png", 1),
       width,
       height,
@@ -1447,6 +1481,7 @@ watch(() => props.exportGroup, (group) => {
       el: () => rootEl.value?.$el || null,
       title: () => props.title,
       cursorCount: () => (cursorMode.value ? cursors.value.filter((c) => c.active).length : 0),
+      seriesCount: () => (inlineChart?.data?.datasets || []).filter((d) => d && !d.statsExclude && d.label).length,
       render: renderForExport,
     });
   }

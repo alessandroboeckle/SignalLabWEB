@@ -140,6 +140,10 @@ export function captureXRange(chart) {
 }
 export function restoreXRange(chart, range) {
   if (!chart || !range || typeof chart.zoomScale !== "function") return;
+  // A chart built from an empty placeholder config has no x scale —
+  // chartjs-plugin-zoom would throw ("reading 'chart'") and the whole
+  // chart would show "Diagramm konnte nicht erstellt werden".
+  if (!chart.scales?.x) return;
   chart.zoomScale("x", range, "none");
 }
 

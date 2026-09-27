@@ -21,7 +21,8 @@ export function interpolateDatasetsAtX(chartLike, x) {
   const hasLabels = Array.isArray(labels) && labels.length > 0;
 
   datasets.forEach((ds, dsIndex) => {
-    if (!ds.data.length) return;
+    // Helper datasets (window bands, …) can opt out of cursor readouts.
+    if (!ds || ds.cursorExclude || !Array.isArray(ds.data) || !ds.data.length) return;
     const dsXs = hasLabels
       ? labels.map(Number)
       : ds.data.map((p) => (p && typeof p === "object" ? p.x : null));

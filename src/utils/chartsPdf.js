@@ -115,6 +115,74 @@ export function drawCursorTable(doc, cursors, x, y, width, xUnit) {
   }
 }
 
+// ---- Statistics between cursors (see utils/cursorRangeStats.js) -------
+const RANGE_COLS = ["Mittel", "RMS", "Min", "Max", "Spitze-Spitze", "N"];
+const RANGE_ROW_H = 3.8;
+
+export function rangeTableHeight(ranges) {
+  if (!ranges?.length) return 0;
+  let h = 0;
+  for (const r of ranges) h += 5 + RANGE_ROW_H + Math.max(1, r.series.length) * RANGE_ROW_H + 2;
+  return h + 1;
+}
+
+// maxY: bottom limit of the space available (small grid cells) — rows
+// that wouldn't fit are cut off with a hint instead of overlapping the
+// next plot.
+export function drawRangeTable(doc, ranges, x, y, width, xUnit, maxY = Infinity) {
+  if (!ranges?.length) return;
+  let truncated = false;
+  const unit = xUnit ? ` ${xUnit}` : "";
+  const sigW = Math.min(width * 0.36, 90);
+  const colW = (width - sigW) / RANGE_COLS.length;
+  let cy = y;
+  for (const r of ranges) {
+    if (cy + 5 + 2 * RANGE_ROW_H > maxY) { truncated = true; break; }
+    doc.setFontSize(8.5);
+    doc.setTextColor(40);
+    doc.setFont(undefined, "bold");
+    doc.text(`Bereich ${r.aLabel}–${r.bLabel}`, x, cy + 3.5);
+    doc.setFont(undefined, "normal");
+    doc.setTextColor(110);
+    const lo = Math.min(r.a, r.b), hi = Math.max(r.a, r.b);
+    doc.text(`${formatCursorNumber(lo)} … ${formatCursorNumber(hi)}${unit}   ·   dx = ${formatCursorNumber(r.dx)}${unit}`, x + 30, cy + 3.5);
+    cy += 5;
+    doc.setFontSize(7);
+    doc.setTextColor(120);
+    doc.text("Signal", x, cy + 2.8);
+    RANGE_COLS.forEach((c, i) => doc.text(c, x + sigW + (i + 1) * colW, cy + 2.8, { align: "right" }));
+    doc.setDrawColor(215);
+    doc.line(x, cy + RANGE_ROW_H, x + width, cy + RANGE_ROW_H);
+    cy += RANGE_ROW_H;
+    doc.setFontSize(7.5);
+    if (!r.series.length) {
+      doc.setTextColor(150);
+      doc.text("Keine auswertbaren Signale", x, cy + 2.9);
+      cy += RANGE_ROW_H;
+    }
+    for (const sRow of r.series) {
+      if (cy + RANGE_ROW_H > maxY) { truncated = true; break; }
+      const [cr, cg, cb] = hexToRgb(sRow.color);
+      doc.setFillColor(cr, cg, cb);
+      doc.circle(x + 1, cy + 1.9, 0.9, "F");
+      doc.setTextColor(50);
+      doc.text(doc.splitTextToSize(String(sRow.label), sigW - 4)[0], x + 3, cy + 2.9);
+      const vals = sRow.n > 0
+        ? [sRow.mean, sRow.rms, sRow.min, sRow.max, sRow.pp].map(formatCursorNumber).concat(String(sRow.n))
+        : ["–", "–", "–", "–", "–", "0"];
+      vals.forEach((v, i) => doc.text(v, x + sigW + (i + 1) * colW, cy + 2.9, { align: "right" }));
+      cy += RANGE_ROW_H;
+    }
+    if (truncated) break;
+    cy += 2;
+  }
+  if (truncated) {
+    doc.setFontSize(7);
+    doc.setTextColor(150);
+    doc.text("… gekürzt — für alle Werte weniger Plots pro Seite wählen", x, Math.min(cy + 3, maxY + 3));
+  }
+}
+
 // Footer credit: who exported this — "Erstellt von SignalLab – <user>".
 export function createdByLine(user) {
   const u = String(user || "").trim();
@@ -194,7 +262,8 @@ export async function buildChartsPdf(charts, {
 
     // Estimated table height (cursor rows + delta rows) to size the render.
     const cc = charts[i].cursorCount?.() || 0;
-    const tableEst = cc ? 7.5 + (2 * cc - 1) * 4.8 : 0;
+    const series = charts[i].seriesCount?.() || 1;
+    const tableEst = cc ? 7.5 + (2 * cc - 1) * 4.8 + (cc - 1) * (5 + (series + 1) * 3.8 + 2) : 0;
     const imgHmm = Math.max(22, slotH - 7 - tableEst - 2);
     const pxPerMm = 4.2;
     const item = await charts[i].render({
@@ -208,13 +277,15 @@ export async function buildChartsPdf(charts, {
     doc.text(doc.splitTextToSize(item.title || `Plot ${i + 1}`, slotW)[0], x0, y0 + 4);
     doc.setFont(undefined, "normal");
 
-    const tableH = cursorTableHeight(doc, item.cursors, slotW);
+    const cursorH = cursorTableHeight(doc, item.cursors, slotW);
+    const tableH = cursorH + rangeTableHeight(item.ranges);
     const maxImgH = Math.max(18, slotH - 6 - tableH - 2);
     const aspect = item.width / item.height;
     let imgW = slotW, imgH = imgW / aspect;
     if (imgH > maxImgH) { imgH = maxImgH; imgW = imgH * aspect; }
     doc.addImage(item.image, "PNG", x0, y0 + 6, imgW, imgH, undefined, "FAST");
     drawCursorTable(doc, item.cursors, x0, y0 + 6 + imgH + 1, slotW, item.xUnit);
+    drawRangeTable(doc, item.ranges, x0, y0 + 6 + imgH + 1 + cursorH, slotW, item.xUnit, y0 + slotH);
     onProgress?.((i + 1) / charts.length);
     await new Promise((r) => setTimeout(r, 0)); // keep the UI responsive between plots
   }
