@@ -48,84 +48,75 @@
       />
       <v-row>
         <v-col cols="12" md="4">
-          <v-card variant="outlined" rounded="lg" class="pa-4 mb-4">
-            <v-autocomplete
-              v-model="selectedIdx"
-              :items="signalOptions"
-              label="Signal"
-              variant="outlined"
-              density="comfortable"
-              prepend-inner-icon="mdi-sine-wave"
-              class="mb-4"
-              hint="↑ / ↓ zum Durchblättern"
-              persistent-hint
-            ></v-autocomplete>
+          <v-card variant="outlined" rounded="lg" class="mb-4 chart-popover">
+            <div class="popover-head">
+              <v-icon size="20" color="primary">mdi-sine-wave</v-icon>
+              <div>
+                <div class="popover-title">Einzelnes Signal exportieren</div>
+                <div class="popover-sub">Plot wie rechts angezeigt — mit Zoom, Markern und Cursor</div>
+              </div>
+            </div>
+            <div class="pa-4">
+              <v-autocomplete
+                v-model="selectedIdx"
+                :items="signalOptions"
+                label="Signal"
+                variant="outlined"
+                density="comfortable"
+                prepend-inner-icon="mdi-sine-wave"
+                class="mb-3"
+                hint="↑ / ↓ zum Durchblättern"
+                persistent-hint
+              ></v-autocomplete>
 
-            <v-text-field
-              v-model="customBaseName"
-              label="Dateiname"
-              variant="outlined"
-              density="comfortable"
-              prepend-inner-icon="mdi-form-textbox"
-              hint="Ohne Dateiendung — die wird je nach Format automatisch angehängt"
-              persistent-hint
-              class="mb-4"
-            ></v-text-field>
+              <v-text-field
+                v-model="customBaseName"
+                label="Dateiname"
+                variant="outlined"
+                density="comfortable"
+                prepend-inner-icon="mdi-form-textbox"
+                hint="Ohne Dateiendung — die wird je nach Format automatisch angehängt"
+                persistent-hint
+                class="mb-4"
+              ></v-text-field>
 
-            <v-btn
-              class="mb-3 w-100"
-              color="primary"
-              prepend-icon="mdi-image"
-              @click="exportPng"
-            >
-              Als PNG speichern
-            </v-btn>
+              <div class="popover-label">Bild &amp; Daten</div>
+              <div class="format-row mb-5">
+                <v-btn variant="outlined" prepend-icon="mdi-image-outline" @click="exportPng">PNG</v-btn>
+                <v-btn variant="outlined" prepend-icon="mdi-svg" @click="exportSvg">SVG</v-btn>
+                <v-btn variant="outlined" prepend-icon="mdi-microsoft-excel" :loading="buildingExcel" @click="exportAllSignalsExcel">
+                  Excel
+                  <v-tooltip activator="parent" location="bottom">Alle Signale der Datei als Excel-Tabelle</v-tooltip>
+                </v-btn>
+              </div>
 
-            <v-btn
-              class="mb-3 w-100"
-              color="primary"
-              variant="outlined"
-              prepend-icon="mdi-svg"
-              @click="exportSvg"
-            >
-              Als SVG speichern
-            </v-btn>
+              <div class="popover-label">PDF-Report · Inhalt</div>
+              <OptionToggle v-model="pdfScope" :options="scopeOptions" fill class="mb-3" />
+              <div class="popover-label">Ausrichtung</div>
+              <OptionToggle v-model="pdfOrientation" :options="orientationOptions" fill class="mb-3" />
+              <div class="popover-hint mb-4">
+                {{ pdfScope === "full"
+                  ? "Logo, Datei-/Signal-Angaben, Zusatzfelder, Plot, Cursor-Werte und Kennzahlen (Mittel, RMS, Std, Varianz, Min/Max, dt/df/N)."
+                  : "Nur der Plot (inkl. Cursor-Werte) — zum Einfügen in ein eigenes Dokument." }}
+              </div>
 
-            <v-btn
-              class="mb-3 w-100"
-              color="primary"
-              variant="outlined"
-              prepend-icon="mdi-microsoft-excel"
-              :loading="buildingExcel"
-              @click="exportAllSignalsExcel"
-            >
-              Alle Signale als Excel
-            </v-btn>
+              <ExportActionButton
+                label="PDF exportieren"
+                :sub="`${pdfScope === 'full' ? 'Vollständiger Report' : 'Nur Plot'} · A4 ${pdfOrientation === 'landscape' ? 'quer' : 'hoch'}`"
+                :loading="buildingPdf"
+                loading-text="PDF wird erstellt"
+                @click="doExportPdf(pdfScope === 'full')"
+              />
 
-            <v-btn
-              class="w-100"
-              color="primary"
-              variant="outlined"
-              prepend-icon="mdi-file-pdf-box"
-              :loading="buildingPdf"
-              @click="exportPdf"
-            >
-              PDF-Report erstellen
-            </v-btn>
+              <v-divider class="my-5"></v-divider>
 
-            <v-alert type="info" variant="tonal" density="compact" class="text-caption mt-4">
-              Der PDF-Report enthält den Plot, die Kennzahlen (Mittel, RMS, Std, Varianz, Min/Max,
-              dt/df/N) sowie Dateiname und Zeitstempel.
-            </v-alert>
-
-            <div class="mt-4">
               <div class="d-flex align-center ga-2 mb-2">
                 <img v-if="reportSettings.logoDataUrl" :src="reportSettings.logoDataUrl" alt="Logo" style="max-height: 24px; max-width: 80px" />
                 <span class="text-caption text-medium-emphasis">
                   {{ reportSettings.logoDataUrl ? "Team-Logo wird auf jedem Report angezeigt." : "Kein Team-Logo hinterlegt (Admin → Report-Vorlage)." }}
                 </span>
               </div>
-              <div class="text-caption font-weight-medium mb-1">Zusätzliche Angaben für diesen Export</div>
+              <div class="popover-label">Zusätzliche Angaben (alle PDFs)</div>
               <div v-for="(field, i) in exportFields" :key="i" class="d-flex align-center ga-2 mb-2">
                 <v-text-field v-model="field.label" density="compact" variant="outlined" label="Feld" hide-details style="max-width: 130px"></v-text-field>
                 <v-text-field v-model="field.value" density="compact" variant="outlined" label="Wert" hide-details></v-text-field>
@@ -137,65 +128,61 @@
             </div>
           </v-card>
 
-          <v-card variant="outlined" rounded="lg" class="pa-4">
-            <div class="d-flex align-center mb-2">
-              <v-icon class="mr-2" size="20">mdi-archive-arrow-down-outline</v-icon>
-              <span class="text-subtitle-1">Batch-Export</span>
+          <v-card variant="outlined" rounded="lg" class="chart-popover">
+            <div class="popover-head">
+              <v-icon size="20" color="primary">mdi-archive-arrow-down-outline</v-icon>
+              <div>
+                <div class="popover-title">Batch-Export</div>
+                <div class="popover-sub">Ein PDF je Signal aus der Anzeige, gesammelt als ZIP</div>
+              </div>
             </div>
-            <p class="text-caption text-medium-emphasis mb-3">
-              Erstellt einen PDF-Report je Signal aus dem <strong>Anzeige</strong>-Bereich
-              (auch mehrere je Datei) und packt alle in ein ZIP.
-            </p>
-
-            <template v-if="mtStore.compareSeries.length === 0">
-              <v-alert type="info" variant="tonal" density="compact" class="text-caption">
-                Noch keine Signale in der Anzeige ausgewählt. Füge welche auf der Anzeige-Seite hinzu.
-              </v-alert>
-            </template>
-            <template v-else>
-              <v-list density="compact" class="mb-3">
-                <v-list-item v-for="s in mtStore.compareSeries" :key="s.key">
-                  <template #prepend>
-                    <v-avatar :color="s.color" size="10"></v-avatar>
-                  </template>
-                  <v-list-item-title class="text-body-2">{{ s.fileName }}</v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
-                    {{ s.signal.name }}
-                  </v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-              <v-text-field
-                v-model="batchZipName"
-                label="ZIP-Dateiname"
-                variant="outlined"
-                density="compact"
-                hint="Ohne .zip — die Namen der einzelnen PDFs darin bleiben pro Signal eindeutig"
-                persistent-hint
-                class="mb-3"
-              ></v-text-field>
-              <v-btn
-                class="w-100"
-                color="primary"
-                variant="flat"
-                prepend-icon="mdi-folder-zip-outline"
-                :loading="buildingBatch"
-                @click="exportBatchZip"
-              >
-                {{ mtStore.compareSeries.length }} PDFs als ZIP
-              </v-btn>
-              <v-progress-linear
-                v-if="buildingBatch"
-                :model-value="batchProgress"
-                class="mt-2"
-                height="4"
-                color="primary"
-              ></v-progress-linear>
-            </template>
+            <div class="pa-4">
+              <template v-if="mtStore.compareSeries.length === 0">
+                <v-alert type="info" variant="tonal" density="compact" class="text-caption">
+                  Noch keine Signale in der Anzeige ausgewählt. Füge welche auf der Anzeige-Seite hinzu.
+                </v-alert>
+              </template>
+              <template v-else>
+                <v-list density="compact" class="mb-3 py-0">
+                  <v-list-item v-for="s in mtStore.compareSeries" :key="s.key" class="px-0">
+                    <template #prepend>
+                      <v-avatar :color="s.color" size="10" class="mr-3"></v-avatar>
+                    </template>
+                    <v-list-item-title class="text-body-2">{{ s.fileName }}</v-list-item-title>
+                    <v-list-item-subtitle class="text-caption">{{ s.signal.name }}</v-list-item-subtitle>
+                  </v-list-item>
+                </v-list>
+                <div class="popover-label">Inhalt</div>
+                <OptionToggle v-model="batchScope" :options="scopeOptions" fill class="mb-3" />
+                <div class="popover-label">Ausrichtung</div>
+                <OptionToggle v-model="batchOrientation" :options="orientationOptions" fill class="mb-3" />
+                <div class="popover-label">ZIP-Dateiname</div>
+                <v-text-field
+                  v-model="batchZipName"
+                  placeholder="messtool_batch"
+                  persistent-placeholder
+                  suffix=".zip"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  class="mb-4"
+                ></v-text-field>
+                <ExportActionButton
+                  label="ZIP exportieren"
+                  icon="mdi-folder-zip-outline"
+                  :sub="`${mtStore.compareSeries.length} PDFs · ${batchScope === 'full' ? 'Vollständiger Report' : 'Nur Plot'} · A4 ${batchOrientation === 'landscape' ? 'quer' : 'hoch'}`"
+                  :loading="buildingBatch"
+                  loading-text="PDFs werden erstellt"
+                  :progress="batchProgress"
+                  @click="doExportBatchZip(batchScope === 'full')"
+                />
+              </template>
+            </div>
           </v-card>
         </v-col>
 
         <v-col cols="12" md="8">
-          <ChartCard title="Zu exportierender Plot" :config="exportConfig" :height="360" />
+          <ChartCard ref="exportChartRef" title="Zu exportierender Plot" :config="exportConfig" :height="360" />
         </v-col>
       </v-row>
     </template>
@@ -241,35 +228,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showPdfScopeDialog" max-width="380">
-      <v-card>
-        <v-card-title class="text-subtitle-1">PDF exportieren</v-card-title>
-        <v-card-text class="text-body-2 text-medium-emphasis">
-          Vollständiger Report (Logo, Datei-/Signal-Angaben, Zusatzfelder, Kennzahlen)
-          oder nur der Plot selbst?
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn variant="text" :disabled="buildingPdf" @click="doExportPdf(false)">Nur Plot</v-btn>
-          <v-btn color="primary" variant="flat" :loading="buildingPdf" @click="doExportPdf(true)">Vollständiger Report</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
 
-    <v-dialog v-model="showBatchScopeDialog" max-width="380">
-      <v-card>
-        <v-card-title class="text-subtitle-1">PDFs exportieren</v-card-title>
-        <v-card-text class="text-body-2 text-medium-emphasis">
-          Gilt für alle {{ mtStore.compareSeries.length }} PDFs im ZIP: vollständiger Report
-          oder nur der jeweilige Plot?
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn variant="text" :disabled="buildingBatch" @click="doExportBatchZip(false)">Nur Plot</v-btn>
-          <v-btn color="primary" variant="flat" :loading="buildingBatch" @click="doExportBatchZip(true)">Vollständiger Report</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </v-container>
 </template>
 
@@ -279,7 +238,9 @@ import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useReportSettingsStore } from "../../stores/reportSettingsStore.js";
 import AnzeigePdfExportForm from "./AnzeigePdfExportForm.vue";
-import { createdByLine } from "../../utils/chartsPdf.js";
+import { createdByLine, cursorTableHeight, drawCursorTable } from "../../utils/chartsPdf.js";
+import OptionToggle from "../../components/OptionToggle.vue";
+import ExportActionButton from "../../components/ExportActionButton.vue";
 import { useAuthStore } from "../../stores/authStore.js";
 import { usernameFromEmail } from "../../utils/formatUsername.js";
 import { showToast } from "../../composables/useToast.js";
@@ -323,8 +284,31 @@ const batchProgress = ref(0);
 const batchZipName = ref("messtool_batch");
 const showPngDialog = ref(false);
 const pngTitleInput = ref("");
-const showPdfScopeDialog = ref(false);
-const showBatchScopeDialog = ref(false);
+// PDF options are chosen inline now (no more "Nur Plot / Vollständig"
+// pop-up) and remembered per browser.
+const PDF_PREF_KEY = "signallab.export.pdfPrefs";
+const pdfPrefs = (() => { try { return JSON.parse(localStorage.getItem(PDF_PREF_KEY) || "{}"); } catch { return {}; } })();
+const scopeOptions = [
+  { value: "full", label: "Vollständig", icon: "mdi-file-document-outline" },
+  { value: "plot", label: "Nur Plot", icon: "mdi-chart-line" },
+];
+const orientationOptions = [
+  { value: "portrait", label: "Hochformat", icon: "mdi-crop-portrait" },
+  { value: "landscape", label: "Querformat", icon: "mdi-crop-landscape" },
+];
+const pdfScope = ref(pdfPrefs.pdfScope === "plot" ? "plot" : "full");
+const pdfOrientation = ref(pdfPrefs.pdfOrientation === "landscape" ? "landscape" : "portrait");
+const batchScope = ref(pdfPrefs.batchScope === "plot" ? "plot" : "full");
+const batchOrientation = ref(pdfPrefs.batchOrientation === "landscape" ? "landscape" : "portrait");
+watch([pdfScope, pdfOrientation, batchScope, batchOrientation], () => {
+  try {
+    localStorage.setItem(PDF_PREF_KEY, JSON.stringify({
+      pdfScope: pdfScope.value, pdfOrientation: pdfOrientation.value,
+      batchScope: batchScope.value, batchOrientation: batchOrientation.value,
+    }));
+  } catch { /* storage unavailable */ }
+});
+const exportChartRef = ref(null);
 
 const signalOptions = computed(() => {
   if (!mtStore.parsed) return [];
@@ -356,13 +340,17 @@ function exportFilename(extension) {
 const exportConfig = computed(() => {
   const s = sig.value, t = time.value;
   return (peakMode, exactMode = false) => {
-    if (!s) return emptyLineChartConfig();
+    if (!s) return emptyLineChartConfig(false);
     const { rx, ry } = downsampleForDisplay(s.data, t, peakMode, exactMode);
+    // {x,y} points on a real linear time axis (like Analyse) — the old
+    // label/category axis printed raw float labels such as
+    // "5.310000000000001" as ticks, also in the exported PDF.
     return buildLineChartConfig({
-      labels: rx,
+      parsing: false,
+      xScale: { type: "linear", ticks: { maxTicksLimit: 10 } },
       datasets: [{
         label: `${s.name} [${s.unit || "-"}]`,
-        data: ry,
+        data: rx.map((x, i) => ({ x, y: ry[i] })),
         borderColor: "#2563EB",
         backgroundColor: "rgba(37,99,235,0.08)",
         borderWidth: 1.5, pointRadius: 0, fill: true,
@@ -580,26 +568,55 @@ function exportSvg() {
 // showMarkers should only be true when `s`/`t` genuinely belong to the
 // currently active file (mtStore.markers is scoped to that file) — batch-
 // exporting a different comparison file must leave it off.
-async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUrl = null, logoAspect = null, fields = [], fullReport = true } = {}) {
-  const imgData = await renderOffscreenChart(s, t, 1600, 800, { showMarkers });
-
+async function buildReportPdf(s, t, fileLabel, {
+  showMarkers = false, logoDataUrl = null, logoAspect = null, fields = [], fullReport = true,
+  orientation = "portrait", renderChart = null,
+} = {}) {
   const { default: jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const doc = new jsPDF({ orientation: orientation === "landscape" ? "landscape" : "portrait", unit: "mm", format: "a4" });
+  const landscape = orientation === "landscape";
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   const margin = 15;
+  const contentW = pageW - 2 * margin;
+  const footerY = pageH - 8;
 
-  // "Nur Plot" — the chart, as large as the page allows, with just the
-  // signal name as a minimal label. No logo, no header, no custom
-  // fields, no Kennzahlen — genuinely just the plot, for when someone
-  // wants to drop it straight into their own document instead of a
-  // standalone report.
+  // Renders the plot for a given box (mm) — from the live chart when the
+  // caller has one (zoom + cursors), else the plain off-screen renderer
+  // (batch export). Returns { image, width, height, cursors, xUnit }.
+  async function plotFor(boxW, boxH) {
+    const pxW = Math.round(boxW * 4.2), pxH = Math.round(boxH * 4.2);
+    if (renderChart) return renderChart({ width: pxW, height: pxH });
+    const image = await renderOffscreenChart(s, t, pxW, pxH, { showMarkers });
+    return { image, width: pxW, height: pxH, cursors: [], xUnit: "s" };
+  }
+  function footer() {
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(createdByLine(usernameFromEmail(auth.user?.email)), margin, footerY);
+  }
+  function placePlot(item, x, y, maxW, maxH) {
+    const aspect = item.width / item.height;
+    let w = maxW, h = w / aspect;
+    if (h > maxH) { h = maxH; w = h * aspect; }
+    doc.addImage(item.image, "PNG", x, y, w, h, undefined, "FAST");
+    return h;
+  }
+  const cursorEstimate = (renderChart && exportChartRef.value?.cursorCountForExport?.()) || 0;
+  const tableEst = cursorEstimate ? 7.5 + (2 * cursorEstimate - 1) * 4.8 : 0;
+
+  // "Nur Plot" — the chart as large as the page allows, with just the
+  // signal name as a label (+ cursor values if any). For dropping it
+  // straight into your own document.
   if (!fullReport) {
     doc.setFontSize(12);
     doc.setTextColor(60);
     doc.text(`${s.name}${s.unit ? ` [${s.unit}]` : ""}`, margin, 18);
-    const imgW = pageW - 2 * margin;
-    const imgH = imgW * 0.6;
-    doc.addImage(imgData, "PNG", margin, 24, imgW, imgH);
+    const maxH = footerY - 6 - 24 - tableEst - 4;
+    const item = await plotFor(contentW, Math.min(maxH, contentW * 0.62));
+    const h = placePlot(item, margin, 24, contentW, maxH);
+    drawCursorTable(doc, item.cursors, margin, 24 + h + 2, contentW, item.xUnit);
+    footer();
     return doc;
   }
 
@@ -619,10 +636,7 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
   }
 
   // Logo top-right, if the team has one set (Admin → Report-Vorlage) —
-  // fitted ("contain") within a max box using its real aspect ratio
-  // instead of being stretched into a fixed box, and always re-encoded
-  // to PNG at upload time (see AdminTab.vue) since jsPDF's addImage has
-  // no real SVG support despite the uploader once accepting it.
+  // fitted ("contain") within a max box using its real aspect ratio.
   if (logoDataUrl) {
     try {
       const maxW = 40, maxH = 18;
@@ -636,6 +650,7 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
   }
 
   doc.setFontSize(18);
+  doc.setTextColor(20);
   doc.text("Messtool – Analyse-Report", margin, 20);
 
   doc.setFontSize(11);
@@ -648,81 +663,83 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
   doc.text(`Signal: ${s.name} [${s.unit || "-"}]`, margin, 39);
   doc.text(`Erstellt: ${new Date().toLocaleString("de-DE")}`, margin, 45);
 
-  // Custom fields (Admin defaults + whatever was added/edited just for
-  // this export) — two-column layout so a handful of short fields don't
-  // push the chart image far down the page.
-  let fieldsBottomY = 45;
+  // Custom fields — 2 columns portrait, 3 landscape.
+  const fieldCols = landscape ? 3 : 2;
+  let fieldsBottomY = 49;
   if (fields.length) {
-    const colW = (pageW - 2 * margin) / 2;
+    const colW = contentW / fieldCols;
     fields.forEach((f, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const fx = margin + col * colW;
-      const fy = 53 + row * 6;
+      const fx = margin + (i % fieldCols) * colW;
+      const fy = 53 + Math.floor(i / fieldCols) * 6;
       doc.text(`${f.label}:`, fx, fy);
       doc.text(String(f.value ?? ""), fx + Math.min(colW * 0.4, 35), fy);
-      fieldsBottomY = fy;
+      fieldsBottomY = fy + 6;
     });
-    fieldsBottomY += 6;
-  } else {
-    fieldsBottomY = 49;
   }
 
-  const imgY = Math.max(53, fieldsBottomY);
-  const imgW = pageW - 2 * margin;
-  const imgH = imgW * 0.5;
-  doc.addImage(imgData, "PNG", margin, imgY, imgW, imgH);
-
-  let y0 = imgY + imgH + 12;
-  doc.setFontSize(13);
-  doc.setTextColor(30);
-  doc.text("Kennzahlen", margin, y0);
-  y0 += 7;
-
-  doc.setFontSize(10);
-  doc.setTextColor(60);
-  const rows = [
+  const statRows = [
     ["Mittelwert", stats.mean, s.unit],
     ["RMS", stats.rms, s.unit],
     ["Standardabweichung", stats.std, s.unit],
-    ["Varianz", stats.variance, ""],
+    ["Varianz", stats.variance, s.unit ? `${s.unit}²` : ""],
     ["Minimum", stats.min, s.unit],
     ["Maximum", stats.max, s.unit],
   ];
   if (windowInfo) {
-    rows.push(["dt", windowInfo.dt, "s"], ["df", windowInfo.df, "Hz"], ["N (Samples)", windowInfo.n, "", 0]);
+    statRows.push(["dt", windowInfo.dt, "s"], ["df", windowInfo.df, "Hz"], ["N (Samples)", windowInfo.n, "", 0]);
   }
-  for (const [label, val, unit, decimals] of rows) {
-    doc.text(`${label}:`, margin, y0);
-    doc.text(`${val == null ? "-" : val.toFixed(decimals ?? 4)} ${unit || ""}`, margin + 60, y0);
-    y0 += 6;
-  }
+  // Kennzahlen as a grid (2 columns portrait, 3 landscape) — keeps the
+  // plot large, especially on the shorter landscape page.
+  const statCols = landscape ? 3 : 2;
+  const statsH = 12 + Math.ceil(statRows.length / statCols) * 6;
 
-  doc.setFontSize(8);
-  doc.setTextColor(150);
-  doc.text(createdByLine(usernameFromEmail(auth.user?.email)), margin, 287);
+  const imgY = Math.max(53, fieldsBottomY);
+  const maxImgH = footerY - 6 - imgY - statsH - tableEst - 8;
+  const item = await plotFor(contentW, Math.max(40, Math.min(maxImgH, contentW * 0.55)));
+  const imgH = placePlot(item, margin, imgY, contentW, Math.max(40, maxImgH));
+  const tableH = cursorTableHeight(doc, item.cursors, contentW);
+  drawCursorTable(doc, item.cursors, margin, imgY + imgH + 2, contentW, item.xUnit);
 
+  let y0 = imgY + imgH + 2 + tableH + 8;
+  doc.setFontSize(13);
+  doc.setTextColor(30);
+  doc.text("Kennzahlen", margin, y0);
+  y0 += 7;
+  doc.setFontSize(10);
+  doc.setTextColor(60);
+  const statColW = contentW / statCols;
+  statRows.forEach(([label, val, unit, decimals], i) => {
+    const sx = margin + (i % statCols) * statColW;
+    const sy = y0 + Math.floor(i / statCols) * 6;
+    doc.text(`${label}:`, sx, sy);
+    doc.text(`${val == null ? "-" : val.toFixed(decimals ?? 4)} ${unit || ""}`, sx + Math.min(statColW * 0.5, 45), sy);
+  });
+
+  footer();
   return doc;
 }
 
-function exportPdf() {
-  if (!sig.value) return;
-  showPdfScopeDialog.value = true;
-}
-
 async function doExportPdf(fullReport) {
-  showPdfScopeDialog.value = false;
+  if (!sig.value) return;
   buildingPdf.value = true;
   try {
+    // The single-signal report uses the live chart on the right, so the
+    // PDF shows exactly that view: zoom, markers, cursors (+ their values).
+    const live = exportChartRef.value;
     const doc = await buildReportPdf(sig.value, time.value, mtStore.fileName, {
       showMarkers: true,
       logoDataUrl: reportSettings.logoDataUrl,
       logoAspect: reportSettings.logoAspect,
       fields: exportFields.value.filter((f) => f.label.trim()),
       fullReport,
+      orientation: pdfOrientation.value,
+      renderChart: live?.renderForExport ? (size) => live.renderForExport(size) : null,
     });
     doc.save(exportFilename("pdf"));
     showToast("PDF heruntergeladen.");
+  } catch (e) {
+    console.error("[Export] PDF failed", e);
+    showToast("PDF konnte nicht erstellt werden: " + (e?.message || e), { color: "error" });
   } finally {
     buildingPdf.value = false;
   }
@@ -734,13 +751,8 @@ async function doExportPdf(fullReport) {
 // Batch: one report PDF per (file, signal) series selected on the
 // Vergleich page — so picking two signals from the same file there
 // produces two PDFs here too, not just one.
-async function exportBatchZip() {
-  if (mtStore.compareSeries.length === 0) return;
-  showBatchScopeDialog.value = true;
-}
 
 async function doExportBatchZip(fullReport) {
-  showBatchScopeDialog.value = false;
   const series = mtStore.compareSeries;
   if (series.length === 0) return;
   buildingBatch.value = true;
@@ -757,6 +769,7 @@ async function doExportBatchZip(fullReport) {
         logoAspect: reportSettings.logoAspect,
         fields,
         fullReport,
+        orientation: batchOrientation.value,
       });
       const baseName = s.fileName.replace(/[^\w.-]+/g, "_").replace(/\.csv$/i, "");
       const sigName = s.signal.name.replace(/[^\w.-]+/g, "_");

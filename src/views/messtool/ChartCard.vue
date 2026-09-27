@@ -1475,7 +1475,11 @@ onBeforeUnmount(() => {
   if (fsChart) fsChart.destroy();
 });
 
-defineExpose({ rebuild: buildInline, renderForExport });
+defineExpose({
+  rebuild: buildInline,
+  renderForExport,
+  cursorCountForExport: () => (cursorMode.value ? cursors.value.filter((c) => c.active).length : 0),
+});
 </script>
 
 <style scoped>

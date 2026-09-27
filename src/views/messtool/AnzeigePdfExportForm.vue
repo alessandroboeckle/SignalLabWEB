@@ -36,19 +36,7 @@
       </div>
 
       <div class="popover-label">Ausrichtung</div>
-      <div class="option-row mb-4">
-        <v-btn
-          v-for="o in orientationOptions"
-          :key="o.value"
-          :variant="orientation === o.value ? 'flat' : 'outlined'"
-          :color="orientation === o.value ? 'secondary' : undefined"
-          :prepend-icon="o.icon"
-          class="option-btn"
-          @click="orientation = o.value"
-        >
-          {{ o.label }}
-        </v-btn>
-      </div>
+      <OptionToggle v-model="orientation" :options="orientationOptions" fill class="mb-4" />
 
       <div class="popover-label">Plots pro Seite</div>
       <div class="d-flex align-center ga-3 mb-3">
@@ -110,26 +98,14 @@
       </div>
 
       <div class="export-footer">
-        <v-btn
-          block
-          size="large"
-          color="primary"
-          variant="flat"
-          elevation="3"
-          class="export-btn"
+        <ExportActionButton
+          label="PDF exportieren"
+          :sub="`${chartCount} ${chartCount === 1 ? 'Plot' : 'Plots'} · ${pageCount} ${pageCount === 1 ? 'Seite' : 'Seiten'}`"
           :loading="building"
+          loading-text="PDF wird erstellt"
+          :progress="progress"
           @click="run"
-        >
-          <v-icon start size="22">mdi-download</v-icon>
-          <span class="export-btn-text">
-            <span class="export-btn-main">PDF exportieren</span>
-            <span class="export-btn-sub">{{ chartCount }} {{ chartCount === 1 ? "Plot" : "Plots" }} · {{ pageCount }} {{ pageCount === 1 ? "Seite" : "Seiten" }}</span>
-          </span>
-          <template #loader>
-            <v-progress-circular indeterminate size="20" width="2" class="mr-2"></v-progress-circular>
-            PDF wird erstellt … {{ progress }} %
-          </template>
-        </v-btn>
+        />
       </div>
       </div>
 
@@ -150,6 +126,8 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { pdfGrid } from "../../utils/chartsPdf.js";
+import OptionToggle from "../../components/OptionToggle.vue";
+import ExportActionButton from "../../components/ExportActionButton.vue";
 import { useAnzeigePdfExport } from "../../composables/useAnzeigePdfExport.js";
 import { showToast } from "../../composables/useToast.js";
 
@@ -291,25 +269,6 @@ async function run() {
   margin: 4px -4px 0;
   padding-top: 14px;
   border-top: 1px solid rgba(var(--v-border-color), 0.15);
-}
-.export-btn {
-  height: 52px !important;
-  letter-spacing: 0.01em;
-}
-.export-btn-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.15;
-}
-.export-btn-main {
-  font-weight: 700;
-  font-size: 0.98rem;
-}
-.export-btn-sub {
-  font-size: 0.72rem;
-  opacity: 0.85;
-  font-weight: 500;
 }
 .with-list {
   display: grid;

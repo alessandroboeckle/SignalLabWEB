@@ -67,7 +67,7 @@ function rowText(series) {
   return series.map((s) => `${s.label}: ${formatCursorNumber(s.value)}`).join("   ·   ") || "(keine Werte)";
 }
 
-function cursorTableHeight(doc, cursors, width) {
+export function cursorTableHeight(doc, cursors, width) {
   if (!cursors?.length) return 0;
   let h = 6; // heading
   doc.setFontSize(8);
@@ -78,7 +78,7 @@ function cursorTableHeight(doc, cursors, width) {
   return h + 2;
 }
 
-function drawCursorTable(doc, cursors, x, y, width, xUnit) {
+export function drawCursorTable(doc, cursors, x, y, width, xUnit) {
   if (!cursors?.length) return;
   doc.setFontSize(8.5);
   doc.setTextColor(40);

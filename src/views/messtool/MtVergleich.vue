@@ -391,10 +391,14 @@
 
       <!-- Display mode -->
       <div class="d-flex align-center flex-wrap ga-3 mb-3">
-        <v-btn-toggle v-model="displayMode" color="primary" density="comfortable" mandatory divided>
-          <v-btn value="overlay" size="small" prepend-icon="mdi-layers-outline">Überlagert</v-btn>
-          <v-btn value="stacked" size="small" prepend-icon="mdi-view-sequential-outline">Gestapelt</v-btn>
-        </v-btn-toggle>
+        <OptionToggle
+          v-model="displayMode"
+          size="small"
+          :options="[
+            { value: 'overlay', label: 'Überlagert', icon: 'mdi-layers-outline' },
+            { value: 'stacked', label: 'Gestapelt', icon: 'mdi-view-sequential-outline' },
+          ]"
+        />
 
         <v-spacer></v-spacer>
 
@@ -409,7 +413,6 @@
               color="primary"
               variant="flat"
               prepend-icon="mdi-file-download-outline"
-              :append-icon="pdfMenuOpen ? 'mdi-chevron-up' : 'mdi-chevron-down'"
               class="export-trigger"
             >
               PDF exportieren
@@ -440,10 +443,15 @@
               <v-icon size="18" color="secondary">mdi-timer-outline</v-icon>
               <div class="text-subtitle-2 font-weight-bold">Zeitachse</div>
             </div>
-            <v-btn-toggle v-model="xAxisMode" color="secondary" density="comfortable" mandatory divided class="mb-1">
-              <v-btn value="zeit" size="small" prepend-icon="mdi-timer-outline">Zeit</v-btn>
-              <v-btn value="uhrzeit" size="small" prepend-icon="mdi-clock-outline">Uhrzeit</v-btn>
-            </v-btn-toggle>
+            <OptionToggle
+              v-model="xAxisMode"
+              size="small"
+              class="mb-1"
+              :options="[
+                { value: 'zeit', label: 'Zeit', icon: 'mdi-timer-outline' },
+                { value: 'uhrzeit', label: 'Uhrzeit', icon: 'mdi-clock-outline' },
+              ]"
+            />
 
             <v-divider class="my-3"></v-divider>
 
@@ -470,10 +478,15 @@
               <v-icon size="18" color="secondary">mdi-unfold-more-horizontal</v-icon>
               <div class="text-subtitle-2 font-weight-bold">Y-Achsen</div>
             </div>
-            <v-btn-toggle v-model="axisMode" color="secondary" density="comfortable" mandatory divided class="mb-2">
-              <v-btn value="shared" size="small" prepend-icon="mdi-unfold-less-horizontal">Geteilt</v-btn>
-              <v-btn value="multi" size="small" prepend-icon="mdi-unfold-more-horizontal">Mehrere</v-btn>
-            </v-btn-toggle>
+            <OptionToggle
+              v-model="axisMode"
+              size="small"
+              class="mb-2"
+              :options="[
+                { value: 'shared', label: 'Geteilt', icon: 'mdi-unfold-less-horizontal' },
+                { value: 'multi', label: 'Mehrere', icon: 'mdi-unfold-more-horizontal' },
+              ]"
+            />
             <div class="text-caption text-medium-emphasis">
               {{ axisMode === "shared" ? "Alle Signale auf einer Achse (ausser manuell auf \"Zweite Y-Achse\" gestellt)." : "Jedes Signal bekommt automatisch eine eigene Achse." }}
             </div>
@@ -743,6 +756,7 @@ import { useSignalMergeGroups } from "../../composables/useSignalMergeGroups.js"
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import ChartCard from "./ChartCard.vue";
 import AnzeigePdfExportForm from "./AnzeigePdfExportForm.vue";
+import OptionToggle from "../../components/OptionToggle.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
