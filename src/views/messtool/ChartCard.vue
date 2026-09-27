@@ -287,7 +287,7 @@
               :append-icon="expandedCursors.has(c.id) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
               @click="toggleCursorExpanded(c.id)"
             >
-              x = {{ c.x.toFixed(3) }}
+              x = {{ formatX(c.x) }}
             </v-btn>
             <v-spacer></v-spacer>
             <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
@@ -320,7 +320,7 @@
             </span>
           </div>
         </div>
-        <CursorRangeStats :ranges="cursorRanges" :x-unit="xUnit" :reduced="!exactMode" />
+        <CursorRangeStats :ranges="cursorRanges" :x-unit="chartMeta.xFormat ? '' : xUnit" :format-x="chartMeta.xFormat" :reduced="!exactMode" />
       </v-card>
 
       <v-alert v-if="buildError" type="error" variant="tonal" density="compact" class="mb-2">
@@ -400,7 +400,7 @@
                   :append-icon="expandedCursors.has(c.id) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
                   @click="toggleCursorExpanded(c.id)"
                 >
-                  x = {{ c.x.toFixed(3) }}
+                  x = {{ formatX(c.x) }}
                 </v-btn>
                 <v-spacer></v-spacer>
                 <v-btn size="x-small" variant="text" icon="mdi-close" :aria-label="`Cursor ${i + 1} entfernen`" @click="removeCursor(c.id)"></v-btn>
@@ -432,7 +432,7 @@
                 </span>
               </div>
             </div>
-            <CursorRangeStats :ranges="cursorRanges" :x-unit="xUnit" :reduced="!exactMode" />
+            <CursorRangeStats :ranges="cursorRanges" :x-unit="chartMeta.xFormat ? '' : xUnit" :format-x="chartMeta.xFormat" :reduced="!exactMode" />
           </v-card>
           <v-alert v-if="buildError" type="error" variant="tonal" density="compact" class="mb-2">
             Diagramm konnte nicht erstellt werden: {{ buildError }}
@@ -842,7 +842,9 @@ function onCanvasClick(evt, which) {
   if (markerMode.value) {
     const x = xValueAtEvent(chart, evt);
     if (x == null || Number.isNaN(x)) return;
-    markerDialogX.value = x;
+    const off = chartMeta.value.markerOffset;
+    if (off == null || !Number.isFinite(off)) return; // markers not placeable on this x-axis
+    markerDialogX.value = x - off;
     markerNoteInput.value = "";
     markerDialogOpen.value = true;
     return;
@@ -938,10 +940,12 @@ const markerPlugin = {
   id: "fileMarkers",
   afterDraw(chart) {
     if (!isTimeAxis.value || !mtStore.markers.length || !chart.scales?.x) return;
+    const off = chartMeta.value.markerOffset;
+    if (off == null || !Number.isFinite(off)) return;
     const { ctx, chartArea } = chart;
     ctx.save();
     for (const m of mtStore.markers) {
-      const px = xValueToPixel(chart, m.timeSec);
+      const px = xValueToPixel(chart, m.timeSec + off);
       if (Number.isNaN(px) || px < chartArea.left || px > chartArea.right) continue;
       ctx.strokeStyle = "#D97706";
       ctx.lineWidth = 1.5;
@@ -1097,6 +1101,35 @@ function applyThemeColors(cfg, forceLight = false) {
 }
 
 // Shared interaction + zoom + tooltip options merged into every chart.
+// Optional per-config extras (top-level keys, stripped before Chart.js
+// sees them):
+//   xFormat(x)   → label for an x value, e.g. real clock time on the
+//                  Anzeige "Uhrzeit" axis (cursor box, PDF tables)
+//   markerOffset → where file markers (stored in the loaded file's own
+//                  elapsed seconds) sit on this chart's x-axis; null =
+//                  don't draw them (x-axis not comparable to that file)
+//   xBaseKey     → identifies the x "time base"; when it changes (e.g.
+//                  Anzeige Zeit ↔ Uhrzeit) the old zoom range means
+//                  something else, so it isn't carried over
+const chartMeta = ref({ xFormat: null, markerOffset: 0, xBaseKey: null });
+function takeMeta(cfg, { store = true } = {}) {
+  const meta = {
+    xFormat: typeof cfg?.xFormat === "function" ? cfg.xFormat : null,
+    markerOffset: cfg && "markerOffset" in cfg ? cfg.markerOffset : 0,
+    xBaseKey: cfg?.xBaseKey ?? null,
+  };
+  if (cfg) { delete cfg.xFormat; delete cfg.markerOffset; delete cfg.xBaseKey; }
+  if (store) chartMeta.value = meta;
+  return meta;
+}
+function formatX(x) {
+  if (x == null || !Number.isFinite(x)) return "–";
+  try {
+    if (chartMeta.value.xFormat) return chartMeta.value.xFormat(x);
+  } catch { /* fall back to the plain number */ }
+  return x.toFixed(3);
+}
+
 function withInteractions(cfg, { forExport = false } = {}) {
   cfg.options = cfg.options || {};
   cfg.options.maintainAspectRatio = false;
@@ -1319,9 +1352,12 @@ function buildInline() {
     return;
   }
   try {
-    const cfg = withInteractions(props.config(peakMode.value, exactMode.value));
+    const raw = props.config(peakMode.value, exactMode.value);
+    const prevBase = chartMeta.value.xBaseKey;
+    const meta = takeMeta(raw);
+    const cfg = withInteractions(raw);
     cfg.plugins = [...(Array.isArray(cfg.plugins) ? cfg.plugins : []), ...overlayPlugins()];
-    const keepRange = sameXType(prev, cfg);
+    const keepRange = sameXType(prev, cfg) && prevBase === meta.xBaseKey;
     if (prev) { prev.destroy(); inlineChart = null; }
     inlineChart = new Chart(inlineCanvas.value.getContext("2d"), cfg);
     applyZoomLimits(inlineChart);
@@ -1344,9 +1380,12 @@ function buildFullscreen() {
     return;
   }
   try {
-    const cfg = withInteractions(props.config(peakMode.value, exactMode.value));
+    const raw = props.config(peakMode.value, exactMode.value);
+    const prevBase = chartMeta.value.xBaseKey;
+    const meta = takeMeta(raw);
+    const cfg = withInteractions(raw);
     cfg.plugins = [...(Array.isArray(cfg.plugins) ? cfg.plugins : []), ...overlayPlugins()];
-    const keepRange = sameXType(prev, cfg);
+    const keepRange = sameXType(prev, cfg) && prevBase === meta.xBaseKey;
     if (prev) { prev.destroy(); fsChart = null; }
     fsChart = new Chart(fsCanvas.value.getContext("2d"), cfg);
     applyZoomLimits(fsChart);
@@ -1406,7 +1445,12 @@ const whiteBackgroundPlugin = {
 
 async function renderForExport({ width = 1100, height = 520, pixelRatio = 3 } = {}) {
   const live = inlineChart || fsChart;
-  const cfg = withInteractions(props.config(peakMode.value, exactMode.value), { forExport: true });
+  const rawCfg = props.config(peakMode.value, exactMode.value);
+  const meta = takeMeta(rawCfg, { store: false });
+  const cfg = withInteractions(rawCfg, { forExport: true });
+  const fmtX = (x) => {
+    try { return meta.xFormat ? meta.xFormat(x) : null; } catch { return null; }
+  };
   cfg.options.responsive = false;
   cfg.options.maintainAspectRatio = false;
   cfg.options.animation = false;
@@ -1452,13 +1496,15 @@ async function renderForExport({ width = 1100, height = 520, pixelRatio = 3 } = 
             label: `C${i + 1}`,
             color: CURSOR_COLORS[i % CURSOR_COLORS.length],
             x: c.x,
+            xLabel: fmtX(c.x),
             series: interpolateDatasetsAtX(chart, c.x).map((p) => ({ label: p.label, value: p.value })),
           }))
       : [];
-    const ranges = cursorMode.value ? rangesWithSeries(cursorRangeStats(chart, activeCursorList())) : [];
+    const ranges = (cursorMode.value ? rangesWithSeries(cursorRangeStats(chart, activeCursorList())) : [])
+      .map((r) => ({ ...r, aText: fmtX(Math.min(r.a, r.b)), bText: fmtX(Math.max(r.a, r.b)) }));
     return {
       title: props.title,
-      xUnit: xUnit.value,
+      xUnit: meta.xFormat ? "" : xUnit.value,
       ranges,
       image: chart.toBase64Image("image/png", 1),
       width,

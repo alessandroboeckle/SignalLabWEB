@@ -5,7 +5,7 @@
         <v-icon size="14" class="mr-1">mdi-arrow-expand-horizontal</v-icon>
         <strong>Bereich {{ r.aLabel }}–{{ r.bLabel }}</strong>
         <span class="text-medium-emphasis ml-2 font-mono">
-          {{ fmt(Math.min(r.a, r.b)) }} … {{ fmt(Math.max(r.a, r.b)) }} {{ xUnit }} · Δx = {{ fmt(r.dx) }} {{ xUnit }}
+          {{ fx(Math.min(r.a, r.b)) }} … {{ fx(Math.max(r.a, r.b)) }} {{ xUnit }} · Δx = {{ fmt(r.dx) }} {{ xUnit || "s" }}
         </span>
       </div>
       <div class="range-table-wrap">
@@ -29,8 +29,8 @@
               <template v-if="s.n > 0">
                 <td>{{ fmt(s.mean) }}</td>
                 <td>{{ fmt(s.rms) }}</td>
-                <td :title="`bei x = ${fmt(s.minAt)} ${xUnit}`">{{ fmt(s.min) }}</td>
-                <td :title="`bei x = ${fmt(s.maxAt)} ${xUnit}`">{{ fmt(s.max) }}</td>
+                <td :title="`bei x = ${fx(s.minAt)} ${xUnit}`">{{ fmt(s.min) }}</td>
+                <td :title="`bei x = ${fx(s.maxAt)} ${xUnit}`">{{ fmt(s.max) }}</td>
                 <td>{{ fmt(s.pp) }}</td>
                 <td>{{ s.n }}</td>
               </template>
@@ -52,12 +52,20 @@
 <script setup>
 import { formatCursorNumber } from "../../utils/chartsPdf.js";
 
-defineProps({
+const props = defineProps({
   ranges: { type: Array, default: () => [] },
   xUnit: { type: String, default: "" },
   reduced: { type: Boolean, default: false },
+  // Optional x formatter (e.g. clock time on the Anzeige "Uhrzeit" axis).
+  formatX: { type: Function, default: null },
 });
 const fmt = formatCursorNumber;
+function fx(v) {
+  if (props.formatX && v != null && Number.isFinite(v)) {
+    try { return props.formatX(v); } catch { /* fall through */ }
+  }
+  return fmt(v);
+}
 </script>
 
 <style scoped>

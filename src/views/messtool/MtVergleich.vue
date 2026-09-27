@@ -506,8 +506,8 @@
 
         <span class="text-caption text-medium-emphasis w-100">
           {{ displayMode === "overlay" ? "Alle Signale in einem Chart übereinander" : "Jedes Signal als eigenes Chart untereinander" }}
-          <template v-if="xAxisMode === 'uhrzeit' && displayMode === 'overlay' && mtStore.compareFiles.length > 1">
-            · Uhrzeit-Achse richtet sich nach der ersten Datei
+          <template v-if="xAxisMode === 'uhrzeit' && mtStore.compareFiles.length > 1">
+            · Uhrzeit: alle Dateien auf gemeinsamer Zeitbasis — Cursor und Zoom zeigen in jedem Plot denselben Zeitpunkt
           </template>
         </span>
       </div>
@@ -743,6 +743,7 @@ import { showToast, showUndoToast } from "../../composables/useToast.js";
 import * as A from "../../utils/messtoolAnalysis.js";
 import { computeFftOffMainThread } from "../../utils/computeFftOffMainThread.js";
 import { formatClockTime } from "../../utils/messtoolParser.js";
+import { clockReference, clockShift } from "../../utils/clockAxis.js";
 import { downsample } from "../../utils/downsample.js";
 import { applyFilter } from "../../utils/messtoolFilter.js";
 import { findBestOffset } from "../../utils/crossCorrelate.js";
@@ -897,17 +898,47 @@ const {
 } = useSignalMergeGroups(computed(() => mtStore.compareSeries));
 void groupLeaderKeys; // exposed by the composable, not read directly here — the menu checks canJoinGroup() per-series instead
 
-// Elapsed-time-to-clock offset for a series: clockSec[i] ≈ time[i] +
-// clockOffset, assuming a steady sample rate (reasonable — big gaps are
-// already flagged separately by the quality check). Used to relabel the
-// x-axis ticks as real clock time without touching where points are
-// actually plotted.
-function clockOffsetFor(s) {
-  if (!s?.clockSec?.length || !s?.time?.length) return null;
-  const c0 = s.clockSec[0];
-  const t0 = s.time[0];
-  if (c0 == null || t0 == null) return null;
-  return c0 - t0;
+// Elapsed-time-to-clock offset math lives in utils/clockAxis.js.
+
+// ---- Shared clock reference for the "Uhrzeit" axis -------------------
+// Previously every chart plotted its own file's ELAPSED seconds and only
+// relabelled the ticks with that file's clock. Cursor and zoom sync pass
+// raw x values between charts, so in "Gestapelt" with files recorded at
+// different times a cursor at x = 71.1 s landed on 10:08:57 in one plot
+// and 10:08:47 in the other. Now, in Uhrzeit mode, every series is
+// placed on ONE common time base — seconds since the earliest recording
+// start among all compared files — so the same x means the same
+// wall-clock moment in every chart (overlay included). Series without
+// clock information keep their elapsed time from that common start.
+const clockRef = computed(() =>
+  xAxisMode.value === "uhrzeit" ? clockReference(mtStore.compareSeries) : null,
+);
+
+// Amount to add to a series' own (elapsed) x values on the current axis.
+function xShift(s) {
+  return clockShift(s, clockRef.value);
+}
+
+function clockTicks() {
+  const ref = clockRef.value;
+  return ref != null ? { callback: (val) => formatClockTime(val + ref) } : {};
+}
+
+// Extras ChartCard reads off a config (see takeMeta there): clock-time
+// labels for cursors/PDF, and where the loaded file's markers belong.
+function axisExtras(cfg) {
+  const ref = clockRef.value;
+  cfg.xBaseKey = ref != null ? `uhrzeit:${ref}` : "zeit";
+  if (ref != null) {
+    cfg.xFormat = (val) => formatClockTime(val + ref, true);
+    const mainCo = mtStore.parsed?.clockSec?.length && mtStore.parsed?.time?.length
+      ? mtStore.parsed.clockSec[0] - mtStore.parsed.time[0]
+      : null;
+    cfg.markerOffset = mainCo != null ? mainCo - ref : null;
+  } else {
+    cfg.markerOffset = 0;
+  }
+  return cfg;
 }
 
 // One config per series for the "Gestapelt" view — same data as the
@@ -946,7 +977,7 @@ function filteredStackedConfig(s, f) {
       filtered = rawY;
     }
     const d = downsample(filtered, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
-    const off = s.offsetSec || 0;
+    const off = (s.offsetSec || 0) + xShift(s);
     const points = d.rx.map((x, i) => ({
       x: x + off,
       y: d.ry[i],
@@ -954,9 +985,8 @@ function filteredStackedConfig(s, f) {
     }));
 
     const useClock = xAxisMode.value === "uhrzeit";
-    const clockOffset = useClock ? clockOffsetFor(s) : null;
 
-    return buildLineChartConfig({
+    return axisExtras(buildLineChartConfig({
       datasets: [{
         label: `${s.signal.name} gefiltert [${s.signal.unit || "-"}]`,
         data: points,
@@ -967,14 +997,9 @@ function filteredStackedConfig(s, f) {
       }],
       parsing: false,
       xTitle: useClock ? "Uhrzeit" : "Zeit [s]",
-      xScale: {
-        type: "linear",
-        ticks: clockOffset != null
-          ? { callback: (val) => formatClockTime(val + clockOffset) }
-          : {},
-      },
+      xScale: { type: "linear", ticks: clockTicks() },
       yTitle: s.signal.unit || "Wert",
-    });
+    }));
   };
 }
 
@@ -1042,7 +1067,7 @@ function mergedStackedConfig(members) {
       const f = mtStore.compareFiles.find((cf) => cf.id === s.fileId);
       const useFilter = !!f?.useFilter;
       const filterOnly = !!f?.filterOnly;
-      const off = s.offsetSec || 0;
+      const off = (s.offsetSec || 0) + xShift(s);
       const axisId = multiAxis ? `y${i}` : (s.useSecondAxis ? "y1" : "y");
 
       if (!useFilter || !filterOnly) {
@@ -1087,7 +1112,6 @@ function mergedStackedConfig(members) {
     });
 
     const useClock = xAxisMode.value === "uhrzeit";
-    const clockOffset = useClock ? clockOffsetFor(members[0]) : null;
 
     const extraScales = {};
     if (multiAxis) {
@@ -1107,18 +1131,15 @@ function mergedStackedConfig(members) {
       };
     }
 
-    return buildLineChartConfig({
+    return axisExtras(buildLineChartConfig({
       datasets,
       parsing: false,
       xTitle: useClock ? "Uhrzeit" : "Zeit [s]",
-      xScale: {
-        type: "linear",
-        ticks: clockOffset != null ? { callback: (val) => formatClockTime(val + clockOffset) } : {},
-      },
+      xScale: { type: "linear", ticks: clockTicks() },
       yTitle: "Wert",
       yScale: multiAxis ? { display: false } : {},
       extraScales,
-    });
+    }));
   };
 }
 
@@ -1128,7 +1149,7 @@ function stackedConfig(s) {
   return (peakMode, exactMode = false) => {
     const y = s.signal.data.map((v) => (v == null ? null : v));
     const d = downsample(y, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
-    const off = s.offsetSec || 0;
+    const off = (s.offsetSec || 0) + xShift(s);
     const points = d.rx.map((x, i) => ({
       x: x + off,
       y: d.ry[i],
@@ -1136,9 +1157,8 @@ function stackedConfig(s) {
     }));
 
     const useClock = xAxisMode.value === "uhrzeit";
-    const clockOffset = useClock ? clockOffsetFor(s) : null;
 
-    return buildLineChartConfig({
+    return axisExtras(buildLineChartConfig({
       datasets: [{
         label: `${s.signal.name} [${s.signal.unit || "-"}]`,
         data: points,
@@ -1149,14 +1169,9 @@ function stackedConfig(s) {
       }],
       parsing: false,
       xTitle: useClock ? "Uhrzeit" : "Zeit [s]",
-      xScale: {
-        type: "linear",
-        ticks: clockOffset != null
-          ? { callback: (val) => formatClockTime(val + clockOffset) }
-          : {},
-      },
+      xScale: { type: "linear", ticks: clockTicks() },
       yTitle: s.signal.unit || "Wert",
-    });
+    }));
   };
 }
 const signalGroups = ref(groupsApi.listGroups());
@@ -1492,8 +1507,9 @@ const overlayConfig = computed(() => {
       const y = s.signal.data.map((v) => (v == null ? null : v));
       const d = downsample(y, s.time, exactMode ? "exact" : (peakMode ? "minmax" : "simple"), 800);
       const off = s.offsetSec || 0;
+      const shift = xShift(s);
       const points = d.rx.map((x, j) => ({
-        x: x + off,
+        x: x + off + shift,
         y: d.ry[j],
         clock: s.clockSec ? s.clockSec[d.indices[j]] : null,
       }));
@@ -1512,7 +1528,6 @@ const overlayConfig = computed(() => {
     });
 
     const useClock = xAxisMode.value === "uhrzeit";
-    const clockOffset = useClock ? clockOffsetFor(series[0]) : null;
 
     const extraScales = {};
     if (multiAxis) {
@@ -1536,22 +1551,17 @@ const overlayConfig = computed(() => {
       };
     }
 
-    return buildLineChartConfig({
+    return axisExtras(buildLineChartConfig({
       datasets,
       parsing: false,
       xTitle: useClock ? "Uhrzeit" : "Zeit [s]",
-      xScale: {
-        type: "linear",
-        ticks: clockOffset != null
-          ? { callback: (val) => formatClockTime(val + clockOffset) }
-          : {},
-      },
+      xScale: { type: "linear", ticks: clockTicks() },
       yTitle: "Wert",
       // buildLineChartConfig always sets up a "y" scale — hide it in
       // multi-axis mode since no dataset references it.
       yScale: multiAxis ? { display: false } : {},
       extraScales,
-    });
+    }));
   };
 });
 

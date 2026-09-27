@@ -96,7 +96,7 @@ export function drawCursorTable(doc, cursors, x, y, width, xUnit) {
     doc.text(c.label, x + 3.5, cy);
     doc.setFont(undefined, "normal");
     doc.setTextColor(40);
-    doc.text(`x = ${formatCursorNumber(c.x)} ${xUnit || ""}`.trim(), x + 11, cy);
+    doc.text(c.xLabel ? `x = ${c.xLabel}` : `x = ${formatCursorNumber(c.x)} ${xUnit || ""}`.trim(), x + 11, cy);
     const lines = doc.splitTextToSize(rowText(c.series), width - 38);
     doc.setTextColor(80);
     doc.text(lines, x + 38, cy);
@@ -107,7 +107,7 @@ export function drawCursorTable(doc, cursors, x, y, width, xUnit) {
     doc.setFont(undefined, "bold");
     doc.text(d.label, x + 3.5, cy);
     doc.setFont(undefined, "normal");
-    doc.text(`dx = ${signed(d.dx)} ${xUnit || ""}`.trim(), x + 15, cy);
+    doc.text(`dx = ${signed(d.dx)} ${xUnit || "s"}`.trim(), x + 15, cy);
     const lines = doc.splitTextToSize(deltaText(d.series), width - 38);
     doc.setTextColor(80);
     doc.text(lines, x + 38, cy);
@@ -145,7 +145,9 @@ export function drawRangeTable(doc, ranges, x, y, width, xUnit, maxY = Infinity)
     doc.setFont(undefined, "normal");
     doc.setTextColor(110);
     const lo = Math.min(r.a, r.b), hi = Math.max(r.a, r.b);
-    doc.text(`${formatCursorNumber(lo)} … ${formatCursorNumber(hi)}${unit}   ·   dx = ${formatCursorNumber(r.dx)}${unit}`, x + 30, cy + 3.5);
+    const loT = r.aText || `${formatCursorNumber(lo)}${unit}`;
+    const hiT = r.bText || `${formatCursorNumber(hi)}${unit}`;
+    doc.text(`${loT} … ${hiT}   ·   dx = ${formatCursorNumber(r.dx)}${unit || " s"}`, x + 30, cy + 3.5);
     cy += 5;
     doc.setFontSize(7);
     doc.setTextColor(120);
