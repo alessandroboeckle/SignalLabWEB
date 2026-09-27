@@ -9,6 +9,27 @@
     </div>
     <p class="text-medium-emphasis mb-6">Plot als Bild speichern oder PDF-Report erstellen</p>
 
+    <!-- All Anzeige plots in one PDF — shown whenever the Anzeige has
+         content, even if no single file is loaded here (the per-signal
+         export below needs one, this doesn't). -->
+    <v-card v-if="mtStore.compareFiles.length" variant="outlined" rounded="lg" class="mb-4 chart-popover">
+      <div class="popover-head">
+        <v-icon size="20" color="primary">mdi-file-pdf-box</v-icon>
+        <div class="flex-grow-1">
+          <div class="popover-title">Anzeige komplett als PDF</div>
+          <div class="popover-sub">Alle Plots der Anzeige in einem Dokument — inkl. Zoom, Marker und Cursor-Werten</div>
+        </div>
+      </div>
+      <div class="pa-4">
+        <AnzeigePdfExportForm
+          :fields="exportFields.filter((f) => f.label.trim())"
+          show-navigate
+          show-list
+          @navigate="$emit('navigate', $event)"
+        />
+      </div>
+    </v-card>
+
     <EmptyState
       v-if="!mtStore.parsed"
       title="Keine Messdatei geladen"
@@ -257,6 +278,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useReportSettingsStore } from "../../stores/reportSettingsStore.js";
+import AnzeigePdfExportForm from "./AnzeigePdfExportForm.vue";
 import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";

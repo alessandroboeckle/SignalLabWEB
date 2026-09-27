@@ -430,6 +430,7 @@ const sections = [
     page: "mt-export",
     blocks: [
       { p: "Export als PNG, PDF, CSV oder XLSX — inklusive optionaler Zusatzspalten (AVG, RMS, Ableitung, Integral). Auch als Batch über mehrere Dateien hinweg möglich (Export-Seite in der Import-Ansicht)." },
+      { p: "„Anzeige komplett als PDF“ (Export-Seite oder Button „Als PDF“ direkt in der Anzeige): alle Plots der Anzeige in einem Dokument, jeweils so wie sie gerade angezeigt werden — mit Zoom, Markern und Cursor. Unter jedem Plot stehen die Cursor-Positionen, die Werte aller Signale dort und die Differenzen zwischen aufeinanderfolgenden Cursorn. Layout wahlweise 1 Plot pro Seite (quer) oder 2 pro Seite (hoch)." },
     ],
   },
   {

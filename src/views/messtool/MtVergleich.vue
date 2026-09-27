@@ -398,6 +398,26 @@
 
         <v-spacer></v-spacer>
 
+        <v-menu v-model="pdfMenuOpen" :close-on-content-click="false" location="bottom end" offset="6">
+          <template #activator="{ props: pdfMenuProps }">
+            <v-btn v-bind="pdfMenuProps" size="small" variant="outlined" prepend-icon="mdi-file-pdf-box">
+              Als PDF
+            </v-btn>
+          </template>
+          <v-card width="340" class="chart-popover">
+            <div class="popover-head">
+              <v-icon size="18" color="primary">mdi-file-pdf-box</v-icon>
+              <div>
+                <div class="popover-title">Alle Plots als PDF</div>
+                <div class="popover-sub">inkl. Zoom, Marker und Cursor</div>
+              </div>
+            </div>
+            <div class="pa-4">
+              <AnzeigePdfExportForm @done="pdfMenuOpen = false" />
+            </div>
+          </v-card>
+        </v-menu>
+
         <v-menu :close-on-content-click="false">
           <template #activator="{ props: menuProps }">
             <v-btn v-bind="menuProps" size="small" variant="outlined" prepend-icon="mdi-view-grid-outline">
@@ -473,7 +493,7 @@
            compared directly in the frequency domain too, not just time. -->
       <template v-if="showFrequencyResponse">
         <v-progress-linear v-if="freqComputing" indeterminate color="secondary" class="mb-2"></v-progress-linear>
-        <ChartCard
+        <ChartCard export-group="anzeige"
           title="Frequenzgang — Amplitude (FFT)"
           :config="freqAmplitudeConfig"
           :height="260"
@@ -481,7 +501,7 @@
           x-log-default
           class="mb-4"
         />
-        <ChartCard
+        <ChartCard export-group="anzeige"
           title="Frequenzgang — Phase (FFT)"
           :config="freqPhaseConfig"
           :height="260"
@@ -492,7 +512,7 @@
       </template>
 
       <!-- Overlay chart -->
-      <ChartCard v-if="displayMode === 'overlay'" title="Überlagerte Signale" :config="overlayConfig" :height="bigMode ? 700 : 380" />
+      <ChartCard export-group="anzeige" v-if="displayMode === 'overlay'" title="Überlagerte Signale" :config="overlayConfig" :height="bigMode ? 700 : 380" />
 
       <!-- Stacked individual charts -->
       <template v-else>
@@ -503,7 +523,7 @@
           :cols="12"
           :md="fullWidthPlots ? 12 : 6"
         >
-        <ChartCard
+        <ChartCard export-group="anzeige"
           :title="item.title"
           :config="item.config"
           :height="bigMode ? 600 : 260"
@@ -711,6 +731,7 @@ import { friendlyError } from "../../utils/friendlyError.js";
 import { useSignalMergeGroups } from "../../composables/useSignalMergeGroups.js";
 import { buildLineChartConfig, emptyLineChartConfig } from "../../utils/lineChartConfig.js";
 import ChartCard from "./ChartCard.vue";
+import AnzeigePdfExportForm from "./AnzeigePdfExportForm.vue";
 import HelpIconButton from "../../components/HelpIconButton.vue";
 import MtQuickNav from "./MtQuickNav.vue";
 
@@ -754,6 +775,7 @@ const syncZoom = ref(true); // zoom/pan on one Gestapelt chart applies to all of
 const axisMode = ref("shared"); // "shared" | "multi"
 
 const showFrequencyResponse = ref(false);
+const pdfMenuOpen = ref(false);
 
 // FFT (Hann window) of every currently compared signal's full-resolution
 // data — NOT the downsampled data the time-domain charts use, since

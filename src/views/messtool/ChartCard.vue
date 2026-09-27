@@ -1,5 +1,5 @@
 <template>
-  <v-card variant="outlined" rounded="lg" class="mb-4">
+  <v-card ref="rootEl" variant="outlined" rounded="lg" class="mb-4">
     <v-card-title class="text-subtitle-1 d-flex align-center flex-wrap ga-2">
       {{ title }}
       <v-spacer></v-spacer>
@@ -453,6 +453,7 @@ import { subscribeCursorSync, broadcastCursorSync } from "../../composables/useC
 import { formatClockTime } from "../../utils/messtoolParser.js";
 import { interpolateDatasetsAtX } from "../../utils/interpolateDatasetsAtX.js";
 import { showUndoToast } from "../../composables/useToast.js";
+import { registerExportChart } from "../../composables/useChartExportRegistry.js";
 import {
   xValueAtEvent,
   xValueToPixel,
@@ -500,6 +501,9 @@ const props = defineProps({
   xAxis: { type: String, default: "time" },
   // Start frequency charts with a logarithmic x-axis (Bode plots).
   xLogDefault: { type: Boolean, default: false },
+  // Registers this chart for a combined export (e.g. "anzeige" → every
+  // plot on the Anzeige page into one PDF, see useChartExportRegistry).
+  exportGroup: { type: String, default: null },
 });
 
 const isTimeAxis = computed(() => props.xAxis !== "frequency");
@@ -1037,8 +1041,8 @@ const overlayPlugins = () => [cursorPlugin, markerPlugin, outlierPlugin, playhea
 // — unreadable once the card itself goes dark in dark mode. Inject
 // theme-aware colors into whatever scales/legend the page's own config
 // already defines, without touching the text/labels it set.
-function applyThemeColors(cfg) {
-  const isDark = theme.global.current.value.dark;
+function applyThemeColors(cfg, forceLight = false) {
+  const isDark = !forceLight && theme.global.current.value.dark;
   const textColor = isDark ? "#E2E8F0" : "#334155";
   // Grid lines were a fairly generic neutral grey — a faint cyan tint
   // instead ties the chart canvas itself back to the same "instrument
@@ -1070,7 +1074,7 @@ function applyThemeColors(cfg) {
 }
 
 // Shared interaction + zoom + tooltip options merged into every chart.
-function withInteractions(cfg) {
+function withInteractions(cfg, { forExport = false } = {}) {
   cfg.options = cfg.options || {};
   cfg.options.maintainAspectRatio = false;
 
@@ -1120,7 +1124,7 @@ function withInteractions(cfg) {
     cfg.options.plugins.tooltip || {},
   );
 
-  applyThemeColors(cfg);
+  applyThemeColors(cfg, forExport);
 
   // Optional log-scale y-axis (see toggleYLog below) — applied to every
   // y-axis the page's own config defines (y, y1, ...), never touching x
@@ -1236,6 +1240,12 @@ function onIncomingCursorAction(action, sourceId) {
       cursors.value = cursors.value.filter((c) => c.id !== action.id);
     } else if (action.type === "clear") {
       cursors.value = [];
+    } else if (action.type === "sync") {
+      // Joined a group that already has cursors (see useChartCursorSync).
+      cursorMode.value = !!action.mode;
+      if (action.mode) markerMode.value = false;
+      cursors.value = (action.cursors || []).map((c) => ({ ...c }));
+      compareSelection.value = [];
     } else if (action.type === "mode") {
       cursorMode.value = action.active;
       if (action.active) markerMode.value = false;
@@ -1346,6 +1356,102 @@ onMounted(async () => {
   buildCursorRows();
 });
 
+// ---- Export rendering -------------------------------------------------
+// Draws this chart once more on an off-screen canvas, independent of the
+// on-screen one: always light theme (readable on paper even when the app
+// is in dark mode), fixed size/resolution, and it also works while the
+// page itself is hidden (another tab active → on-screen canvas is 0 px).
+// Carries over what you currently see: x zoom (and y zoom if the Y-zoom
+// mode is on), log axes, markers and all active cursors — plus the
+// cursor values per series for a table under the plot.
+const whiteBackgroundPlugin = {
+  id: "exportWhiteBackground",
+  beforeDraw(chart) {
+    const { ctx, width, height } = chart;
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  },
+};
+
+async function renderForExport({ width = 1100, height = 520, pixelRatio = 3 } = {}) {
+  const live = inlineChart || fsChart;
+  const cfg = withInteractions(props.config(peakMode.value, exactMode.value), { forExport: true });
+  cfg.options.responsive = false;
+  cfg.options.maintainAspectRatio = false;
+  cfg.options.animation = false;
+  cfg.options.devicePixelRatio = pixelRatio;
+  if (cfg.options.plugins) {
+    cfg.options.plugins.tooltip = { enabled: false };
+    delete cfg.options.plugins.zoom;
+  }
+  const xs = live?.scales?.x;
+  if (xs && cfg.options.scales?.x && Number.isFinite(xs.min) && Number.isFinite(xs.max)) {
+    cfg.options.scales.x.min = xs.min;
+    cfg.options.scales.x.max = xs.max;
+  }
+  if (yZoomMode.value && live) {
+    for (const key of Object.keys(cfg.options.scales || {})) {
+      if (key === "x") continue;
+      const ls = live.scales?.[key];
+      if (ls && Number.isFinite(ls.min) && Number.isFinite(ls.max)) {
+        cfg.options.scales[key].min = ls.min;
+        cfg.options.scales[key].max = ls.max;
+      }
+    }
+  }
+  cfg.plugins = [whiteBackgroundPlugin, ...[cursorPlugin, markerPlugin, outlierPlugin].map(safePlugin)];
+
+  // Logical size = the size fonts/lines are laid out for; Chart.js
+  // multiplies the backing store by devicePixelRatio itself for sharpness.
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  let chart = null;
+  try {
+    chart = new Chart(canvas.getContext("2d"), cfg);
+    const cursorList = cursorMode.value
+      ? cursors.value
+          .map((c, i) => ({ c, i }))
+          .filter(({ c }) => c.active)
+          .map(({ c, i }) => ({
+            label: `C${i + 1}`,
+            color: CURSOR_COLORS[i % CURSOR_COLORS.length],
+            x: c.x,
+            series: interpolateDatasetsAtX(chart, c.x).map((p) => ({ label: p.label, value: p.value })),
+          }))
+      : [];
+    return {
+      title: props.title,
+      xUnit: xUnit.value,
+      image: chart.toBase64Image("image/png", 1),
+      width,
+      height,
+      cursors: cursorList,
+    };
+  } finally {
+    if (chart) chart.destroy();
+  }
+}
+
+let unregisterExport = null;
+const rootEl = ref(null);
+watch(() => props.exportGroup, (group) => {
+  if (unregisterExport) { unregisterExport(); unregisterExport = null; }
+  if (group) {
+    unregisterExport = registerExportChart({
+      id: syncInstanceId,
+      group,
+      el: () => rootEl.value?.$el || null,
+      title: () => props.title,
+      cursorCount: () => (cursorMode.value ? cursors.value.filter((c) => c.active).length : 0),
+      render: renderForExport,
+    });
+  }
+}, { immediate: true });
+
 // Re-subscribe whenever these props change, not just once at mount —
 // the toggle switches on the Anzeige page are flipped *after* the charts
 // are already showing, so a mount-only subscription would silently never
@@ -1361,6 +1467,7 @@ watch(() => props.cursorSyncGroup, (group) => {
 }, { immediate: true });
 
 onBeforeUnmount(() => {
+  if (unregisterExport) unregisterExport();
   if (playRafId) cancelAnimationFrame(playRafId);
   if (unsubscribeZoomSync) unsubscribeZoomSync();
   if (unsubscribeCursorSync) unsubscribeCursorSync();
@@ -1368,7 +1475,7 @@ onBeforeUnmount(() => {
   if (fsChart) fsChart.destroy();
 });
 
-defineExpose({ rebuild: buildInline });
+defineExpose({ rebuild: buildInline, renderForExport });
 </script>
 
 <style scoped>
