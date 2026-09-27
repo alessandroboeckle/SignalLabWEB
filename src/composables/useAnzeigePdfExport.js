@@ -8,10 +8,13 @@ import { useExportCharts } from "./useChartExportRegistry.js";
 import { buildChartsPdf } from "../utils/chartsPdf.js";
 import { useMesstoolStore } from "../stores/messtoolStore.js";
 import { useReportSettingsStore } from "../stores/reportSettingsStore.js";
+import { useAuthStore } from "../stores/authStore.js";
+import { usernameFromEmail } from "../utils/formatUsername.js";
 
 export function useAnzeigePdfExport() {
   const mtStore = useMesstoolStore();
   const reportSettings = useReportSettingsStore();
+  const auth = useAuthStore();
   const charts = useExportCharts("anzeige");
   const building = ref(false);
   const progress = ref(0);
@@ -41,6 +44,7 @@ export function useAnzeigePdfExport() {
         logoDataUrl: reportSettings.logoDataUrl,
         logoAspect: reportSettings.logoAspect,
         fields: fields ?? (reportSettings.defaultFields || []),
+        createdBy: usernameFromEmail(auth.user?.email),
         onProgress: (f) => { progress.value = Math.round(f * 100); },
       });
       const name = (fileName || "").trim().replace(/\.pdf$/i, "") || defaultFileName();

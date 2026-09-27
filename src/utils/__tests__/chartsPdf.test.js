@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cursorDeltas, formatCursorNumber } from "../chartsPdf.js";
+import { cursorDeltas, formatCursorNumber, createdByLine } from "../chartsPdf.js";
 
 describe("chartsPdf helpers", () => {
   it("computes consecutive cursor deltas per shared series", () => {
@@ -24,5 +24,15 @@ describe("chartsPdf helpers", () => {
     expect(formatCursorNumber(123456.78)).toBe("123456.8");
     expect(formatCursorNumber(0.0000123)).toBe("1.230e-5");
     expect(formatCursorNumber(null)).toBe("–");
+  });
+});
+
+describe("createdByLine", () => {
+  it("names the exporting user", () => {
+    expect(createdByLine("alessandro.boeckle")).toBe("Erstellt von SignalLab – alessandro.boeckle");
+  });
+  it("falls back without a user", () => {
+    expect(createdByLine("")).toBe("Erstellt mit SignalLab");
+    expect(createdByLine(null)).toBe("Erstellt mit SignalLab");
   });
 });

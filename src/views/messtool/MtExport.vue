@@ -279,6 +279,9 @@ import EmptyState from "../../components/EmptyState.vue";
 import { useMesstoolStore } from "../../stores/messtoolStore.js";
 import { useReportSettingsStore } from "../../stores/reportSettingsStore.js";
 import AnzeigePdfExportForm from "./AnzeigePdfExportForm.vue";
+import { createdByLine } from "../../utils/chartsPdf.js";
+import { useAuthStore } from "../../stores/authStore.js";
+import { usernameFromEmail } from "../../utils/formatUsername.js";
 import { showToast } from "../../composables/useToast.js";
 import { useSignalNavigationShortcuts } from "../../composables/useSignalNavigation.js";
 import * as A from "../../utils/messtoolAnalysis.js";
@@ -294,6 +297,7 @@ defineEmits(["navigate"]);
 
 const mtStore = useMesstoolStore();
 const reportSettings = useReportSettingsStore();
+const auth = useAuthStore();
 
 // Starts as the team's default fields (Admin → Report-Vorlage), fully
 // editable/removable/extendable here without touching that shared
@@ -696,7 +700,7 @@ async function buildReportPdf(s, t, fileLabel, { showMarkers = false, logoDataUr
 
   doc.setFontSize(8);
   doc.setTextColor(150);
-  doc.text("Erstellt mit Signal Lab – Messtool", margin, 287);
+  doc.text(createdByLine(usernameFromEmail(auth.user?.email)), margin, 287);
 
   return doc;
 }

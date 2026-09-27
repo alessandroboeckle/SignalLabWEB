@@ -115,6 +115,12 @@ function drawCursorTable(doc, cursors, x, y, width, xUnit) {
   }
 }
 
+// Footer credit: who exported this — "Erstellt von SignalLab – <user>".
+export function createdByLine(user) {
+  const u = String(user || "").trim();
+  return u ? `Erstellt von SignalLab – ${u}` : "Erstellt mit SignalLab";
+}
+
 // Grid for n plots per page: side by side in 2 columns once they'd get
 // too flat stacked (≥3 on landscape, ≥5 on portrait), otherwise stacked.
 export function pdfGrid(perPage, orientation) {
@@ -136,6 +142,7 @@ export async function buildChartsPdf(charts, {
   logoDataUrl = null,
   logoAspect = null,
   fields = [],
+  createdBy = "",
   onProgress = null,
 } = {}) {
   const { default: jsPDF } = await import("jspdf");
@@ -216,7 +223,7 @@ export async function buildChartsPdf(charts, {
     doc.setPage(p);
     doc.setFontSize(7.5);
     doc.setTextColor(150);
-    doc.text("Erstellt mit Signal Lab – Messtool", margin, pageH - 5);
+    doc.text(createdByLine(createdBy), margin, pageH - 5);
     doc.text(`Seite ${p} / ${pages}`, pageW - margin, pageH - 5, { align: "right" });
   }
   return doc;

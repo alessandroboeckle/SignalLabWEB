@@ -400,8 +400,19 @@
 
         <v-menu v-model="pdfMenuOpen" :close-on-content-click="false" location="bottom end" offset="6">
           <template #activator="{ props: pdfMenuProps }">
-            <v-btn v-bind="pdfMenuProps" size="small" variant="outlined" prepend-icon="mdi-file-pdf-box">
-              Als PDF
+            <!-- Solid + "Exportieren" wording + download icon, so it reads
+                 as an action that produces a file — not as one more view
+                 option like its outlined neighbour "Anzeigeoptionen". -->
+            <v-btn
+              v-bind="pdfMenuProps"
+              size="small"
+              color="primary"
+              variant="flat"
+              prepend-icon="mdi-file-download-outline"
+              :append-icon="pdfMenuOpen ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+              class="export-trigger"
+            >
+              PDF exportieren
             </v-btn>
           </template>
           <v-card width="384" class="chart-popover">
@@ -1588,6 +1599,9 @@ onBeforeUnmount(() => {
 .add-files-card.dragging .drop-strip {
   border-color: rgb(var(--v-theme-primary));
   background: rgba(var(--v-theme-primary), 0.04);
+}
+.export-trigger {
+  font-weight: 600;
 }
 .cloud-switch {
   cursor: default;
