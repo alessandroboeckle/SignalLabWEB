@@ -404,7 +404,7 @@
               Als PDF
             </v-btn>
           </template>
-          <v-card width="340" class="chart-popover">
+          <v-card width="384" class="chart-popover">
             <div class="popover-head">
               <v-icon size="18" color="primary">mdi-file-pdf-box</v-icon>
               <div>

@@ -3,8 +3,7 @@
 // with its title, and — if cursors were set — a compact table of the
 // cursor positions and every series' value there, right under the plot.
 //
-// perPage 1 → A4 landscape, one large plot per page.
-// perPage 2 → A4 portrait, two plots stacked per page.
+// Page: A4 portrait or landscape, 1–12 plots per page (see pdfGrid).
 
 function fitLogo(doc, logoDataUrl, logoAspect, xRight, y) {
   if (!logoDataUrl) return;
@@ -116,20 +115,36 @@ function drawCursorTable(doc, cursors, x, y, width, xUnit) {
   }
 }
 
-export async function buildChartsPdf(items, {
+// Grid for n plots per page: side by side in 2 columns once they'd get
+// too flat stacked (≥3 on landscape, ≥5 on portrait), otherwise stacked.
+export function pdfGrid(perPage, orientation) {
+  const n = Math.max(1, Math.min(12, Math.round(perPage) || 1));
+  const landscape = orientation === "landscape";
+  const cols = (landscape && n >= 3) || (!landscape && n >= 5) ? 2 : 1;
+  return { n, cols, rows: Math.ceil(n / cols) };
+}
+
+// charts: [{ render({width, height}) → Promise<{title, image, width,
+// height, cursors, xUnit}>, cursorCount() }]. Each chart is rendered at
+// exactly the aspect ratio of its slot on the page, so plots fill their
+// cell whatever the layout (orientation × plots per page).
+export async function buildChartsPdf(charts, {
   title = "Signal Lab – Anzeige",
   subtitle = "",
   perPage = 1,
+  orientation = "landscape",
   logoDataUrl = null,
   logoAspect = null,
   fields = [],
+  onProgress = null,
 } = {}) {
   const { default: jsPDF } = await import("jspdf");
-  const landscape = perPage === 1;
-  const doc = new jsPDF({ orientation: landscape ? "landscape" : "portrait", unit: "mm", format: "a4" });
+  const { n, cols, rows } = pdfGrid(perPage, orientation);
+  const doc = new jsPDF({ orientation: orientation === "portrait" ? "portrait" : "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 12;
+  const gap = 6;
   const contentW = pageW - 2 * margin;
   const created = new Date().toLocaleString("de-CH");
   const fieldText = fields.filter((f) => f.label?.trim()).map((f) => `${f.label.trim()}: ${f.value ?? ""}`).join("   ·   ");
@@ -156,32 +171,45 @@ export async function buildChartsPdf(items, {
     return y + 5;
   }
 
-  const pages = Math.max(1, Math.ceil(items.length / perPage));
+  const pages = Math.max(1, Math.ceil(charts.length / n));
   let top = header();
-  for (let i = 0; i < items.length; i++) {
-    const slotIndex = i % perPage;
-    if (i > 0 && slotIndex === 0) {
+  for (let i = 0; i < charts.length; i++) {
+    const slot = i % n;
+    if (i > 0 && slot === 0) {
       doc.addPage();
       top = header();
     }
     const usableH = pageH - top - 10; // 10 mm footer
-    const slotH = usableH / perPage;
-    const y0 = top + slotIndex * slotH;
-    const item = items[i];
+    const slotW = (contentW - (cols - 1) * gap) / cols;
+    const slotH = (usableH - (rows - 1) * gap) / rows;
+    const x0 = margin + (slot % cols) * (slotW + gap);
+    const y0 = top + Math.floor(slot / cols) * (slotH + gap);
 
-    doc.setFontSize(10.5);
+    // Estimated table height (cursor rows + delta rows) to size the render.
+    const cc = charts[i].cursorCount?.() || 0;
+    const tableEst = cc ? 7.5 + (2 * cc - 1) * 4.8 : 0;
+    const imgHmm = Math.max(22, slotH - 7 - tableEst - 2);
+    const pxPerMm = 4.2;
+    const item = await charts[i].render({
+      width: Math.round(slotW * pxPerMm),
+      height: Math.round(imgHmm * pxPerMm),
+    });
+
+    doc.setFontSize(cols > 1 || n > 2 ? 9 : 10.5);
     doc.setTextColor(30);
     doc.setFont(undefined, "bold");
-    doc.text(item.title || `Plot ${i + 1}`, margin, y0 + 4);
+    doc.text(doc.splitTextToSize(item.title || `Plot ${i + 1}`, slotW)[0], x0, y0 + 4);
     doc.setFont(undefined, "normal");
 
-    const tableH = cursorTableHeight(doc, item.cursors, contentW);
-    const maxImgH = slotH - 8 - tableH - 3;
+    const tableH = cursorTableHeight(doc, item.cursors, slotW);
+    const maxImgH = Math.max(18, slotH - 6 - tableH - 2);
     const aspect = item.width / item.height;
-    let imgW = contentW, imgH = imgW / aspect;
-    if (imgH > maxImgH) { imgH = Math.max(20, maxImgH); imgW = imgH * aspect; }
-    doc.addImage(item.image, "PNG", margin, y0 + 6, imgW, imgH, undefined, "FAST");
-    drawCursorTable(doc, item.cursors, margin, y0 + 6 + imgH + 1, contentW, item.xUnit);
+    let imgW = slotW, imgH = imgW / aspect;
+    if (imgH > maxImgH) { imgH = maxImgH; imgW = imgH * aspect; }
+    doc.addImage(item.image, "PNG", x0, y0 + 6, imgW, imgH, undefined, "FAST");
+    drawCursorTable(doc, item.cursors, x0, y0 + 6 + imgH + 1, slotW, item.xUnit);
+    onProgress?.((i + 1) / charts.length);
+    await new Promise((r) => setTimeout(r, 0)); // keep the UI responsive between plots
   }
 
   for (let p = 1; p <= pages; p++) {
